@@ -52,7 +52,7 @@
 //
 // RETURN CODES:
 //
-// All GFX functions return GfxResult (except void functions like gfxSetLogCallback)
+// All GFX functions return GfxResult
 //
 // Success codes (>= 0):
 //   GFX_RESULT_SUCCESS = 0      → Operation completed successfully
@@ -1852,7 +1852,7 @@ GFX_API GfxResult gfxQuerySetDestroy(GfxQuerySet querySet);
 // Logging function
 // Set a callback to receive log messages from the library
 // Pass NULL to callback to disable logging
-GFX_API void gfxSetLogCallback(GfxLogCallback callback, void* userData);
+GFX_API GfxResult gfxSetLogCallback(GfxLogCallback callback, void* userData);
 
 // Error handling
 // Convert a GfxResult code to a human-readable string

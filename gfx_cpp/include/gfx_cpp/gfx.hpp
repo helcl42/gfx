@@ -1714,14 +1714,14 @@ GFX_CPP_API std::shared_ptr<Instance> createInstance(const InstanceDescriptor& d
 // ============================================================================
 
 GFX_CPP_API Result loadBackend(Backend backend);
-GFX_CPP_API void unloadBackend(Backend backend);
+GFX_CPP_API Result unloadBackend(Backend backend);
 
 // ============================================================================
 // Utility Functions
 // ============================================================================
 
 GFX_CPP_API std::vector<std::string> enumerateInstanceExtensions(Backend backend);
-GFX_CPP_API void setLogCallback(LogCallback callback);
+GFX_CPP_API Result setLogCallback(LogCallback callback);
 GFX_CPP_API std::tuple<uint32_t, uint32_t, uint32_t> getVersion();
 
 namespace utils {

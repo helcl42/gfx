@@ -85,10 +85,11 @@ Result loadBackend(Backend backend)
     return cResultToCppResult(result);
 }
 
-void unloadBackend(Backend backend)
+Result unloadBackend(Backend backend)
 {
     GfxBackend cBackend = cppBackendToCBackend(backend);
-    gfxUnloadBackend(cBackend);
+    GfxResult result = gfxUnloadBackend(cBackend);
+    return cResultToCppResult(result);
 }
 
 std::vector<std::string> enumerateInstanceExtensions(Backend backend)
@@ -111,11 +112,12 @@ std::vector<std::string> enumerateInstanceExtensions(Backend backend)
 }
 
 // Global log callback storage (needed because gfxSetLogCallback requires a C function pointer)
-void setLogCallback(LogCallback callback)
+Result setLogCallback(LogCallback callback)
 {
     static LogCallback logCallback = callback;
+    GfxResult result{};
     if (callback) {
-        gfxSetLogCallback([](GfxLogLevel level, const char* message, void* userData) {
+        result = gfxSetLogCallback([](GfxLogLevel level, const char* message, void* userData) {
             (void)userData;
             if (logCallback) {
                 logCallback(cLogLevelToCppLogLevel(level), std::string(message));
@@ -123,8 +125,9 @@ void setLogCallback(LogCallback callback)
         },
             nullptr);
     } else {
-        gfxSetLogCallback(nullptr, nullptr);
+        result = gfxSetLogCallback(nullptr, nullptr);
     }
+    return cResultToCppResult(result);
 }
 
 std::tuple<uint32_t, uint32_t, uint32_t> getVersion()

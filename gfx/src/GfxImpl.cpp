@@ -1424,9 +1424,10 @@ DESTROY_FUNC(QuerySet, querySet)
 // Utility Functions
 // ============================================================================
 
-void gfxSetLogCallback(GfxLogCallback callback, void* userData)
+GfxResult gfxSetLogCallback(GfxLogCallback callback, void* userData)
 {
     gfx::common::Logger::instance().setCallback(callback, userData);
+    return GFX_RESULT_SUCCESS;
 }
 
 const char* gfxResultToString(GfxResult result)
