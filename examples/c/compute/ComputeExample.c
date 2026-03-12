@@ -1665,11 +1665,12 @@ static void render(ComputeApp* app)
     gfxRenderPassEncoderSetPipeline(renderPass, app->renderPipeline);
     gfxRenderPassEncoderSetBindGroup(renderPass, 0, frame->renderBindGroup, NULL, 0);
 
+    // Set viewport and scissor to match the actual swapchain extent
     GfxViewport viewport = {
         .x = 0.0f,
         .y = 0.0f,
-        .width = (float)app->windowWidth,
-        .height = (float)app->windowHeight,
+        .width = (float)app->swapchainInfo.extent.width,
+        .height = (float)app->swapchainInfo.extent.height,
         .minDepth = 0.0f,
         .maxDepth = 1.0f
     };
@@ -1677,7 +1678,7 @@ static void render(ComputeApp* app)
 
     GfxScissorRect scissor = {
         .origin = { 0, 0 },
-        .extent = { app->windowWidth, app->windowHeight }
+        .extent = { app->swapchainInfo.extent.width, app->swapchainInfo.extent.height }
     };
     gfxRenderPassEncoderSetScissorRect(renderPass, &scissor);
 

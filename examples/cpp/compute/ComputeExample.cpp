@@ -1302,8 +1302,10 @@ void ComputeApp::render()
             renderPassEncoder->setPipeline(renderPipeline);
             renderPassEncoder->setBindGroup(0, renderBindGroups[frameIndex]);
 
-            renderPassEncoder->setViewport({ 0.0f, 0.0f, static_cast<float>(windowWidth), static_cast<float>(windowHeight), 0.0f, 1.0f });
-            renderPassEncoder->setScissorRect({ 0, 0, windowWidth, windowHeight });
+            // Set viewport and scissor to match the actual swapchain extent
+            auto swapchainInfo = swapchain->getInfo();
+            renderPassEncoder->setViewport({ 0.0f, 0.0f, static_cast<float>(swapchainInfo.extent.width), static_cast<float>(swapchainInfo.extent.height), 0.0f, 1.0f });
+            renderPassEncoder->setScissorRect({ 0, 0, swapchainInfo.extent.width, swapchainInfo.extent.height });
 
             // Draw fullscreen quad (6 vertices, no buffers needed)
             renderPassEncoder->draw(6, 1, 0, 0);
