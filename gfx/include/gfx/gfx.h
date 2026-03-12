@@ -43,8 +43,8 @@
 // Special timeout value for infinite wait (used with gfxFenceWait, gfxSemaphoreWait)
 #define GFX_TIMEOUT_INFINITE UINT64_MAX
 
-// Special size value to map entire buffer from offset (used with gfxBufferMap)
-#define GFX_WHOLE_SIZE 0
+// Special size value to map entire buffer from offset (used with gfxBufferMap) Matches Vulkan's VK_WHOLE_SIZE convention
+#define GFX_WHOLE_SIZE UINT64_MAX
 
 // ============================================================================
 // ERROR HANDLING

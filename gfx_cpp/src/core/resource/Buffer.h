@@ -16,7 +16,7 @@ public:
 
     BufferInfo getInfo() const override;
     void* getNativeHandle() const override;
-    void* map(uint64_t offset = 0, uint64_t size = 0) override;
+    void* map(uint64_t offset = 0, uint64_t size = WholeSize) override;
     void unmap() override;
     void flushMappedRange(uint64_t offset, uint64_t size) override;
     void invalidateMappedRange(uint64_t offset, uint64_t size) override;

@@ -89,7 +89,7 @@ void* Buffer::map(uint64_t offset, uint64_t size)
     }
 
     uint64_t mapSize = size;
-    if (mapSize == 0) {
+    if (mapSize == UINT64_MAX) {
         mapSize = m_info.size - offset;
     }
 

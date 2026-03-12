@@ -215,8 +215,9 @@ namespace gfx {
 // Special timeout value for infinite wait (used with Fence::wait, Semaphore::wait)
 inline constexpr uint64_t TimeoutInfinite = UINT64_MAX;
 
-// Special size value to map entire buffer from offset (used with Buffer::write)
-inline constexpr uint64_t WholeSize = 0;
+// Special size value to map entire buffer from offset (used with Buffer::map)
+// Matches the C API's GFX_WHOLE_SIZE and Vulkan's VK_WHOLE_SIZE convention
+inline constexpr uint64_t WholeSize = UINT64_MAX;
 
 // ============================================================================
 // Core Enumerations
@@ -1455,7 +1456,7 @@ public:
 
     virtual BufferInfo getInfo() const = 0;
     virtual void* getNativeHandle() const = 0;
-    virtual void* map(uint64_t offset = 0, uint64_t size = 0) = 0;
+    virtual void* map(uint64_t offset = 0, uint64_t size = WholeSize) = 0;
     virtual void unmap() = 0;
     virtual void flushMappedRange(uint64_t offset, uint64_t size) = 0;
     virtual void invalidateMappedRange(uint64_t offset, uint64_t size) = 0;
