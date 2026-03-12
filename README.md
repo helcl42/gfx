@@ -178,11 +178,20 @@ Installs:
 #include <stdio.h>
 
 int main() {
+    GfxBackend backend = GFX_BACKEND_AUTO;
+
+    // Load a backend
+    GfxResult result = gfxLoadBackend(backend);
+    if (result != GFX_RESULT_SUCCESS) {
+        fprintf(stderr, "Failed to load backend: %s\n", gfxResultToString(result));
+        return -1;
+    }
+
     // Create instance with automatic backend selection
     GfxInstanceDescriptor instanceDesc = {
         .sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR,
         .pNext = NULL,
-        .backend = GFX_BACKEND_AUTO,
+        .backend = backend,
         .applicationName = "My Application",
         .applicationVersion = GFX_MAKE_VERSION(1, 0, 0),
         .enabledExtensions = (const char*[]){GFX_INSTANCE_EXTENSION_SURFACE},
@@ -190,7 +199,7 @@ int main() {
     };
     
     GfxInstance instance;
-    GfxResult result = gfxCreateInstance(&instanceDesc, &instance);
+    result = gfxCreateInstance(&instanceDesc, &instance);
     if (result != GFX_RESULT_SUCCESS) {
         fprintf(stderr, "Failed to create instance: %s\n", gfxResultToString(result));
         return -1;
@@ -210,8 +219,10 @@ int main() {
 
     // Cleanup
     gfxDeviceDestroy(device);
-    gfxAdapterDestroy(adapter);
     gfxInstanceDestroy(instance);
+
+    // Unload  backend
+    gfxUnloadBackend(backend);
     
     return 0;
 }
@@ -223,6 +234,14 @@ int main() {
 #include <iostream>
 
 int main() {
+    gfx::Backend backend = gfx::Backend::Auto;    
+
+    gfx::Result res = gfx::loadBackend(backend);
+    if(res != gfx::Result::Success) {
+        std::cerr << "Load backend failed " << std::endl;
+        return -1;
+    }
+
     try {
         // Create instance with RAII semantics
         gfx::InstanceDescriptor desc{};
@@ -244,6 +263,8 @@ int main() {
         std::cerr << "Error: " << e.what() << std::endl;
         return -1;
     }
+
+    gfx::unloadBackend(backend);
     
     return 0;
 }
@@ -419,6 +440,7 @@ ctest
 ./test/gfx/gfx_api_test                    # C API tests
 ./test/gfx/gfx_internal_test               # Internal implementation tests
 ./test/gfx/gfx_internal_vulkan_test        # Vulkan backend tests (if built)
+./test/gfx/gfx_internal_webgpu_test        # WebGPU backend tests (if built)
 ./test/gfx_cpp/gfx_cpp_api_test            # C++ API tests
 ./test/gfx_cpp/gfx_cpp_internal_test       # C++ wrapper tests
 
