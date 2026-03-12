@@ -63,17 +63,26 @@ static void logCallback(GfxLogLevel level, const char* message, void* userData)
     printf("[%s] %s\n", levelStr, message);
 }
 
+// Math types for improved API clarity and type safety
+typedef struct {
+    float x, y, z;
+} Vec3;
+
+typedef struct {
+    float m[16]; // Column-major 4x4 matrix
+} Mat4;
+
 // Vertex structure for cube
 typedef struct {
-    float position[3];
-    float texCoord[2];
+    Vec3 position;
+    Vec3 color;
 } Vertex;
 
 // Uniform buffer structure for transformations
 typedef struct {
-    float model[16]; // Model matrix
-    float view[16]; // View matrix
-    float projection[16]; // Projection matrix
+    Mat4 model; // Model matrix
+    Mat4 view; // View matrix
+    Mat4 projection; // Projection matrix
 } UniformData;
 
 // Application settings/configuration
@@ -207,14 +216,14 @@ static void* loadBinaryFile(const char* filepath, size_t* outSize);
 static void* loadTextFile(const char* filepath, size_t* outSize);
 
 // Matrix/Vector math function declarations
-static void matrixIdentity(float* matrix);
-static void matrixMultiply(float* result, const float* a, const float* b);
-static void matrixRotateX(float* matrix, float angle);
-static void matrixRotateY(float* matrix, float angle);
-static void matrixRotateZ(float* matrix, float angle);
-static void matrixPerspective(float* matrix, float fov, float aspect, float nearPlane, float farPlane, GfxBackend backend);
-static void matrixLookAt(float* matrix, float eyeX, float eyeY, float eyeZ, float centerX, float centerY, float centerZ, float upX, float upY, float upZ);
-static bool vectorNormalize(float* x, float* y, float* z);
+static void matrixIdentity(Mat4* matrix);
+static void matrixMultiply(Mat4* result, const Mat4* a, const Mat4* b);
+static void matrixRotateX(Mat4* matrix, float angle);
+static void matrixRotateY(Mat4* matrix, float angle);
+static void matrixRotateZ(Mat4* matrix, float angle);
+static void matrixPerspective(Mat4* matrix, float fov, float aspect, float nearPlane, float farPlane, GfxBackend backend);
+static void matrixLookAt(Mat4* matrix, const Vec3* eye, const Vec3* center, const Vec3* up);
+static bool vectorNormalize(Vec3* v);
 
 // The public functions called from main
 static bool init(CubeApp* app);
@@ -1537,8 +1546,8 @@ static bool createRenderPipeline(CubeApp* app)
         { .format = GFX_FORMAT_R32G32B32_FLOAT,
             .offset = offsetof(Vertex, position),
             .shaderLocation = 0 },
-        { .format = GFX_FORMAT_R32G32_FLOAT,
-            .offset = offsetof(Vertex, texCoord),
+        { .format = GFX_FORMAT_R32G32B32_FLOAT,
+            .offset = offsetof(Vertex, color),
             .shaderLocation = 1 }
     };
 
@@ -1642,29 +1651,29 @@ static void updateCube(CubeApp* app, int cubeIndex)
 
     // Create rotation matrices (combine X and Y rotations)
     // Each cube rotates slightly differently
-    float rotX[16], rotY[16], tempModel[16];
-    matrixRotateX(rotX, (app->rotationAngleX + cubeIndex * 30.0f) * M_PI / 180.0f);
-    matrixRotateY(rotY, (app->rotationAngleY + cubeIndex * 45.0f) * M_PI / 180.0f);
-    matrixMultiply(tempModel, rotY, rotX);
+    Mat4 rotX, rotY, tempModel;
+    matrixRotateX(&rotX, (app->rotationAngleX + cubeIndex * 30.0f) * M_PI / 180.0f);
+    matrixRotateY(&rotY, (app->rotationAngleY + cubeIndex * 45.0f) * M_PI / 180.0f);
+    matrixMultiply(&tempModel, &rotY, &rotX);
 
     // Position cubes side by side: left (-3, 0, 0), center (0, 0, 0), right (3, 0, 0)
-    float translation[16];
-    matrixIdentity(translation);
-    translation[12] = (cubeIndex - 1) * 3.0f; // x offset: -3, 0, 3
+    Mat4 translation;
+    matrixIdentity(&translation);
+    translation.m[12] = (cubeIndex - 1) * 3.0f; // x offset: -3, 0, 3
 
     // Apply translation after rotation: model = rotation * translation
     // This rotates in place, then translates to world position
-    matrixMultiply(uniforms.model, tempModel, translation);
+    matrixMultiply(&uniforms.model, &tempModel, &translation);
 
     // Create view matrix (camera positioned at 0, 0, 10 looking at origin)
-    matrixLookAt(uniforms.view,
-        0.0f, 0.0f, 10.0f, // eye position - pulled back to see all 3 cubes
-        0.0f, 0.0f, 0.0f, // look at point
-        0.0f, 1.0f, 0.0f); // up vector
+    Vec3 eye = { 0.0f, 0.0f, 10.0f }; // pulled back to see all 3 cubes
+    Vec3 center = { 0.0f, 0.0f, 0.0f }; // look at point
+    Vec3 up = { 0.0f, 1.0f, 0.0f }; // up vector
+    matrixLookAt(&uniforms.view, &eye, &center, &up);
 
     // Create perspective projection matrix
     float aspect = (float)app->swapchainInfo.extent.width / (float)app->swapchainInfo.extent.height;
-    matrixPerspective(uniforms.projection,
+    matrixPerspective(&uniforms.projection,
         45.0f * M_PI / 180.0f, // 45 degree FOV
         aspect,
         0.1f, // near plane
@@ -1792,143 +1801,145 @@ static void* loadTextFile(const char* filepath, size_t* outSize)
 }
 
 // Matrix math utility functions
-void matrixIdentity(float* matrix)
+void matrixIdentity(Mat4* matrix)
 {
-    memset(matrix, 0, 16 * sizeof(float));
-    matrix[0] = matrix[5] = matrix[10] = matrix[15] = 1.0f;
+    memset(matrix->m, 0, 16 * sizeof(float));
+    matrix->m[0] = matrix->m[5] = matrix->m[10] = matrix->m[15] = 1.0f;
 }
 
-void matrixMultiply(float* result, const float* a, const float* b)
+void matrixMultiply(Mat4* result, const Mat4* a, const Mat4* b)
 {
     float temp[16];
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
             temp[i * 4 + j] = 0;
             for (int k = 0; k < 4; k++) {
-                temp[i * 4 + j] += a[i * 4 + k] * b[k * 4 + j];
+                temp[i * 4 + j] += a->m[i * 4 + k] * b->m[k * 4 + j];
             }
         }
     }
-    memcpy(result, temp, sizeof(float) * 16);
+    memcpy(result->m, temp, sizeof(float) * 16);
 }
 
-void matrixRotateX(float* matrix, float angle)
+void matrixRotateX(Mat4* matrix, float angle)
 {
     float c = cosf(angle);
     float s = sinf(angle);
 
     matrixIdentity(matrix);
-    matrix[5] = c;
-    matrix[6] = -s;
-    matrix[9] = s;
-    matrix[10] = c;
+    matrix->m[5] = c;
+    matrix->m[6] = -s;
+    matrix->m[9] = s;
+    matrix->m[10] = c;
 }
 
-void matrixRotateY(float* matrix, float angle)
+void matrixRotateY(Mat4* matrix, float angle)
 {
     float c = cosf(angle);
     float s = sinf(angle);
 
     matrixIdentity(matrix);
-    matrix[0] = c;
-    matrix[2] = s;
-    matrix[8] = -s;
-    matrix[10] = c;
+    matrix->m[0] = c;
+    matrix->m[2] = s;
+    matrix->m[8] = -s;
+    matrix->m[10] = c;
 }
 
-void matrixRotateZ(float* matrix, float angle)
+void matrixRotateZ(Mat4* matrix, float angle)
 {
     float c = cosf(angle);
     float s = sinf(angle);
 
     matrixIdentity(matrix);
-    matrix[0] = c;
-    matrix[1] = -s;
-    matrix[4] = s;
-    matrix[5] = c;
+    matrix->m[0] = c;
+    matrix->m[1] = -s;
+    matrix->m[4] = s;
+    matrix->m[5] = c;
 }
 
-void matrixPerspective(float* matrix, float fov, float aspect, float nearPlane, float farPlane, GfxBackend backend)
+void matrixPerspective(Mat4* matrix, float fov, float aspect, float nearPlane, float farPlane, GfxBackend backend)
 {
-    memset(matrix, 0, 16 * sizeof(float));
+    memset(matrix->m, 0, 16 * sizeof(float));
 
     float f = 1.0f / tanf(fov / 2.0f);
 
-    matrix[0] = f / aspect;
+    matrix->m[0] = f / aspect;
     if (backend == GFX_BACKEND_VULKAN) {
-        matrix[5] = -f; // Invert Y for Vulkan
+        matrix->m[5] = -f; // Invert Y for Vulkan
     } else {
-        matrix[5] = f;
+        matrix->m[5] = f;
     }
-    matrix[10] = (farPlane + nearPlane) / (nearPlane - farPlane);
-    matrix[11] = -1.0f;
-    matrix[14] = (2.0f * farPlane * nearPlane) / (nearPlane - farPlane);
+    matrix->m[10] = (farPlane + nearPlane) / (nearPlane - farPlane);
+    matrix->m[11] = -1.0f;
+    matrix->m[14] = (2.0f * farPlane * nearPlane) / (nearPlane - farPlane);
 }
 
-void matrixLookAt(float* matrix, float eyeX, float eyeY, float eyeZ, float centerX, float centerY, float centerZ, float upX, float upY, float upZ)
+void matrixLookAt(Mat4* matrix, const Vec3* eye, const Vec3* center, const Vec3* up)
 {
     // Calculate forward vector
-    float fx = centerX - eyeX;
-    float fy = centerY - eyeY;
-    float fz = centerZ - eyeZ;
+    Vec3 forward = { center->x - eye->x, center->y - eye->y, center->z - eye->z };
 
     // Normalize forward vector
-    if (!vectorNormalize(&fx, &fy, &fz)) {
+    if (!vectorNormalize(&forward)) {
         matrixIdentity(matrix);
         return;
     }
 
     // Calculate right vector (forward cross up)
-    float rx = fy * upZ - fz * upY;
-    float ry = fz * upX - fx * upZ;
-    float rz = fx * upY - fy * upX;
+    Vec3 right = {
+        forward.y * up->z - forward.z * up->y,
+        forward.z * up->x - forward.x * up->z,
+        forward.x * up->y - forward.y * up->x
+    };
 
     // Normalize right vector (check if forward and up are parallel)
-    if (!vectorNormalize(&rx, &ry, &rz)) {
+    if (!vectorNormalize(&right)) {
         matrixIdentity(matrix);
         return;
     }
 
     // Calculate up vector (right cross forward)
-    float ux = ry * fz - rz * fy;
-    float uy = rz * fx - rx * fz;
-    float uz = rx * fy - ry * fx;
+    Vec3 upCorrect = {
+        right.y * forward.z - right.z * forward.y,
+        right.z * forward.x - right.x * forward.z,
+        right.x * forward.y - right.y * forward.x
+    };
 
     // Build view matrix
-    matrix[0] = rx;
-    matrix[1] = ux;
-    matrix[2] = -fx;
-    matrix[3] = 0.0f;
+    matrix->m[0] = right.x;
+    matrix->m[1] = upCorrect.x;
+    matrix->m[2] = -forward.x;
+    matrix->m[3] = 0.0f;
 
-    matrix[4] = ry;
-    matrix[5] = uy;
-    matrix[6] = -fy;
-    matrix[7] = 0.0f;
+    matrix->m[4] = right.y;
+    matrix->m[5] = upCorrect.y;
+    matrix->m[6] = -forward.y;
+    matrix->m[7] = 0.0f;
 
-    matrix[8] = rz;
-    matrix[9] = uz;
-    matrix[10] = -fz;
-    matrix[11] = 0.0f;
+    matrix->m[8] = right.z;
+    matrix->m[9] = upCorrect.z;
+    matrix->m[10] = -forward.z;
+    matrix->m[11] = 0.0f;
 
-    matrix[12] = -(rx * eyeX + ry * eyeY + rz * eyeZ);
-    matrix[13] = -(ux * eyeX + uy * eyeY + uz * eyeZ);
-    matrix[14] = fx * eyeX + fy * eyeY + fz * eyeZ;
-    matrix[15] = 1.0f;
+    matrix->m[12] = -(right.x * eye->x + right.y * eye->y + right.z * eye->z);
+    matrix->m[13] = -(upCorrect.x * eye->x + upCorrect.y * eye->y + upCorrect.z * eye->z);
+    matrix->m[14] = forward.x * eye->x + forward.y * eye->y + forward.z * eye->z;
+    matrix->m[15] = 1.0f;
 }
 
 // Normalize a 3D vector in place. Returns false if vector is too small to normalize.
-bool vectorNormalize(float* x, float* y, float* z)
+bool vectorNormalize(Vec3* v)
 {
     const float epsilon = 1e-6f;
-    float len = sqrtf((*x) * (*x) + (*y) * (*y) + (*z) * (*z));
+    float len = sqrtf(v->x * v->x + v->y * v->y + v->z * v->z);
 
     if (len < epsilon) {
         return false;
     }
 
-    *x /= len;
-    *y /= len;
-    *z /= len;
+    v->x /= len;
+    v->y /= len;
+    v->z /= len;
     return true;
 }
 
