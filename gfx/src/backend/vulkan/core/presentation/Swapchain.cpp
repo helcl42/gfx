@@ -91,7 +91,7 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
     vkCreateInfo.imageArrayLayers = 1;
     vkCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     vkCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    vkCreateInfo.preTransform = capabilities.currentTransform;
+    vkCreateInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     vkCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     vkCreateInfo.presentMode = m_info.presentMode;
     vkCreateInfo.clipped = VK_TRUE;
