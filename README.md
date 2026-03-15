@@ -24,7 +24,7 @@ A graphics library providing a low-level Vulkan-like API that works "identically
 | Windows x64   | ✅     | ✅     | [![Windows Build](https://github.com/helcl42/GFX/actions/workflows/windows.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/windows.yml)       |                              |
 | macOS         | ✅     | ✅     | [![macOS Build](https://github.com/helcl42/GFX/actions/workflows/macos.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/macos.yml)       | Vulkan via MoltenVK          |
 | iOS           | ✅     | ✅     | [![iOS Build](https://github.com/helcl42/GFX/actions/workflows/ios.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/ios.yml)       |                              |
-| Android       | ✅     | ✅     | [![Android Build](https://github.com/helcl42/GFX/actions/workflows/android.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/android.yml)        |                              |
+| Android       | ✅     | ✅     | [![Android Build](https://github.com/helcl42/GFX/actions/workflows/android.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/android.yml)        | Requires NDK r27+, API 26+   |
 | WebAssembly   | ❌     | ✅     | [![Web Build](https://github.com/helcl42/GFX/actions/workflows/web.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/web.yml)       | WebGPU only (via Emscripten) |
 
 ## Project Structure
@@ -154,6 +154,51 @@ python3 scripts/https_server.py build_web/web
 **Browser Requirements:**
 - Chrome/Edge 113+ with WebGPU enabled
 - Firefox Nightly with `dom.webgpu.enabled` flag
+
+### Android Build
+
+Build for Android using the Android NDK:
+
+**Requirements:**
+- Android NDK r27 or later (for C++20 `std::format` support)
+- CMake 3.22+
+- Ninja build system
+
+**Install NDK r27:**
+```bash
+# Using Android Studio SDK Manager:
+# Tools → SDK Manager → SDK Tools → NDK (r27.x.x)
+
+# Or via command line:
+sdkmanager --install "ndk;27.0.12077973"
+
+# Set environment variable:
+export ANDROID_NDK_ROOT=$HOME/Library/Android/sdk/ndk/27.0.12077973
+```
+
+**Build:**
+```bash
+# Using the build script (recommended):
+./scripts/build_android.sh arm64-v8a Release
+
+# Or manually with CMake:
+cmake -B build_android_arm64 \
+  -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
+  -DANDROID_ABI=arm64-v8a \
+  -DANDROID_PLATFORM=android-26 \
+  -DBUILD_VULKAN_BACKEND=ON \
+  -DBUILD_EXAMPLES=ON
+
+cmake --build build_android_arm64
+```
+
+**Output:**
+- `libgfx.so` - Core library
+- `libgfx_cpp.so` - C++ wrapper
+- `libcube_example_android_c.so` - Native example library
+
+**See `examples/platform/android/README.md` for APK packaging and deployment.**
 
 ### Installation
 ```bash

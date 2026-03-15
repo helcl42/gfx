@@ -1,0 +1,32 @@
+# Android Studio
+*.iml
+.gradle
+.idea
+local.properties
+.DS_Store
+
+# Build outputs
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx
+
+# Native libraries - copied from CMake build during Gradle build
+**/jniLibs/
+
+# Assets - copied from build output during Gradle build  
+**/app/src/main/assets/
+
+# Generated files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Keystore files
+*.jks
+*.keystore
+
+# Signing files
+signing.properties

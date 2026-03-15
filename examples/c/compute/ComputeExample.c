@@ -1,5 +1,24 @@
 #include <gfx/gfx.h>
 
+// Platform-specific includes
+#if defined(__ANDROID__)
+#include <android_native_app_glue.h>
+#include <android/log.h>
+#include <time.h>
+
+// Android logging macros
+#define LOG_TAG "GFX_COMPUTE"
+#define LOG_INFO(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOG_ERROR(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#define LOG_WARN(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
+#define LOG_DEBUG(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#else
+// Desktop/Web logging macros (map to printf)
+#define LOG_INFO(...) printf("[INFO] " __VA_ARGS__); printf("\n")
+#define LOG_ERROR(...) fprintf(stderr, "[ERROR] " __VA_ARGS__); fprintf(stderr, "\n")
+#define LOG_WARN(...) fprintf(stderr, "[WARN] " __VA_ARGS__); fprintf(stderr, "\n")
+#define LOG_DEBUG(...) printf("[DEBUG] " __VA_ARGS__); printf("\n")
+
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
@@ -15,6 +34,7 @@
 #define GLFW_EXPOSE_NATIVE_COCOA
 #endif
 #include <GLFW/glfw3native.h>
+#endif
 #endif
 
 #include <float.h>
@@ -87,7 +107,12 @@ typedef struct {
 } PerFrameResources;
 
 typedef struct {
+#if defined(__ANDROID__)
+    struct android_app* androidApp;
+    bool animating;
+#else
     GLFWwindow* window;
+#endif
 
     GfxInstance instance;
     GfxAdapter adapter;
@@ -177,10 +202,10 @@ static void destroyRenderPipeline(ComputeApp* app);
 static bool createRenderResources(ComputeApp* app);
 static void destroyRenderResources(ComputeApp* app);
 
-static GfxPlatformWindowHandle getPlatformWindowHandle(GLFWwindow* window);
+static GfxPlatformWindowHandle getPlatformWindowHandle(ComputeApp* app);
 static float getCurrentTime(void);
-static void* loadBinaryFile(const char* filepath, size_t* outSize);
-static void* loadTextFile(const char* filepath, size_t* outSize);
+static void* loadBinaryFile(ComputeApp* app, const char* filepath, size_t* outSize);
+static void* loadTextFile(ComputeApp* app, const char* filepath, size_t* outSize);
 
 // The public functions called from main
 static bool parseArguments(int argc, char** argv, Settings* settings);
@@ -189,6 +214,7 @@ static void cleanup(ComputeApp* app);
 static void update(ComputeApp* app, float deltaTime);
 static void render(ComputeApp* app);
 
+#if !defined(__ANDROID__)
 static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
     ComputeApp* app = (ComputeApp*)glfwGetWindowUserPointer(window);
@@ -209,9 +235,18 @@ static void errorCallback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
+#endif // !defined(__ANDROID__)
 
 static bool createWindow(ComputeApp* app, uint32_t width, uint32_t height)
 {
+#if defined(__ANDROID__)
+    // On Android, window is managed by NativeActivity
+    // Window will be provided via handleAppCommand(APP_CMD_INIT_WINDOW)
+    app->windowWidth = width;
+    app->windowHeight = height;
+    LOG_INFO("Android window placeholder created");
+    return true;
+#else
     glfwSetErrorCallback(errorCallback);
 
     if (!glfwInit()) {
@@ -241,15 +276,21 @@ static bool createWindow(ComputeApp* app, uint32_t width, uint32_t height)
     glfwSetKeyCallback(app->window, keyCallback);
 
     return true;
+#endif
 }
 
 static void destroyWindow(ComputeApp* app)
 {
+#if defined(__ANDROID__)
+    // Android window is managed by NativeActivity
+    (void)app;
+#else
     if (app->window) {
         glfwDestroyWindow(app->window);
         app->window = NULL;
     }
     glfwTerminate();
+#endif
 }
 
 static bool createGraphics(ComputeApp* app)
@@ -318,7 +359,7 @@ static bool createGraphics(ComputeApp* app)
         return false;
     }
 
-    GfxPlatformWindowHandle windowHandle = getPlatformWindowHandle(app->window);
+    GfxPlatformWindowHandle windowHandle = getPlatformWindowHandle(app);
     GfxSurfaceDescriptor surfaceDesc = {};
     surfaceDesc.sType = GFX_STRUCTURE_TYPE_SURFACE_DESCRIPTOR;
     surfaceDesc.pNext = NULL;
@@ -836,7 +877,7 @@ static bool createComputeShaders(ComputeApp* app)
     if (gfxDeviceSupportsShaderFormat(app->device, GFX_SHADER_SOURCE_SPIRV, &formatSupported) == GFX_RESULT_SUCCESS && formatSupported) {
         sourceType = GFX_SHADER_SOURCE_SPIRV;
         printf("Loading SPIR-V shader: generate.comp.spv\n");
-        computeCode = loadBinaryFile("shaders/generate.comp.spv", &computeSize);
+        computeCode = loadBinaryFile(app, "shaders/generate.comp.spv", &computeSize);
         if (!computeCode) {
             fprintf(stderr, "Failed to load SPIR-V compute shader\n");
             return false;
@@ -846,7 +887,7 @@ static bool createComputeShaders(ComputeApp* app)
     else if (gfxDeviceSupportsShaderFormat(app->device, GFX_SHADER_SOURCE_WGSL, &formatSupported) == GFX_RESULT_SUCCESS && formatSupported) {
         sourceType = GFX_SHADER_SOURCE_WGSL;
         printf("Loading WGSL shader: shaders/generate.comp.wgsl\n");
-        computeCode = loadTextFile("shaders/generate.comp.wgsl", &computeSize);
+        computeCode = loadTextFile(app, "shaders/generate.comp.wgsl", &computeSize);
         if (!computeCode) {
             fprintf(stderr, "Failed to load WGSL compute shader\n");
             return false;
@@ -1100,7 +1141,7 @@ static bool createRenderShaders(ComputeApp* app)
     // Try SPIR-V first
     if (gfxDeviceSupportsShaderFormat(app->device, GFX_SHADER_SOURCE_SPIRV, &formatSupported) == GFX_RESULT_SUCCESS && formatSupported) {
         vertexSourceType = GFX_SHADER_SOURCE_SPIRV;
-        vertexCode = loadBinaryFile("shaders/fullscreen.vert.spv", &vertexSize);
+        vertexCode = loadBinaryFile(app, "shaders/fullscreen.vert.spv", &vertexSize);
         if (!vertexCode) {
             fprintf(stderr, "Failed to load SPIR-V vertex shader\n");
             return false;
@@ -1109,7 +1150,7 @@ static bool createRenderShaders(ComputeApp* app)
     // Fall back to WGSL
     else if (gfxDeviceSupportsShaderFormat(app->device, GFX_SHADER_SOURCE_WGSL, &formatSupported) == GFX_RESULT_SUCCESS && formatSupported) {
         vertexSourceType = GFX_SHADER_SOURCE_WGSL;
-        vertexCode = loadTextFile("shaders/fullscreen.vert.wgsl", &vertexSize);
+        vertexCode = loadTextFile(app, "shaders/fullscreen.vert.wgsl", &vertexSize);
         if (!vertexCode) {
             fprintf(stderr, "Failed to load WGSL vertex shader\n");
             return false;
@@ -1141,14 +1182,14 @@ static bool createRenderShaders(ComputeApp* app)
     // Use same format as vertex shader (already queried above)
     if (vertexSourceType == GFX_SHADER_SOURCE_SPIRV) {
         fragmentSourceType = GFX_SHADER_SOURCE_SPIRV;
-        fragmentCode = loadBinaryFile("shaders/postprocess.frag.spv", &fragmentSize);
+        fragmentCode = loadBinaryFile(app, "shaders/postprocess.frag.spv", &fragmentSize);
         if (!fragmentCode) {
             fprintf(stderr, "Failed to load SPIR-V fragment shader\n");
             return false;
         }
     } else {
         fragmentSourceType = GFX_SHADER_SOURCE_WGSL;
-        fragmentCode = loadTextFile("shaders/postprocess.frag.wgsl", &fragmentSize);
+        fragmentCode = loadTextFile(app, "shaders/postprocess.frag.wgsl", &fragmentSize);
         if (!fragmentCode) {
             fprintf(stderr, "Failed to load WGSL fragment shader\n");
             return false;
@@ -1327,25 +1368,31 @@ static void destroyRenderResources(ComputeApp* app)
     destroyRenderShaders(app);
 }
 
-static GfxPlatformWindowHandle getPlatformWindowHandle(GLFWwindow* window)
+static GfxPlatformWindowHandle getPlatformWindowHandle(ComputeApp* app)
 {
     GfxPlatformWindowHandle handle = { 0 };
-#if defined(__EMSCRIPTEN__)
+#if defined(__ANDROID__)
+    handle = gfxPlatformWindowHandleFromAndroid(app->androidApp->window);
+#elif defined(__EMSCRIPTEN__)
     handle = gfxPlatformWindowHandleFromEmscripten("#canvas");
 #elif defined(_WIN32)
-    handle = gfxPlatformWindowHandleFromWin32(GetModuleHandle(NULL), glfwGetWin32Window(window));
+    handle = gfxPlatformWindowHandleFromWin32(GetModuleHandle(NULL), glfwGetWin32Window(app->window));
 #elif defined(__linux__)
-    // handle = gfxPlatformWindowHandleFromXlib(glfwGetX11Display(), glfwGetX11Window(window));
-    handle = gfxPlatformWindowHandleFromWayland(glfwGetWaylandDisplay(), glfwGetWaylandWindow(window));
+    // handle = gfxPlatformWindowHandleFromXlib(glfwGetX11Display(), glfwGetX11Window(app->window));
+    handle = gfxPlatformWindowHandleFromWayland(glfwGetWaylandDisplay(), glfwGetWaylandWindow(app->window));
 #elif defined(__APPLE__)
-    handle = gfxPlatformWindowHandleFromMetal(glfwGetCocoaWindow(window));
+    handle = gfxPlatformWindowHandleFromMetal(glfwGetCocoaWindow(app->window));
 #endif
     return handle;
 }
 
 static float getCurrentTime(void)
 {
-#if defined(__EMSCRIPTEN__)
+#if defined(__ANDROID__)
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec + ts.tv_nsec / 1000000000.0f;
+#elif defined(__EMSCRIPTEN__)
     return (float)emscripten_get_now() / 1000.0f;
 #else
     return (float)glfwGetTime();
@@ -1353,8 +1400,42 @@ static float getCurrentTime(void)
 }
 
 // Helper function to load binary files (SPIR-V shaders)
-static void* loadBinaryFile(const char* filepath, size_t* outSize)
+static void* loadBinaryFile(ComputeApp* app, const char* filepath, size_t* outSize)
 {
+#if defined(__ANDROID__)
+    if (!app || !app->androidApp || !app->androidApp->activity || !app->androidApp->activity->assetManager) {
+        LOG_ERROR("AssetManager not available");
+        return NULL;
+    }
+    
+    AAsset* asset = AAssetManager_open(app->androidApp->activity->assetManager, filepath, AASSET_MODE_BUFFER);
+    if (!asset) {
+        LOG_ERROR("Failed to open asset: %s", filepath);
+        return NULL;
+    }
+    
+    size_t size = AAsset_getLength(asset);
+    void* buffer = malloc(size);
+    if (!buffer) {
+        AAsset_close(asset);
+        return NULL;
+    }
+    
+    int bytesRead = AAsset_read(asset, buffer, size);
+    AAsset_close(asset);
+    
+    if (bytesRead < 0 || (size_t)bytesRead != size) {
+        free(buffer);
+        return NULL;
+    }
+    
+    if (outSize) {
+        *outSize = size;
+    }
+    
+    return buffer;
+#else
+    (void)app; // Unused on desktop
     FILE* file = fopen(filepath, "rb");
     if (!file) {
         fprintf(stderr, "Failed to open file: %s\n", filepath);
@@ -1392,11 +1473,48 @@ static void* loadBinaryFile(const char* filepath, size_t* outSize)
 
     *outSize = fileSize;
     return buffer;
+#endif
 }
 
 // Helper function to load text files (WGSL shaders)
-static void* loadTextFile(const char* filepath, size_t* outSize)
+static void* loadTextFile(ComputeApp* app, const char* filepath, size_t* outSize)
 {
+#if defined(__ANDROID__)
+    if (!app || !app->androidApp || !app->androidApp->activity || !app->androidApp->activity->assetManager) {
+        LOG_ERROR("AssetManager not available for text file");
+        return NULL;
+    }
+    
+    AAsset* asset = AAssetManager_open(app->androidApp->activity->assetManager, filepath, AASSET_MODE_BUFFER);
+    if (!asset) {
+        LOG_ERROR("Failed to open asset: %s", filepath);
+        return NULL;
+    }
+    
+    size_t size = AAsset_getLength(asset);
+    char* buffer = (char*)malloc(size + 1);
+    if (!buffer) {
+        AAsset_close(asset);
+        return NULL;
+    }
+    
+    int bytesRead = AAsset_read(asset, buffer, size);
+    AAsset_close(asset);
+    
+    if (bytesRead < 0 || (size_t)bytesRead != size) {
+        free(buffer);
+        return NULL;
+    }
+    
+    buffer[size] = '\0';
+    
+    if (outSize) {
+        *outSize = size + 1;
+    }
+    
+    return buffer;
+#else
+    (void)app; // Unused on desktop
     FILE* file = fopen(filepath, "r");
     if (!file) {
         fprintf(stderr, "Failed to open file: %s\n", filepath);
@@ -1438,6 +1556,7 @@ static void* loadTextFile(const char* filepath, size_t* outSize)
     // Return size including null terminator for shader code
     *outSize = fileSize + 1;
     return buffer;
+#endif
 }
 
 static bool init(ComputeApp* app)
@@ -1728,6 +1847,152 @@ static void render(ComputeApp* app)
     app->currentFrame = (app->currentFrame + 1) % app->framesInFlightCount;
 }
 
+#ifdef __ANDROID__
+// ============================================================================
+// Android Platform Implementation
+// ============================================================================
+
+// Android-specific event handlers
+static void handleAppCommand(struct android_app* state, int32_t cmd)
+{
+    ComputeApp* app = (ComputeApp*)state->userData;
+    
+    switch (cmd) {
+    case APP_CMD_INIT_WINDOW:
+        if (state->window != NULL) {
+            app->windowWidth = ANativeWindow_getWidth(state->window);
+            app->windowHeight = ANativeWindow_getHeight(state->window);
+            LOG_INFO("Window initialized: %dx%d", app->windowWidth, app->windowHeight);
+            
+            if (!app->instance) {
+                // First time init
+                if (init(app)) {
+                    app->animating = true;
+                    LOG_INFO("Application initialized successfully!");
+                } else {
+                    LOG_ERROR("Failed to initialize graphics");
+                }
+            }
+        }
+        break;
+        
+    case APP_CMD_TERM_WINDOW:
+        LOG_INFO("Window terminating");
+        app->animating = false;
+        cleanup(app);
+        break;
+        
+    case APP_CMD_GAINED_FOCUS:
+        LOG_INFO("Gained focus");
+        if (app->instance) {
+            app->animating = true;
+        }
+        break;
+        
+    case APP_CMD_LOST_FOCUS:
+        LOG_INFO("Lost focus");
+        app->animating = false;
+        break;
+        
+    case APP_CMD_PAUSE:
+        LOG_INFO("Paused");
+        app->animating = false;
+        break;
+        
+    case APP_CMD_RESUME:
+        LOG_INFO("Resumed");
+        if (app->instance) {
+            app->animating = true;
+        }
+        break;
+        
+    case APP_CMD_WINDOW_RESIZED:
+        if (state->window != NULL && app->instance) {
+            app->windowWidth = ANativeWindow_getWidth(state->window);
+            app->windowHeight = ANativeWindow_getHeight(state->window);
+            LOG_INFO("Window resized: %dx%d", app->windowWidth, app->windowHeight);
+            
+            // Recreate swapchain with new dimensions
+            gfxDeviceWaitIdle(app->device);
+            destroySizeDependentResources(app);
+            if (!createSizeDependentResources(app, app->windowWidth, app->windowHeight)) {
+                LOG_ERROR("Failed to recreate size-dependent resources after resize");
+            } else {
+                LOG_INFO("Swapchain recreated for new size");
+            }
+        }
+        break;
+    }
+}
+
+static int32_t handleInput(struct android_app* state, AInputEvent* event)
+{
+    (void)state;
+    (void)event;
+    return 0;
+}
+
+// Returns false if loop should exit
+static bool mainLoopIteration(ComputeApp* app, struct android_app* state)
+{
+    static float lastTime = 0.0f;
+    
+    int events;
+    struct android_poll_source* source;
+    
+    // Poll all events
+    while (ALooper_pollOnce(app->animating ? 0 : -1, NULL, &events, (void**)&source) >= 0) {
+        if (source != NULL) {
+            source->process(state, source);
+        }
+        
+        if (state->destroyRequested != 0) {
+            LOG_INFO("Destroy requested");
+            cleanup(app);
+            return false;
+        }
+    }
+    
+    if (app->animating && app->instance) {
+        float currentTime = getCurrentTime();
+        if (lastTime == 0.0f) {
+            lastTime = currentTime;
+        }
+        float deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+        
+        update(app, deltaTime);
+        render(app);
+    }
+    
+    return true;
+}
+
+void android_main(struct android_app* state)
+{
+    ComputeApp app = { 0 };
+    app.androidApp = state;
+    app.settings.backend = GFX_BACKEND_VULKAN;
+    app.settings.vsync = true;
+    app.animating = false;
+    
+    state->userData = &app;
+    state->onAppCmd = handleAppCommand;
+    state->onInputEvent = handleInput;
+    
+    LOG_INFO("=== GFX Compute Example (Android) ===");
+    
+    // Main loop
+    while (mainLoopIteration(&app, state)) {
+        // Loop continues until mainLoopIteration returns false
+    }
+}
+
+#else
+// ============================================================================
+// Desktop/Web Platform Implementation
+// ============================================================================
+
 // Returns false if loop should exit
 static bool mainLoopIteration(ComputeApp* app)
 {
@@ -1892,3 +2157,7 @@ int main(int argc, char** argv)
 
     return 0;
 }
+
+#endif // __ANDROID__
+
+

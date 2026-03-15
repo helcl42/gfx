@@ -1,5 +1,19 @@
 #include <gfx_cpp/gfx.hpp>
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#include <android/native_window.h>
+#include <android_native_app_glue.h>
+#include <time.h>
+
+// Android logging macros
+#define LOG_TAG "GFX_CUBE_CPP"
+#define LOG_INFO(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOG_ERROR(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#define LOG_WARN(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
+#define LOG_DEBUG(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#else
+#include <cstdio>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
@@ -16,6 +30,13 @@
 #endif
 #include <GLFW/glfw3native.h>
 #endif
+
+// Desktop logging macros
+#define LOG_INFO(...) do { printf("[INFO] " __VA_ARGS__); printf("\n"); } while(0)
+#define LOG_ERROR(...) do { fprintf(stderr, "[ERROR] " __VA_ARGS__); fprintf(stderr, "\n"); } while(0)
+#define LOG_WARN(...) do { printf("[WARN] " __VA_ARGS__); printf("\n"); } while(0)
+#define LOG_DEBUG(...) do { printf("[DEBUG] " __VA_ARGS__); printf("\n"); } while(0)
+#endif // __ANDROID__
 
 #ifdef Success
 #undef Success
@@ -43,25 +64,23 @@ static constexpr gfx::Format DEPTH_FORMAT = gfx::Format::Depth32Float;
 // Log callback function
 static void logCallback(gfx::LogLevel level, const std::string& message)
 {
-    const char* levelStr = "UNKNOWN";
     switch (level) {
     case gfx::LogLevel::Error:
-        levelStr = "ERROR";
+        LOG_ERROR("%s", message.c_str());
         break;
     case gfx::LogLevel::Warning:
-        levelStr = "WARNING";
+        LOG_WARN("%s", message.c_str());
         break;
     case gfx::LogLevel::Info:
-        levelStr = "INFO";
+        LOG_INFO("%s", message.c_str());
         break;
     case gfx::LogLevel::Debug:
-        levelStr = "DEBUG";
+        LOG_DEBUG("%s", message.c_str());
         break;
     default:
-        levelStr = "UNKNOWN";
+        LOG_INFO("%s", message.c_str());
         break;
     }
-    std::cout << "[" << levelStr << "] " << message << std::endl;
 }
 
 // Math types for improved API clarity and type safety
@@ -101,11 +120,6 @@ struct PerFrameResources {
     std::vector<std::shared_ptr<gfx::BindGroup>> uniformBindGroups;
 };
 
-namespace util {
-std::vector<uint8_t> loadBinaryFile(const char* filepath);
-std::string loadTextFile(const char* filepath);
-} // namespace util
-
 namespace math {
 void matrixIdentity(Mat4& matrix);
 void matrixPerspective(Mat4& matrix, float fovy, float aspect, float nearPlane, float farPlane, gfx::Backend backend);
@@ -124,6 +138,16 @@ public:
     bool init();
     void run();
     void cleanup();
+
+#ifdef __ANDROID__
+    // Android-specific setters/getters for android_main
+    void setAndroidApp(struct android_app* app) { androidApp = app; }
+    void setAnimating(bool value) { animating = value; }
+    
+    // Android callbacks (public because they're assigned to android_app function pointers)
+    static void handleAppCommand(struct android_app* state, int32_t cmd);
+    static int32_t handleInput(struct android_app* state, AInputEvent* event);
+#endif
 
 private:
     bool createWindow(uint32_t width, uint32_t height);
@@ -156,14 +180,24 @@ private:
 
     gfx::PlatformWindowHandle getPlatformWindowHandle();
 
+#ifndef __ANDROID__
     static void errorCallback(int error, const char* description);
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+#endif
+
+    std::vector<uint8_t> loadBinaryFile(const char* filepath);
+    std::string loadTextFile(const char* filepath);
 
 private:
     Settings settings;
 
+#ifdef __ANDROID__
+    struct android_app* androidApp = nullptr;
+    bool animating = false;
+#else
     GLFWwindow* window = nullptr;
+#endif
     std::shared_ptr<gfx::Instance> instance;
     std::shared_ptr<gfx::Adapter> adapter;
     gfx::AdapterInfo adapterInfo; // Cached adapter info
@@ -229,36 +263,43 @@ bool CubeApp::init()
 
     // 1. Create window
     if (!createWindow(windowWidth, windowHeight)) {
-        std::cerr << "Failed to create window" << std::endl;
+        LOG_ERROR("Failed to create window");
         return false;
     }
 
     // 2. Create graphics context (instance, adapter, device, surface)
     if (!createGraphics()) {
-        std::cerr << "Failed to create graphics" << std::endl;
+        LOG_ERROR("Failed to create graphics");
+        destroyGraphics(); // Clean up partial initialization
         return false;
     }
 
     // 3. Create size-dependent resources (swapchain, framebuffers, render pass)
     if (!createSizeDependentResources(windowWidth, windowHeight)) {
-        std::cerr << "Failed to create size-dependent resources" << std::endl;
+        LOG_ERROR("Failed to create size-dependent resources");
+        destroyGraphics();
         return false;
     }
 
     // 4. Create rendering resources (geometry, uniform buffer, shaders, pipeline)
     if (!createRenderingResources()) {
-        std::cerr << "Failed to create rendering resources" << std::endl;
+        LOG_ERROR("Failed to create rendering resources");
+        destroySizeDependentResources();
+        destroyGraphics();
         return false;
     }
 
     // 5. Create per-frame resources (sync objects and bind groups - depends on uniform buffer and layouts)
     if (!createPerFrameResources()) {
-        std::cerr << "Failed to create per-frame resources" << std::endl;
+        LOG_ERROR("Failed to create per-frame resources");
+        destroyRenderingResources();
+        destroySizeDependentResources();
+        destroyGraphics();
         return false;
     }
 
-    std::cout << "Application initialized successfully!" << std::endl;
-    std::cout << "Press ESC or close window to exit" << std::endl;
+    LOG_INFO("Application initialized successfully!");
+    LOG_INFO("Press ESC or close window to exit");
 
     // Initialize timing
     lastTime = getCurrentTime();
@@ -310,6 +351,12 @@ void CubeApp::cleanup()
 
 bool CubeApp::createWindow(uint32_t width, uint32_t height)
 {
+#ifdef __ANDROID__
+    // Android window is created by the system
+    this->windowWidth = width;
+    this->windowHeight = height;
+    return true;
+#else
     glfwSetErrorCallback(errorCallback);
 
     // Initialize GLFW
@@ -340,15 +387,20 @@ bool CubeApp::createWindow(uint32_t width, uint32_t height)
     this->windowHeight = height;
 
     return true;
+#endif
 }
 
 void CubeApp::destroyWindow()
 {
+#ifdef __ANDROID__
+    // Android window is managed by the system
+#else
     if (window) {
         glfwDestroyWindow(window);
         window = nullptr;
     }
     glfwTerminate();
+#endif
 }
 
 bool CubeApp::createGraphics()
@@ -358,7 +410,7 @@ bool CubeApp::createGraphics()
 
     auto result = gfx::loadBackend(settings.backend);
     if (!gfx::isSuccess(result)) {
-        std::cerr << "Failed to load graphics backend: " << static_cast<int32_t>(result) << std::endl;
+        LOG_ERROR("Failed to load graphics backend: %d", static_cast<int32_t>(result));
         return false;
     }
 
@@ -371,7 +423,7 @@ bool CubeApp::createGraphics()
 
         instance = gfx::createInstance(instanceDesc);
         if (!instance) {
-            std::cerr << "Failed to create graphics instance" << std::endl;
+            LOG_ERROR("Failed to create graphics instance");
             return false;
         }
 
@@ -381,16 +433,15 @@ bool CubeApp::createGraphics()
 
         adapter = instance->requestAdapter(adapterDesc);
         if (!adapter) {
-            std::cerr << "Failed to get graphics adapter" << std::endl;
+            LOG_ERROR("Failed to get graphics adapter");
             return false;
         }
 
         // Query and store adapter info
         adapterInfo = adapter->getInfo();
-        std::cout << "Using adapter: " << adapterInfo.name << std::endl;
-        std::cout << "Backend: " << (adapterInfo.backend == gfx::Backend::Vulkan ? "Vulkan" : "WebGPU") << std::endl;
-        std::cout << "  Vendor ID: 0x" << std::hex << adapterInfo.vendorID << std::dec
-                  << ", Device ID: 0x" << std::hex << adapterInfo.deviceID << std::dec << std::endl;
+        LOG_INFO("Using adapter: %s", adapterInfo.name.c_str());
+        LOG_INFO("Backend: %s", (adapterInfo.backend == gfx::Backend::Vulkan ? "Vulkan" : "WebGPU"));
+        LOG_INFO("  Vendor ID: 0x%x, Device ID: 0x%x", adapterInfo.vendorID, adapterInfo.deviceID);
 
         // Create device
         gfx::DeviceDescriptor deviceDesc{};
@@ -399,15 +450,11 @@ bool CubeApp::createGraphics()
 
         device = adapter->createDevice(deviceDesc);
         if (!device) {
-            std::cerr << "Failed to create device" << std::endl;
+            LOG_ERROR("Failed to create device");
             return false;
         }
 
         queue = device->getQueue();
-
-        // Create surface using native platform handles extracted from GLFW
-        int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
 
         gfx::SurfaceDescriptor surfaceDesc{};
         surfaceDesc.label = "Main Surface";
@@ -415,13 +462,13 @@ bool CubeApp::createGraphics()
 
         surface = device->createSurface(surfaceDesc);
         if (!surface) {
-            std::cerr << "Failed to create surface" << std::endl;
+            LOG_ERROR("Failed to create surface");
             return false;
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to initialize graphics: " << e.what() << std::endl;
+        LOG_ERROR("Failed to initialize graphics: %s", e.what());
         return false;
     }
 }
@@ -895,34 +942,38 @@ bool CubeApp::createShaders()
         // Try SPIR-V first (generally better performance)
         if (device->supportsShaderFormat(gfx::ShaderSourceType::SPIRV)) {
             shaderSourceType = gfx::ShaderSourceType::SPIRV;
-            std::cout << "Loading SPIR-V shaders..." << std::endl;
-            auto vertexSpirv = util::loadBinaryFile("shaders/cube.vert.spv");
-            auto fragmentSpirv = util::loadBinaryFile("shaders/cube.frag.spv");
+            LOG_INFO("    Loading SPIR-V shaders...");
+            auto vertexSpirv = loadBinaryFile("shaders/cube.vert.spv");
+            auto fragmentSpirv = loadBinaryFile("shaders/cube.frag.spv");
             if (vertexSpirv.empty() || fragmentSpirv.empty()) {
-                std::cerr << "Failed to load SPIR-V shader files" << std::endl;
+                LOG_ERROR("    Failed to load SPIR-V shader files (vertex: %zu bytes, fragment: %zu bytes)", 
+                         vertexSpirv.size(), fragmentSpirv.size());
                 return false;
             }
+            LOG_INFO("    Loaded SPIR-V shaders (vertex: %zu bytes, fragment: %zu bytes)", 
+                     vertexSpirv.size(), fragmentSpirv.size());
             vertexShaderCode = vertexSpirv;
             fragmentShaderCode = fragmentSpirv;
         }
         // Fall back to WGSL
         else if (device->supportsShaderFormat(gfx::ShaderSourceType::WGSL)) {
             shaderSourceType = gfx::ShaderSourceType::WGSL;
-            std::cout << "Loading WGSL shaders..." << std::endl;
-            auto vertexWgsl = util::loadTextFile("shaders/cube.vert.wgsl");
-            auto fragmentWgsl = util::loadTextFile("shaders/cube.frag.wgsl");
+            LOG_INFO("    Loading WGSL shaders...");
+            auto vertexWgsl = loadTextFile("shaders/cube.vert.wgsl");
+            auto fragmentWgsl = loadTextFile("shaders/cube.frag.wgsl");
             if (vertexWgsl.empty() || fragmentWgsl.empty()) {
-                std::cerr << "Failed to load WGSL shader files" << std::endl;
+                LOG_ERROR("    Failed to load WGSL shader files");
                 return false;
             }
             vertexShaderCode.assign(vertexWgsl.begin(), vertexWgsl.end());
             fragmentShaderCode.assign(fragmentWgsl.begin(), fragmentWgsl.end());
         } else {
-            std::cerr << "Error: No supported shader format found (neither SPIR-V nor WGSL)" << std::endl;
+            LOG_ERROR("    No supported shader format found (neither SPIR-V nor WGSL)");
             return false;
         }
 
         // Create vertex shader
+        LOG_INFO("    Creating vertex shader...");
         gfx::ShaderDescriptor vertexShaderDesc{};
         vertexShaderDesc.label = "Cube Vertex Shader";
         vertexShaderDesc.sourceType = shaderSourceType;
@@ -931,11 +982,13 @@ bool CubeApp::createShaders()
 
         vertexShader = device->createShader(vertexShaderDesc);
         if (!vertexShader) {
-            std::cerr << "Failed to create vertex shader" << std::endl;
+            LOG_ERROR("    Failed to create vertex shader");
             return false;
         }
+        LOG_INFO("    Vertex shader created successfully");
 
         // Create fragment shader
+        LOG_INFO("    Creating fragment shader...");
         gfx::ShaderDescriptor fragmentShaderDesc{};
         fragmentShaderDesc.label = "Cube Fragment Shader";
         fragmentShaderDesc.sourceType = shaderSourceType;
@@ -944,13 +997,14 @@ bool CubeApp::createShaders()
 
         fragmentShader = device->createShader(fragmentShaderDesc);
         if (!fragmentShader) {
-            std::cerr << "Failed to create fragment shader" << std::endl;
+            LOG_ERROR("    Failed to create fragment shader");
             return false;
         }
+        LOG_INFO("    Fragment shader created successfully");
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create shaders: " << e.what() << std::endl;
+        LOG_ERROR("    Exception in createShaders: %s", e.what());
         return false;
     }
 }
@@ -964,29 +1018,47 @@ void CubeApp::destroyShaders()
 bool CubeApp::createRenderingResources()
 {
     try {
+        LOG_INFO("Creating rendering resources...");
+        
         // 1. Create geometry (vertex/index buffers)
+        LOG_INFO("  Creating geometry...");
         if (!createGeometry()) {
+            LOG_ERROR("  Failed to create geometry");
             return false;
         }
+        LOG_INFO("  Geometry created successfully");
 
         // 2. Create uniform buffer and layout
+        LOG_INFO("  Creating uniform buffer...");
         if (!createUniformBuffer()) {
+            LOG_ERROR("  Failed to create uniform buffer");
             return false;
         }
+        LOG_INFO("  Uniform buffer created successfully");
 
         // 3. Create shaders
+        LOG_INFO("  Creating shaders...");
         if (!createShaders()) {
+            LOG_ERROR("  Failed to create shaders");
             return false;
         }
+        LOG_INFO("  Shaders created successfully");
 
         // Initialize animation state
         rotationAngleX = 0.0f;
         rotationAngleY = 0.0f;
 
         // 4. Create render pipeline
-        return createRenderPipeline();
+        LOG_INFO("  Creating render pipeline...");
+        bool result = createRenderPipeline();
+        if (!result) {
+            LOG_ERROR("  Failed to create render pipeline");
+        } else {
+            LOG_INFO("  Render pipeline created successfully");
+        }
+        return result;
     } catch (const std::exception& e) {
-        std::cerr << "Resource creation error: " << e.what() << std::endl;
+        LOG_ERROR("Resource creation error: %s", e.what());
         return false;
     }
 }
@@ -1228,96 +1300,24 @@ void CubeApp::render()
 
 float CubeApp::getCurrentTime()
 {
-#if defined(__EMSCRIPTEN__)
+#if defined(__ANDROID__)
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (float)ts.tv_sec + (float)ts.tv_nsec / 1000000000.0f;
+#elif defined(__EMSCRIPTEN__)
     return (float)emscripten_get_now() / 1000.0f;
 #else
     return (float)glfwGetTime();
 #endif
 }
 
-bool CubeApp::mainLoopIteration()
-{
-    if (glfwWindowShouldClose(window)) {
-        return false;
-    }
-
-    glfwPollEvents();
-
-    // Handle framebuffer resize
-    if (previousWidth != windowWidth || previousHeight != windowHeight) {
-        // Wait for all in-flight frames to complete
-        device->waitIdle();
-
-        // Recreate only size-dependent resources (including swapchain)
-        destroySizeDependentResources();
-        if (!createSizeDependentResources(windowWidth, windowHeight)) {
-            std::cerr << "Failed to recreate size-dependent resources after resize" << std::endl;
-            return false;
-        }
-
-        previousWidth = windowWidth;
-        previousHeight = windowHeight;
-        auto swapchainInfo = swapchain->getInfo();
-        std::cout << "Window resized: " << swapchainInfo.extent.width << "x" << swapchainInfo.extent.height << std::endl;
-        return true; // Skip rendering this frame
-    }
-
-    // Calculate delta time
-    float currentTime = getCurrentTime();
-    float deltaTime = currentTime - lastTime;
-    lastTime = currentTime;
-
-    // Track FPS
-    if (deltaTime > 0.0f) {
-        fpsFrameCount++;
-        fpsTimeAccumulator += deltaTime;
-
-        if (deltaTime < fpsFrameTimeMin) {
-            fpsFrameTimeMin = deltaTime;
-        }
-        if (deltaTime > fpsFrameTimeMax) {
-            fpsFrameTimeMax = deltaTime;
-        }
-
-        // Log FPS every second
-        if (fpsTimeAccumulator >= 1.0f) {
-            float avgFPS = static_cast<float>(fpsFrameCount) / fpsTimeAccumulator;
-            float avgFrameTime = (fpsTimeAccumulator / static_cast<float>(fpsFrameCount)) * 1000.0f;
-            float minFPS = 1.0f / fpsFrameTimeMax;
-            float maxFPS = 1.0f / fpsFrameTimeMin;
-            std::cout << "FPS - Avg: " << avgFPS << ", Min: " << minFPS << ", Max: " << maxFPS
-                      << " | Frame Time - Avg: " << avgFrameTime << " ms, Min: " << (fpsFrameTimeMin * 1000.0f)
-                      << " ms, Max: " << (fpsFrameTimeMax * 1000.0f) << " ms" << std::endl;
-
-            // Reset for next second
-            fpsFrameCount = 0;
-            fpsTimeAccumulator = 0.0f;
-            fpsFrameTimeMin = FLT_MAX;
-            fpsFrameTimeMax = 0.0f;
-        }
-    }
-
-    update(deltaTime);
-    render();
-
-    return true;
-}
-
-#if defined(__EMSCRIPTEN__)
-void CubeApp::emscriptenMainLoop(void* userData)
-{
-    CubeApp* app = (CubeApp*)userData;
-    if (!app->mainLoopIteration()) {
-        emscripten_cancel_main_loop();
-        app->cleanup();
-    }
-}
-#endif
-
 gfx::PlatformWindowHandle CubeApp::getPlatformWindowHandle()
 {
     gfx::PlatformWindowHandle handle{};
-#if defined(__EMSCRIPTEN__)
+#if defined(__ANDROID__)
+    handle = gfx::PlatformWindowHandle::fromAndroid(androidApp->window);
+    LOG_INFO("Extracted Android handle: window=%p", androidApp->window);
+#elif defined(__EMSCRIPTEN__)
     handle = gfx::PlatformWindowHandle::fromEmscripten("#canvas");
 #elif defined(_WIN32)
     // Windows: Get HWND and HINSTANCE
@@ -1335,6 +1335,7 @@ gfx::PlatformWindowHandle CubeApp::getPlatformWindowHandle()
     return handle;
 }
 
+#ifndef __ANDROID__
 void CubeApp::errorCallback(int error, const char* description)
 {
     std::cerr << "GLFW Error " << error << ": " << description << std::endl;
@@ -1358,13 +1359,39 @@ void CubeApp::keyCallback(GLFWwindow* window, int key, int scancode, int action,
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
 }
+#endif // !__ANDROID__
 
-namespace util {
-std::vector<uint8_t> loadBinaryFile(const char* filepath)
+std::vector<uint8_t> CubeApp::loadBinaryFile(const char* filepath)
 {
+#ifdef __ANDROID__
+    if (!androidApp || !androidApp->activity || !androidApp->activity->assetManager) {
+        LOG_ERROR("AssetManager not available for file: %s", filepath);
+        return {};
+    }
+    
+    AAssetManager* assetManager = androidApp->activity->assetManager;
+    AAsset* asset = AAssetManager_open(assetManager, filepath, AASSET_MODE_BUFFER);
+    if (!asset) {
+        LOG_ERROR("Failed to open asset: %s", filepath);
+        return {};
+    }
+    
+    size_t size = AAsset_getLength(asset);
+    std::vector<uint8_t> buffer(size);
+    
+    int bytesRead = AAsset_read(asset, buffer.data(), size);
+    AAsset_close(asset);
+    
+    if (bytesRead < 0 || static_cast<size_t>(bytesRead) != size) {
+        LOG_ERROR("Failed to read complete asset: %s", filepath);
+        return {};
+    }
+    
+    return buffer;
+#else
     std::FILE* file = std::fopen(filepath, "rb");
     if (!file) {
-        std::cerr << "Failed to open file: " << filepath << std::endl;
+        LOG_ERROR("Failed to open file: %s", filepath);
         return {};
     }
 
@@ -1374,7 +1401,7 @@ std::vector<uint8_t> loadBinaryFile(const char* filepath)
     std::fseek(file, 0, SEEK_SET);
 
     if (fileSize <= 0) {
-        std::cerr << "Invalid file size for: " << filepath << std::endl;
+        LOG_ERROR("Invalid file size for: %s", filepath);
         std::fclose(file);
         return {};
     }
@@ -1385,18 +1412,45 @@ std::vector<uint8_t> loadBinaryFile(const char* filepath)
     std::fclose(file);
 
     if (bytesRead != static_cast<size_t>(fileSize)) {
-        std::cerr << "Failed to read complete file: " << filepath << std::endl;
+        LOG_ERROR("Failed to read complete file: %s", filepath);
         return {};
     }
 
     return buffer;
+#endif
 }
 
-std::string loadTextFile(const char* filepath)
+std::string CubeApp::loadTextFile(const char* filepath)
 {
+#ifdef __ANDROID__
+    if (!androidApp || !androidApp->activity || !androidApp->activity->assetManager) {
+        LOG_ERROR("AssetManager not available for file: %s", filepath);
+        return {};
+    }
+    
+    AAssetManager* assetManager = androidApp->activity->assetManager;
+    AAsset* asset = AAssetManager_open(assetManager, filepath, AASSET_MODE_BUFFER);
+    if (!asset) {
+        LOG_ERROR("Failed to open asset: %s", filepath);
+        return {};
+    }
+    
+    size_t size = AAsset_getLength(asset);
+    std::string buffer(size, '\0');
+    
+    int bytesRead = AAsset_read(asset, buffer.data(), size);
+    AAsset_close(asset);
+    
+    if (bytesRead < 0 || static_cast<size_t>(bytesRead) != size) {
+        LOG_ERROR("Failed to read complete asset: %s", filepath);
+        return {};
+    }
+    
+    return buffer;
+#else
     std::FILE* file = std::fopen(filepath, "r");
     if (!file) {
-        std::cerr << "Failed to open file: " << filepath << std::endl;
+        LOG_ERROR("Failed to open file: %s", filepath);
         return {};
     }
 
@@ -1406,7 +1460,7 @@ std::string loadTextFile(const char* filepath)
     std::fseek(file, 0, SEEK_SET);
 
     if (fileSize <= 0) {
-        std::cerr << "Invalid file size for: " << filepath << std::endl;
+        LOG_ERROR("Invalid file size for: %s", filepath);
         std::fclose(file);
         return {};
     }
@@ -1417,13 +1471,13 @@ std::string loadTextFile(const char* filepath)
     std::fclose(file);
 
     if (bytesRead != static_cast<size_t>(fileSize)) {
-        std::cerr << "Failed to read complete file: " << filepath << std::endl;
+        LOG_ERROR("Failed to read complete file: %s", filepath);
         return {};
     }
 
     return buffer;
+#endif
 }
-} // namespace util
 
 namespace math {
 void matrixIdentity(Mat4& matrix)
@@ -1555,6 +1609,268 @@ bool vectorNormalize(Vec3& v)
 }
 } // namespace math
 
+#ifdef __ANDROID__
+// ============================================================================
+// Android Platform Implementation
+// ============================================================================
+
+bool CubeApp::mainLoopIteration()
+{
+    static int frameCount = 0;
+    
+    int events;
+    struct android_poll_source* source;
+    
+    // Poll all events
+    while (ALooper_pollOnce(animating ? 0 : -1, nullptr, &events, reinterpret_cast<void**>(&source)) >= 0) {
+        if (source != nullptr) {
+            source->process(androidApp, source);
+        }
+        
+        if (androidApp->destroyRequested != 0) {
+            LOG_INFO("Destroy requested");
+            cleanup();
+            return false;
+        }
+    }
+    
+    if (animating && instance) {
+        if (frameCount == 0) {
+            LOG_INFO("Starting render loop - first frame");
+        }
+        
+        float currentTime = getCurrentTime();
+        if (lastTime == 0.0f) {
+            lastTime = currentTime;
+        }
+        float deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+        
+        update(deltaTime);
+        render();
+        
+        frameCount++;
+        if (frameCount % 60 == 0) {
+            LOG_DEBUG("Rendered %d frames", frameCount);
+        }
+    } else if (frameCount == 0) {
+        // Only log once when not rendering
+        static bool logged = false;
+        if (!logged) {
+            LOG_WARN("Not rendering: animating=%d, instance=%p", 
+                    animating, instance.get());
+            logged = true;
+        }
+    }
+    
+    return true;
+}
+
+void CubeApp::handleAppCommand(struct android_app* state, int32_t cmd)
+{
+    auto* app = static_cast<CubeApp*>(state->userData);
+    
+    switch (cmd) {
+    case APP_CMD_INIT_WINDOW:
+        if (state->window != nullptr) {
+            app->windowWidth = static_cast<uint32_t>(ANativeWindow_getWidth(state->window));
+            app->windowHeight = static_cast<uint32_t>(ANativeWindow_getHeight(state->window));
+            LOG_INFO("Window initialized: %dx%d", app->windowWidth, app->windowHeight);
+            LOG_INFO("androidApp=%p, window=%p", state, state->window);
+            
+            if (!app->instance) {
+                // First time init
+                LOG_INFO("Starting initialization...");
+                if (app->init()) {
+                    app->animating = true;
+                    LOG_INFO("Application initialized successfully! Animating set to true");
+                } else {
+                    LOG_ERROR("Failed to initialize graphics - app will not render");
+                }
+            } else {
+                LOG_INFO("App already initialized, instance=%p", app->instance.get());
+            }
+        } else {
+            LOG_WARN("APP_CMD_INIT_WINDOW but window is null");
+        }
+        break;
+        
+    case APP_CMD_TERM_WINDOW:
+        LOG_INFO("Window terminating");
+        app->animating = false;
+        // Only destroy size-dependent resources, not full cleanup
+        // The device will be cleaned up when the app actually exits
+        if (app->device) {
+            app->device->waitIdle();
+            app->destroyPerFrameResources();
+            app->destroySizeDependentResources();
+        }
+        break;
+        
+    case APP_CMD_GAINED_FOCUS:
+        LOG_INFO("Gained focus");
+        if (app->instance && app->device) {
+            app->animating = true;
+        }
+        break;
+        
+    case APP_CMD_LOST_FOCUS:
+        LOG_INFO("Lost focus");
+        app->animating = false;
+        break;
+        
+    case APP_CMD_PAUSE:
+        LOG_INFO("Paused");
+        app->animating = false;
+        break;
+        
+    case APP_CMD_RESUME:
+        LOG_INFO("Resumed");
+        if (app->instance && app->device) {
+            app->animating = true;
+        }
+        break;
+        
+    case APP_CMD_WINDOW_RESIZED:
+        if (state->window != nullptr && app->instance) {
+            uint32_t newWidth = static_cast<uint32_t>(ANativeWindow_getWidth(state->window));
+            uint32_t newHeight = static_cast<uint32_t>(ANativeWindow_getHeight(state->window));
+            LOG_INFO("Window resize event: %dx%d -> %dx%d", 
+                     app->windowWidth, app->windowHeight, newWidth, newHeight);
+            
+            app->windowWidth = newWidth;
+            app->windowHeight = newHeight;
+            
+            // Recreate swapchain with new dimensions
+            if (app->device) {
+                app->device->waitIdle();
+            }
+            app->destroySizeDependentResources();
+            if (!app->createSizeDependentResources(newWidth, newHeight)) {
+                LOG_ERROR("Failed to recreate size-dependent resources after resize");
+            } else {
+                auto swapchainInfo = app->swapchain->getInfo();
+                LOG_INFO("Swapchain recreated: requested %dx%d, actual %dx%d (aspect: %.3f)", 
+                         newWidth, newHeight, 
+                         swapchainInfo.extent.width, swapchainInfo.extent.height,
+                         (float)swapchainInfo.extent.width / (float)swapchainInfo.extent.height);
+            }
+        }
+        break;
+    }
+}
+
+int32_t CubeApp::handleInput(struct android_app* state, AInputEvent* event)
+{
+    (void)state;
+    (void)event;
+    return 0;
+}
+
+void android_main(struct android_app* state)
+{
+    Settings settings;
+    settings.backend = gfx::Backend::Vulkan;
+    settings.msaaSampleCount = gfx::SampleCount::Count4;
+    settings.vsync = true;
+    
+    CubeApp app(settings);
+    app.setAndroidApp(state);
+    app.setAnimating(false);
+    
+    state->userData = &app;
+    state->onAppCmd = CubeApp::handleAppCommand;
+    state->onInputEvent = CubeApp::handleInput;
+    
+    LOG_INFO("=== GFX Cube Example (Android C++) ===");
+    
+    app.run();
+}
+
+#else
+// ============================================================================
+// Desktop/Web Platform Implementation
+// ============================================================================
+
+bool CubeApp::mainLoopIteration()
+{
+    if (glfwWindowShouldClose(window)) {
+        return false;
+    }
+
+    glfwPollEvents();
+
+    // Handle framebuffer resize
+    if (previousWidth != windowWidth || previousHeight != windowHeight) {
+        // Wait for all in-flight frames to complete
+        device->waitIdle();
+
+        // Recreate only size-dependent resources (including swapchain)
+        destroySizeDependentResources();
+        if (!createSizeDependentResources(windowWidth, windowHeight)) {
+            std::cerr << "Failed to recreate size-dependent resources after resize" << std::endl;
+            return false;
+        }
+
+        previousWidth = windowWidth;
+        previousHeight = windowHeight;
+        auto swapchainInfo = swapchain->getInfo();
+        std::cout << "Window resized: " << swapchainInfo.extent.width << "x" << swapchainInfo.extent.height << std::endl;
+        return true; // Skip rendering this frame
+    }
+
+    // Calculate delta time
+    float currentTime = getCurrentTime();
+    float deltaTime = currentTime - lastTime;
+    lastTime = currentTime;
+
+    // Track FPS
+    if (deltaTime > 0.0f) {
+        fpsFrameCount++;
+        fpsTimeAccumulator += deltaTime;
+
+        if (deltaTime < fpsFrameTimeMin) {
+            fpsFrameTimeMin = deltaTime;
+        }
+        if (deltaTime > fpsFrameTimeMax) {
+            fpsFrameTimeMax = deltaTime;
+        }
+
+        // Log FPS every second
+        if (fpsTimeAccumulator >= 1.0f) {
+            float avgFPS = static_cast<float>(fpsFrameCount) / fpsTimeAccumulator;
+            float avgFrameTime = (fpsTimeAccumulator / static_cast<float>(fpsFrameCount)) * 1000.0f;
+            float minFPS = 1.0f / fpsFrameTimeMax;
+            float maxFPS = 1.0f / fpsFrameTimeMin;
+            std::cout << "FPS - Avg: " << avgFPS << ", Min: " << minFPS << ", Max: " << maxFPS
+                      << " | Frame Time - Avg: " << avgFrameTime << " ms, Min: " << (fpsFrameTimeMin * 1000.0f)
+                      << " ms, Max: " << (fpsFrameTimeMax * 1000.0f) << " ms" << std::endl;
+
+            // Reset for next second
+            fpsFrameCount = 0;
+            fpsTimeAccumulator = 0.0f;
+            fpsFrameTimeMin = FLT_MAX;
+            fpsFrameTimeMax = 0.0f;
+        }
+    }
+
+    update(deltaTime);
+    render();
+
+    return true;
+}
+
+#if defined(__EMSCRIPTEN__)
+void CubeApp::emscriptenMainLoop(void* userData)
+{
+    CubeApp* app = (CubeApp*)userData;
+    if (!app->mainLoopIteration()) {
+        emscripten_cancel_main_loop();
+        app->cleanup();
+    }
+}
+#endif
+
 bool parseArguments(int argc, char** argv, Settings& settings)
 {
     // Set defaults
@@ -1646,3 +1962,5 @@ int main(int argc, char** argv)
 
     return 0;
 }
+
+#endif // __ANDROID__

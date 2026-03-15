@@ -31,34 +31,141 @@ jobs:
     - name: Setup Android NDK
       uses: nttld/setup-ndk@v1
       with:
-        ndk-version: r26d
+        ndk-version: r27
         add-to-path: true
 
     - name: Install Ninja
       run: sudo apt-get install -y ninja-build
 
-    - name: Configure CMake
+    - name: Setup Java for Gradle
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install dependencies (Desktop for shader)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libx11-dev \
+          libx11-xcb-dev \
+          libxrandr-dev \
+          libxinerama-dev \
+          libxcursor-dev \
+          libxi-dev \
+          libwayland-dev \
+          libxkbcommon-dev \
+          mesa-common-dev \
+          libglu1-mesa-dev \
+          libvulkan-dev \
+          vulkan-validationlayers \
+          mesa-vulkan-drivers \
+          ninja-build
+        echo "=== Verifying lavapipe installation ==="
+        echo "Contents of /usr/share/vulkan/icd.d/:"
+        ls -la /usr/share/vulkan/icd.d/ || echo "Directory not found"
+        echo "Searching for lavapipe files:"
+        find /usr -name "*lavapipe*" 2>/dev/null || true
+        find /usr -name "*lvp*icd*" 2>/dev/null || true
+        echo "Checking if ICD file exists and is readable:"
+        test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json && echo "File exists" || echo "File does not exist"
+        test -r /usr/share/vulkan/icd.d/lvp_icd.x86_64.json && echo "File is readable" || echo "File is not readable"
+        echo "File contents:"
+        cat /usr/share/vulkan/icd.d/lvp_icd.x86_64.json 2>&1 || echo "Cannot read file"
+
+    - name: Configure CMake (Desktop for shaders)
+      run: |
+        cmake -B build \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+        -DBUILD_WEBGPU_BACKEND=ON \
+        -DBUILD_VULKAN_BACKEND=OFF \
+        -DBUILD_EXAMPLES=ON \
+        -DBUILD_TESTS=OFF \
+        -DBUILD_CPP_WRAPPER=ON
+
+    - name: Build shaders only (Desktop)
+      run: |
+        cmake --build build --target cube_example_c
+        cmake --build build --target cube_example_cpp  
+        cmake --build build --target compute_example_c
+        cmake --build build --target compute_example_cpp
+
+    - name: Configure CMake (Android)
       run: |
         cmake -B build_android_${{ matrix.abi }} \
         -G Ninja \
         -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
         -DANDROID_ABI=${{ matrix.abi }} \
-        -DANDROID_PLATFORM=android-24 \
+        -DANDROID_PLATFORM=android-26 \
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
         -DBUILD_WEBGPU_BACKEND=OFF \
         -DBUILD_VULKAN_BACKEND=ON \
-        -DBUILD_EXAMPLES=OFF \
+        -DBUILD_EXAMPLES=ON \
         -DBUILD_TESTS=OFF \
         -DBUILD_CPP_WRAPPER=ON
 
-    - name: Build
+    - name: Build (Android)
       run: cmake --build build_android_${{ matrix.abi }} --config ${{ matrix.build_type }}
 
-    - name: Upload artifacts
+    - name: Create symlink for Gradle (expects build_android_arm64)
+      run: |
+        if [ "${{ matrix.abi }}" = "arm64-v8a" ]; then
+          ln -sfn build_android_arm64-v8a build_android_arm64
+          echo "✓ Created symlink: build_android_arm64 → build_android_arm64-v8a"
+        fi
+
+    - name: Build C Cube Example APK
+      run: |
+        cd examples/platform/android/c/cube
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
+
+    - name: Build C Compute Example APK
+      run: |
+        cd examples/platform/android/c/compute
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
+
+    - name: Build C++ Cube Example APK
+      run: |
+        cd examples/platform/android/cpp/cube
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
+
+    - name: Build C++ Compute Example APK
+      run: |
+        cd examples/platform/android/cpp/compute
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
+
+    - name: Rename APKs for clarity
+      run: |
+        mv examples/platform/android/c/cube/app/build/outputs/apk/debug/app-debug.apk \
+           examples/platform/android/c/cube/app/build/outputs/apk/debug/c-cube-example-${{ matrix.abi }}-debug.apk
+        mv examples/platform/android/c/compute/app/build/outputs/apk/debug/app-debug.apk \
+           examples/platform/android/c/compute/app/build/outputs/apk/debug/c-compute-example-${{ matrix.abi }}-debug.apk
+        mv examples/platform/android/cpp/cube/app/build/outputs/apk/debug/app-debug.apk \
+           examples/platform/android/cpp/cube/app/build/outputs/apk/debug/cpp-cube-example-${{ matrix.abi }}-debug.apk
+        mv examples/platform/android/cpp/compute/app/build/outputs/apk/debug/app-debug.apk \
+           examples/platform/android/cpp/compute/app/build/outputs/apk/debug/cpp-compute-example-${{ matrix.abi }}-debug.apk
+
+    - name: Upload native libraries
       uses: actions/upload-artifact@v4
       with:
         name: android-${{ matrix.abi }}-${{ matrix.build_type }}-libraries
         path: |
           build_android_${{ matrix.abi }}/libgfx.so
           build_android_${{ matrix.abi }}/libgfx_cpp.so
+        retention-days: 7
+
+    - name: Upload APK artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-${{ matrix.abi }}-${{ matrix.build_type }}-apks
+        path: |
+          examples/platform/android/c/cube/app/build/outputs/apk/debug/c-cube-example-${{ matrix.abi }}-debug.apk
+          examples/platform/android/c/compute/app/build/outputs/apk/debug/c-compute-example-${{ matrix.abi }}-debug.apk
+          examples/platform/android/cpp/cube/app/build/outputs/apk/debug/cpp-cube-example-${{ matrix.abi }}-debug.apk
+          examples/platform/android/cpp/compute/app/build/outputs/apk/debug/cpp-compute-example-${{ matrix.abi }}-debug.apk
         retention-days: 7

@@ -17,8 +17,8 @@ FetchContent_MakeAvailable(stb)
 add_library(stb_image INTERFACE)
 target_include_directories(stb_image INTERFACE ${stb_SOURCE_DIR})
 
-# GLFW dependency for examples
-if(NOT BUILD_FOR_WEB)
+# GLFW dependency for examples (not needed for Web or Android)
+if(NOT BUILD_FOR_WEB AND NOT ANDROID)
     find_package(glfw3 3.3 QUIET)
     
     if(NOT glfw3_FOUND)
@@ -219,7 +219,122 @@ if(BUILD_FOR_WEB)
     endif()  # BUILD_CPP_WRAPPER
 
 # =============================================================================
-# Native Examples
+# Android Examples (NativeActivity)
+# =============================================================================
+elseif(ANDROID)
+    message(STATUS "Building Android examples...")
+    
+    # Find Android libraries
+    find_library(ANDROID_LIBRARY android)
+    find_library(LOG_LIBRARY log)
+    
+    # Get native_app_glue source from NDK
+    set(NATIVE_APP_GLUE_DIR "${ANDROID_NDK}/sources/android/native_app_glue")
+    if(NOT EXISTS "${NATIVE_APP_GLUE_DIR}")
+        message(FATAL_ERROR "Could not find native_app_glue at ${NATIVE_APP_GLUE_DIR}")
+    endif()
+    
+    # Build native_app_glue as a static library
+    add_library(native_app_glue STATIC
+        "${NATIVE_APP_GLUE_DIR}/android_native_app_glue.c"
+    )
+    target_include_directories(native_app_glue PUBLIC
+        "${NATIVE_APP_GLUE_DIR}"
+    )
+    target_link_libraries(native_app_glue
+        ${ANDROID_LIBRARY}
+        ${LOG_LIBRARY}
+    )
+    
+    # Note: Shaders are compiled in desktop builds and copied by Gradle APK projects.
+    # Android native libraries don't bundle shaders - they're packaged in the APK.
+    
+    # C Cube Example (Android)
+    add_library(cube_example_android_c SHARED
+        ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/CubeExample.c
+    )
+    target_include_directories(cube_example_android_c PRIVATE
+        ${CMAKE_SOURCE_DIR}/gfx/include
+    )
+    target_link_libraries(cube_example_android_c
+        gfx
+        stb_image
+        -Wl,--whole-archive
+        native_app_glue
+        -Wl,--no-whole-archive
+        ${ANDROID_LIBRARY}
+        ${LOG_LIBRARY}
+    )
+    set_target_properties(cube_example_android_c PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/platform/android/c"
+    )
+    
+    # C Compute Example (Android)
+    add_library(compute_example_android_c SHARED
+        ${CMAKE_CURRENT_SOURCE_DIR}/c/compute/ComputeExample.c
+    )
+    target_include_directories(compute_example_android_c PRIVATE
+        ${CMAKE_SOURCE_DIR}/gfx/include
+    )
+    target_link_libraries(compute_example_android_c
+        gfx
+        -Wl,--whole-archive
+        native_app_glue
+        -Wl,--no-whole-archive
+        ${ANDROID_LIBRARY}
+        ${LOG_LIBRARY}
+    )
+    set_target_properties(compute_example_android_c PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/platform/android/c"
+    )
+    
+    # C++ Examples (require C++ wrapper)
+    if(BUILD_CPP_WRAPPER)
+        # C++ Cube Example (Android)
+        add_library(cube_example_android_cpp SHARED
+            ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/CubeExample.cpp
+        )
+        target_include_directories(cube_example_android_cpp PRIVATE
+            ${CMAKE_SOURCE_DIR}/gfx_cpp/include
+        )
+        target_link_libraries(cube_example_android_cpp
+            gfx_cpp
+            gfx
+            -Wl,--whole-archive
+            native_app_glue
+            -Wl,--no-whole-archive
+            ${ANDROID_LIBRARY}
+            ${LOG_LIBRARY}
+        )
+        set_target_properties(cube_example_android_cpp PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/platform/android/cpp"
+        )
+        
+        # C++ Compute Example (Android)
+        add_library(compute_example_android_cpp SHARED
+            ${CMAKE_CURRENT_SOURCE_DIR}/cpp/compute/ComputeExample.cpp
+        )
+        target_include_directories(compute_example_android_cpp PRIVATE
+            ${CMAKE_SOURCE_DIR}/gfx_cpp/include
+        )
+        target_link_libraries(compute_example_android_cpp
+            gfx_cpp
+            gfx
+            -Wl,--whole-archive
+            native_app_glue
+            -Wl,--no-whole-archive
+            ${ANDROID_LIBRARY}
+            ${LOG_LIBRARY}
+        )
+        set_target_properties(compute_example_android_cpp PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/platform/android/cpp"
+        )
+    endif()  # BUILD_CPP_WRAPPER
+    
+    message(STATUS "Android examples configured") 
+
+# =============================================================================
+# Native Examples (GLFW-based, not for Web or Android)
 # =============================================================================
 else()
     # Native C Cube Example

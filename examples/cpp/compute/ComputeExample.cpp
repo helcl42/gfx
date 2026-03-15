@@ -1,5 +1,19 @@
 #include <gfx_cpp/gfx.hpp>
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#include <android/native_window.h>
+#include <android_native_app_glue.h>
+#include <time.h>
+
+// Android logging macros
+#define LOG_TAG "GFX_COMPUTE_CPP"
+#define LOG_INFO(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOG_ERROR(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#define LOG_WARN(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
+#define LOG_DEBUG(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#else
+#include <cstdio>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
@@ -16,6 +30,13 @@
 #endif
 #include <GLFW/glfw3native.h>
 #endif
+
+// Desktop logging macros
+#define LOG_INFO(...) do { printf("[INFO] " __VA_ARGS__); printf("\n"); } while(0)
+#define LOG_ERROR(...) do { fprintf(stderr, "[ERROR] " __VA_ARGS__); fprintf(stderr, "\n"); } while(0)
+#define LOG_WARN(...) do { printf("[WARN] " __VA_ARGS__); printf("\n"); } while(0)
+#define LOG_DEBUG(...) do { printf("[DEBUG] " __VA_ARGS__); printf("\n"); } while(0)
+#endif // __ANDROID__
 
 #ifdef Success
 #undef Success
@@ -46,25 +67,23 @@ static constexpr gfx::Format COLOR_FORMAT = gfx::Format::B8G8R8A8UnormSrgb;
 // Log callback function
 static void logCallback(gfx::LogLevel level, const std::string& message)
 {
-    const char* levelStr = "UNKNOWN";
     switch (level) {
     case gfx::LogLevel::Error:
-        levelStr = "ERROR";
+        LOG_ERROR("%s", message.c_str());
         break;
     case gfx::LogLevel::Warning:
-        levelStr = "WARNING";
+        LOG_WARN("%s", message.c_str());
         break;
     case gfx::LogLevel::Info:
-        levelStr = "INFO";
+        LOG_INFO("%s", message.c_str());
         break;
     case gfx::LogLevel::Debug:
-        levelStr = "DEBUG";
+        LOG_DEBUG("%s", message.c_str());
         break;
     default:
-        levelStr = "UNKNOWN";
+        LOG_INFO("%s", message.c_str());
         break;
     }
-    std::cout << "[" << levelStr << "] " << message << std::endl;
 }
 
 // Uniform structures
@@ -84,11 +103,6 @@ struct Settings {
     bool vsync;
 };
 
-namespace util {
-std::vector<uint8_t> loadBinaryFile(const char* filepath);
-std::string loadTextFile(const char* filepath);
-} // namespace util
-
 class ComputeApp {
 public:
     explicit ComputeApp(const Settings& settings);
@@ -97,6 +111,16 @@ public:
     bool init();
     void run();
     void cleanup();
+
+#ifdef __ANDROID__
+    // Android-specific setters/getters for android_main
+    void setAndroidApp(struct android_app* app) { androidApp = app; }
+    void setAnimating(bool value) { animating = value; }
+    
+    // Android callbacks (public because they're assigned to android_app function pointers)
+    static void handleAppCommand(struct android_app* state, int32_t cmd);
+    static int32_t handleInput(struct android_app* state, AInputEvent* event);
+#endif
 
 private:
     bool createWindow(uint32_t width, uint32_t height);
@@ -146,14 +170,24 @@ private:
 #endif
     gfx::PlatformWindowHandle getPlatformWindowHandle();
 
+#ifndef __ANDROID__
     static void errorCallback(int error, const char* description);
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+#endif
+
+    std::vector<uint8_t> loadBinaryFile(const char* filepath);
+    std::string loadTextFile(const char* filepath);
 
 private:
     Settings settings;
 
+#ifdef __ANDROID__
+    struct android_app* androidApp = nullptr;
+    bool animating = false;
+#else
     GLFWwindow* window = nullptr;
+#endif
 
     std::shared_ptr<gfx::Instance> instance;
     std::shared_ptr<gfx::Adapter> adapter;
@@ -274,6 +308,17 @@ void ComputeApp::cleanup()
 
 bool ComputeApp::createWindow(uint32_t width, uint32_t height)
 {
+#ifdef __ANDROID__
+    if (!androidApp || !androidApp->window) {
+        LOG_ERROR("Android app or window is null");
+        return false;
+    }
+    
+    windowWidth = static_cast<uint32_t>(ANativeWindow_getWidth(androidApp->window));
+    windowHeight = static_cast<uint32_t>(ANativeWindow_getHeight(androidApp->window));
+    LOG_INFO("Android window size: %ux%u", windowWidth, windowHeight);
+    return true;
+#else
     glfwSetErrorCallback(errorCallback);
 
     if (!glfwInit()) {
@@ -298,15 +343,20 @@ bool ComputeApp::createWindow(uint32_t width, uint32_t height)
     glfwSetKeyCallback(window, keyCallback);
 
     return true;
+#endif
 }
 
 void ComputeApp::destroyWindow()
 {
+#ifdef __ANDROID__
+    // Android window is managed by the system
+#else
     if (window) {
         glfwDestroyWindow(window);
         window = nullptr;
     }
     glfwTerminate();
+#endif
 }
 
 bool ComputeApp::createGraphics()
@@ -662,11 +712,11 @@ bool ComputeApp::createComputeShaders()
         if (device->supportsShaderFormat(gfx::ShaderSourceType::SPIRV)) {
             shaderSourceType = gfx::ShaderSourceType::SPIRV;
             std::cout << "Loading SPIR-V compute shader..." << std::endl;
-            shaderCode = util::loadBinaryFile("shaders/generate.comp.spv");
+            shaderCode = loadBinaryFile("shaders/generate.comp.spv");
         } else if (device->supportsShaderFormat(gfx::ShaderSourceType::WGSL)) {
             shaderSourceType = gfx::ShaderSourceType::WGSL;
             std::cout << "Loading WGSL compute shader..." << std::endl;
-            auto wgsl = util::loadTextFile("shaders/generate.comp.wgsl");
+            auto wgsl = loadTextFile("shaders/generate.comp.wgsl");
             shaderCode.assign(wgsl.begin(), wgsl.end());
         } else {
             std::cerr << "Error: No supported shader format found" << std::endl;
@@ -955,13 +1005,13 @@ bool ComputeApp::createRenderShaders()
         if (device->supportsShaderFormat(gfx::ShaderSourceType::SPIRV)) {
             shaderSourceType = gfx::ShaderSourceType::SPIRV;
             std::cout << "Loading SPIR-V shaders..." << std::endl;
-            vertexShaderCode = util::loadBinaryFile("shaders/fullscreen.vert.spv");
-            fragmentShaderCode = util::loadBinaryFile("shaders/postprocess.frag.spv");
+            vertexShaderCode = loadBinaryFile("shaders/fullscreen.vert.spv");
+            fragmentShaderCode = loadBinaryFile("shaders/postprocess.frag.spv");
         } else if (device->supportsShaderFormat(gfx::ShaderSourceType::WGSL)) {
             shaderSourceType = gfx::ShaderSourceType::WGSL;
             std::cout << "Loading WGSL shaders..." << std::endl;
-            auto vertexWgsl = util::loadTextFile("shaders/fullscreen.vert.wgsl");
-            auto fragmentWgsl = util::loadTextFile("shaders/postprocess.frag.wgsl");
+            auto vertexWgsl = loadTextFile("shaders/fullscreen.vert.wgsl");
+            auto fragmentWgsl = loadTextFile("shaders/postprocess.frag.wgsl");
             vertexShaderCode.assign(vertexWgsl.begin(), vertexWgsl.end());
             fragmentShaderCode.assign(fragmentWgsl.begin(), fragmentWgsl.end());
         } else {
@@ -1339,12 +1389,327 @@ void ComputeApp::render()
 
 float ComputeApp::getCurrentTime()
 {
-#if defined(__EMSCRIPTEN__)
+#if defined(__ANDROID__)
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (float)ts.tv_sec + (float)ts.tv_nsec / 1000000000.0f;
+#elif defined(__EMSCRIPTEN__)
     return (float)emscripten_get_now() / 1000.0f;
 #else
     return (float)glfwGetTime();
 #endif
 }
+
+gfx::PlatformWindowHandle ComputeApp::getPlatformWindowHandle()
+{
+    gfx::PlatformWindowHandle handle{};
+
+#if defined(__ANDROID__)
+    handle = gfx::PlatformWindowHandle::fromAndroid(androidApp->window);
+    LOG_INFO("Extracted Android handle: Window=%p", handle.handle.android.window);
+#elif defined(__EMSCRIPTEN__)
+    handle = gfx::PlatformWindowHandle::fromEmscripten("#canvas");
+#elif defined(_WIN32)
+    handle = gfx::PlatformWindowHandle::fromWin32(GetModuleHandle(nullptr), glfwGetWin32Window(window));
+    std::cout << "Extracted Win32 handle: HWND=" << handle.handle.win32.hwnd << ", HINSTANCE=" << handle.handle.win32.hinstance << std::endl;
+#elif defined(__linux__)
+    // handle = gfx::PlatformWindowHandle::fromXlib(glfwGetX11Display(), glfwGetX11Window(window));
+    // std::cout << "Extracted X11 handle: Window=" << handle.handle.xlib.window << ", Display=" << handle.handle.xlib.display << std::endl;
+    handle = gfx::PlatformWindowHandle::fromWayland(glfwGetWaylandDisplay(), glfwGetWaylandWindow(window));
+    std::cout << "Extracted Wayland handle: Surface=" << handle.handle.wayland.surface << ", Display=" << handle.handle.wayland.display << std::endl;
+#elif defined(__APPLE__)
+    handle = gfx::PlatformWindowHandle::fromMetal(glfwGetCocoaWindow(window));
+    std::cout << "Extracted Metal handle: Layer=" << handle.handle.metal.layer << std::endl;
+#endif
+    return handle;
+}
+
+#ifndef __ANDROID__
+void ComputeApp::errorCallback(int error, const char* description)
+{
+    std::cerr << "GLFW Error " << error << ": " << description << std::endl;
+}
+
+void ComputeApp::framebufferResizeCallback(GLFWwindow* window, int width, int height)
+{
+    auto* app = static_cast<ComputeApp*>(glfwGetWindowUserPointer(window));
+    if (app) {
+        app->windowWidth = static_cast<uint32_t>(width);
+        app->windowHeight = static_cast<uint32_t>(height);
+    }
+}
+
+void ComputeApp::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    (void)scancode;
+    (void)mods;
+
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+}
+#endif // !__ANDROID__
+
+std::vector<uint8_t> ComputeApp::loadBinaryFile(const char* filepath)
+{
+#ifdef __ANDROID__
+    if (!androidApp || !androidApp->activity || !androidApp->activity->assetManager) {
+        LOG_ERROR("AssetManager not available for file: %s", filepath);
+        return {};
+    }
+    
+    AAssetManager* assetManager = androidApp->activity->assetManager;
+    AAsset* asset = AAssetManager_open(assetManager, filepath, AASSET_MODE_BUFFER);
+    if (!asset) {
+        LOG_ERROR("Failed to open asset: %s", filepath);
+        return {};
+    }
+    
+    size_t size = AAsset_getLength(asset);
+    std::vector<uint8_t> buffer(size);
+    
+    int bytesRead = AAsset_read(asset, buffer.data(), size);
+    AAsset_close(asset);
+    
+    if (bytesRead < 0 || static_cast<size_t>(bytesRead) != size) {
+        LOG_ERROR("Failed to read complete asset: %s", filepath);
+        return {};
+    }
+    
+    return buffer;
+#else
+    std::ifstream file(filepath, std::ios::binary | std::ios::ate);
+    if (!file) {
+        std::cerr << "Failed to open file: " << filepath << std::endl;
+        return {};
+    }
+
+    size_t fileSize = static_cast<size_t>(file.tellg());
+    file.seekg(0);
+
+    std::vector<uint8_t> buffer(fileSize);
+    file.read(reinterpret_cast<char*>(buffer.data()), fileSize);
+
+    if (!file) {
+        std::cerr << "Failed to read complete file: " << filepath << std::endl;
+        return {};
+    }
+
+    return buffer;
+#endif
+}
+
+std::string ComputeApp::loadTextFile(const char* filepath)
+{
+#ifdef __ANDROID__
+    if (!androidApp || !androidApp->activity || !androidApp->activity->assetManager) {
+        LOG_ERROR("AssetManager not available for file: %s", filepath);
+        return {};
+    }
+    
+    AAssetManager* assetManager = androidApp->activity->assetManager;
+    AAsset* asset = AAssetManager_open(assetManager, filepath, AASSET_MODE_BUFFER);
+    if (!asset) {
+        LOG_ERROR("Failed to open asset: %s", filepath);
+        return {};
+    }
+    
+    size_t size = AAsset_getLength(asset);
+    std::string buffer(size, '\0');
+    
+    int bytesRead = AAsset_read(asset, buffer.data(), size);
+    AAsset_close(asset);
+    
+    if (bytesRead < 0 || static_cast<size_t>(bytesRead) != size) {
+        LOG_ERROR("Failed to read complete asset: %s", filepath);
+        return {};
+    }
+    
+    return buffer;
+#else
+    std::FILE* file = std::fopen(filepath, "r");
+    if (!file) {
+        std::cerr << "Failed to open file: " << filepath << std::endl;
+        return {};
+    }
+
+    std::fseek(file, 0, SEEK_END);
+    long fileSize = std::ftell(file);
+    std::fseek(file, 0, SEEK_SET);
+
+    if (fileSize <= 0) {
+        std::cerr << "Invalid file size for: " << filepath << std::endl;
+        std::fclose(file);
+        return {};
+    }
+
+    std::string buffer(fileSize, '\0');
+    size_t bytesRead = std::fread(const_cast<char*>(buffer.data()), 1, fileSize, file);
+    std::fclose(file);
+
+    if (bytesRead != static_cast<size_t>(fileSize)) {
+        std::cerr << "Failed to read complete file: " << filepath << std::endl;
+        return {};
+    }
+
+    return buffer;
+#endif
+}
+
+#ifdef __ANDROID__
+// ============================================================================
+// Android Platform Implementation
+// ============================================================================
+
+bool ComputeApp::mainLoopIteration()
+{
+    static int frameCount = 0;
+    
+    int events;
+    struct android_poll_source* source;
+    
+    // Poll all events
+    while (ALooper_pollOnce(animating ? 0 : -1, nullptr, &events, reinterpret_cast<void**>(&source)) >= 0) {
+        if (source != nullptr) {
+            source->process(androidApp, source);
+        }
+        
+        if (androidApp->destroyRequested != 0) {
+            LOG_INFO("Destroy requested");
+            cleanup();
+            return false;
+        }
+    }
+    
+    if (animating && instance) {
+        if (frameCount == 0) {
+            LOG_INFO("Starting render loop - first frame");
+        }
+        
+        float currentTime = getCurrentTime();
+        static float lastTime = 0.0f;
+        if (lastTime == 0.0f) {
+            lastTime = currentTime;
+        }
+        float deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+        
+        update(deltaTime);
+        render();
+        
+        frameCount++;
+        if (frameCount % 60 == 0) {
+            LOG_DEBUG("Rendered %d frames", frameCount);
+        }
+    } else if (frameCount == 0) {
+        // Only log once when not rendering
+        static bool logged = false;
+        if (!logged) {
+            LOG_WARN("Not rendering: animating=%d, instance=%p", 
+                    animating, instance.get());
+            logged = true;
+        }
+    }
+    
+    return true;
+}
+
+void ComputeApp::handleAppCommand(struct android_app* state, int32_t cmd)
+{
+    auto* app = static_cast<ComputeApp*>(state->userData);
+    
+    switch (cmd) {
+    case APP_CMD_INIT_WINDOW:
+        if (state->window != nullptr) {
+            app->windowWidth = static_cast<uint32_t>(ANativeWindow_getWidth(state->window));
+            app->windowHeight = static_cast<uint32_t>(ANativeWindow_getHeight(state->window));
+            LOG_INFO("Window initialized: %ux%u", app->windowWidth, app->windowHeight);
+            
+            if (!app->instance) {
+                if (!app->createWindow(app->windowWidth, app->windowHeight)) {
+                    LOG_ERROR("Failed to create window");
+                    return;
+                }
+                
+                if (!app->createGraphics()) {
+                    LOG_ERROR("Failed to create graphics");
+                    return;
+                }
+                
+                if (!app->createSizeDependentResources(app->windowWidth, app->windowHeight)) {
+                    LOG_ERROR("Failed to create size-dependent resources");
+                    return;
+                }
+                
+                if (!app->createComputeResources()) {
+                    LOG_ERROR("Failed to create compute resources");
+                    return;
+                }
+                
+                if (!app->createRenderResources()) {
+                    LOG_ERROR("Failed to create render resources");
+                    return;
+                }
+                
+                if (!app->createPerFrameResources()) {
+                    LOG_ERROR("Failed to create per-frame resources");
+                    return;
+                }
+                
+                LOG_INFO("Application initialized successfully");
+            }
+            
+            app->animating = true;
+        }
+        break;
+        
+    case APP_CMD_TERM_WINDOW:
+        LOG_INFO("Window terminated");
+        app->animating = false;
+        break;
+        
+    case APP_CMD_GAINED_FOCUS:
+        LOG_INFO("Gained focus");
+        app->animating = true;
+        break;
+        
+    case APP_CMD_LOST_FOCUS:
+        LOG_INFO("Lost focus");
+        app->animating = false;
+        break;
+    }
+}
+
+int32_t ComputeApp::handleInput(struct android_app* state, AInputEvent* event)
+{
+    (void)state;
+    (void)event;
+    return 0;
+}
+
+void android_main(struct android_app* state)
+{
+    Settings settings;
+    settings.backend = gfx::Backend::Vulkan;
+    settings.vsync = true;
+    
+    ComputeApp app(settings);
+    app.setAndroidApp(state);
+    app.setAnimating(false);
+    
+    state->userData = &app;
+    state->onAppCmd = ComputeApp::handleAppCommand;
+    state->onInputEvent = ComputeApp::handleInput;
+    
+    LOG_INFO("=== GFX Compute Example (Android C++) ===");
+    
+    app.run();
+}
+
+#else
+// ============================================================================
+// Desktop/Web Platform Implementation
+// ============================================================================
 
 bool ComputeApp::mainLoopIteration()
 {
@@ -1424,105 +1789,6 @@ void ComputeApp::emscriptenMainLoop(void* userData)
 }
 #endif
 
-gfx::PlatformWindowHandle ComputeApp::getPlatformWindowHandle()
-{
-    gfx::PlatformWindowHandle handle{};
-
-#if defined(__EMSCRIPTEN__)
-    handle = gfx::PlatformWindowHandle::fromEmscripten("#canvas");
-#elif defined(_WIN32)
-    handle = gfx::PlatformWindowHandle::fromWin32(GetModuleHandle(nullptr), glfwGetWin32Window(window));
-    std::cout << "Extracted Win32 handle: HWND=" << handle.handle.win32.hwnd << ", HINSTANCE=" << handle.handle.win32.hinstance << std::endl;
-#elif defined(__linux__)
-    // handle = gfx::PlatformWindowHandle::fromXlib(glfwGetX11Display(), glfwGetX11Window(window));
-    // std::cout << "Extracted X11 handle: Window=" << handle.handle.xlib.window << ", Display=" << handle.handle.xlib.display << std::endl;
-    handle = gfx::PlatformWindowHandle::fromWayland(glfwGetWaylandDisplay(), glfwGetWaylandWindow(window));
-    std::cout << "Extracted Wayland handle: Surface=" << handle.handle.wayland.surface << ", Display=" << handle.handle.wayland.display << std::endl;
-#elif defined(__APPLE__)
-    handle = gfx::PlatformWindowHandle::fromMetal(glfwGetCocoaWindow(window));
-    std::cout << "Extracted Metal handle: Layer=" << handle.handle.metal.layer << std::endl;
-#endif
-    return handle;
-}
-
-void ComputeApp::errorCallback(int error, const char* description)
-{
-    std::cerr << "GLFW Error " << error << ": " << description << std::endl;
-}
-
-void ComputeApp::framebufferResizeCallback(GLFWwindow* window, int width, int height)
-{
-    auto* app = static_cast<ComputeApp*>(glfwGetWindowUserPointer(window));
-    if (app) {
-        app->windowWidth = static_cast<uint32_t>(width);
-        app->windowHeight = static_cast<uint32_t>(height);
-    }
-}
-
-void ComputeApp::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-    (void)scancode;
-    (void)mods;
-
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-    }
-}
-
-namespace util {
-std::vector<uint8_t> loadBinaryFile(const char* filepath)
-{
-    std::ifstream file(filepath, std::ios::binary | std::ios::ate);
-    if (!file) {
-        std::cerr << "Failed to open file: " << filepath << std::endl;
-        return {};
-    }
-
-    size_t fileSize = static_cast<size_t>(file.tellg());
-    file.seekg(0);
-
-    std::vector<uint8_t> buffer(fileSize);
-    file.read(reinterpret_cast<char*>(buffer.data()), fileSize);
-
-    if (!file) {
-        std::cerr << "Failed to read complete file: " << filepath << std::endl;
-        return {};
-    }
-
-    return buffer;
-}
-
-std::string loadTextFile(const char* filepath)
-{
-    std::FILE* file = std::fopen(filepath, "r");
-    if (!file) {
-        std::cerr << "Failed to open file: " << filepath << std::endl;
-        return {};
-    }
-
-    std::fseek(file, 0, SEEK_END);
-    long fileSize = std::ftell(file);
-    std::fseek(file, 0, SEEK_SET);
-
-    if (fileSize <= 0) {
-        std::cerr << "Invalid file size for: " << filepath << std::endl;
-        std::fclose(file);
-        return {};
-    }
-
-    std::string buffer(fileSize, '\0');
-    size_t bytesRead = std::fread(buffer.data(), 1, fileSize, file);
-    std::fclose(file);
-
-    if (bytesRead != static_cast<size_t>(fileSize)) {
-        std::cerr << "Failed to read complete file: " << filepath << std::endl;
-        return {};
-    }
-
-    return buffer;
-}
-} // namespace util
-
 static bool parseArguments(int argc, char** argv, Settings& settings)
 {
 #if defined(__EMSCRIPTEN__)
@@ -1593,3 +1859,5 @@ int main(int argc, char** argv)
     std::cout << "Application terminated successfully" << std::endl;
     return 0;
 }
+
+#endif // __ANDROID__
