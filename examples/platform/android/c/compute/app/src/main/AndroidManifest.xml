@@ -9,6 +9,11 @@
         android:label="GFX Compute Example"
         android:hasCode="false">
         
+        <!-- 16KB page size compatibility declaration -->
+        <property
+            android:name="android.app.16kb_pages.enabled"
+            android:value="true" />
+        
         <activity android:name="android.app.NativeActivity"
             android:label="GFX Compute Example"
             android:configChanges="orientation|keyboardHidden|screenSize"

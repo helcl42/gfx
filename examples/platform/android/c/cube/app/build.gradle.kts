@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace = "com.example.gfx.cube"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.gfx.cube"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -33,6 +33,13 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    packaging {
+        jniLibs {
+            // Keep native libraries uncompressed and page-aligned for 16KB page size support
+            useLegacyPackaging = true
+        }
     }
 
     // Point to prebuilt native libraries
