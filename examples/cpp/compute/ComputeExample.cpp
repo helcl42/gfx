@@ -196,6 +196,7 @@ private:
     std::shared_ptr<gfx::Queue> queue;
     std::shared_ptr<gfx::Surface> surface;
     std::shared_ptr<gfx::Swapchain> swapchain;
+    gfx::SwapchainInfo swapchainInfo;
 
     // Compute resources
     std::shared_ptr<gfx::Texture> computeTexture;
@@ -221,7 +222,6 @@ private:
     uint32_t windowHeight = WINDOW_HEIGHT;
     uint32_t previousWidth = WINDOW_WIDTH;
     uint32_t previousHeight = WINDOW_HEIGHT;
-    size_t framesInFlightCount = 0; // Dynamic based on surface capabilities
 
     // Per-frame synchronization (dynamic)
     std::vector<std::shared_ptr<gfx::Semaphore>> imageAvailableSemaphores;
@@ -450,11 +450,11 @@ bool ComputeApp::createPerFrameResources()
         gfx::FenceDescriptor fenceDesc{};
         fenceDesc.signaled = true;
 
-        imageAvailableSemaphores.resize(framesInFlightCount);
-        inFlightFences.resize(framesInFlightCount);
-        commandEncoders.resize(framesInFlightCount);
+        imageAvailableSemaphores.resize(swapchainInfo.imageCount);
+        inFlightFences.resize(swapchainInfo.imageCount);
+        commandEncoders.resize(swapchainInfo.imageCount);
 
-        for (size_t i = 0; i < framesInFlightCount; ++i) {
+        for (size_t i = 0; i < swapchainInfo.imageCount; ++i) {
             imageAvailableSemaphores[i] = device->createSemaphore(semaphoreDesc);
             if (!imageAvailableSemaphores[i]) {
                 std::cerr << "Failed to create image available semaphore " << i << std::endl;
@@ -529,16 +529,6 @@ bool ComputeApp::createSwapchain(uint32_t width, uint32_t height)
         std::cout << "Surface Info:" << std::endl;
         std::cout << "  Image Count: min " << surfaceInfo.minImageCount << ", max " << surfaceInfo.maxImageCount << std::endl;
 
-        // Calculate frames in flight
-        framesInFlightCount = surfaceInfo.minImageCount;
-        if (framesInFlightCount < 2) {
-            framesInFlightCount = 2;
-        }
-        if (framesInFlightCount > 4) {
-            framesInFlightCount = 4;
-        }
-        std::cout << "Frames in flight: " << framesInFlightCount << std::endl;
-
         gfx::SwapchainDescriptor swapchainDesc{};
         swapchainDesc.label = "Main Swapchain";
         swapchainDesc.surface = surface;
@@ -547,7 +537,7 @@ bool ComputeApp::createSwapchain(uint32_t width, uint32_t height)
         swapchainDesc.format = COLOR_FORMAT;
         swapchainDesc.usage = gfx::TextureUsage::RenderAttachment;
         swapchainDesc.presentMode = settings.vsync ? gfx::PresentMode::Fifo : gfx::PresentMode::Immediate;
-        swapchainDesc.imageCount = static_cast<uint32_t>(framesInFlightCount);
+        swapchainDesc.imageCount = static_cast<uint32_t>(surfaceInfo.minImageCount);
 
         swapchain = device->createSwapchain(swapchainDesc);
         if (!swapchain) {
@@ -556,7 +546,7 @@ bool ComputeApp::createSwapchain(uint32_t width, uint32_t height)
         }
 
         // Get swapchain info and create render finished semaphores (one per swapchain image)
-        auto swapchainInfo = swapchain->getInfo();
+        swapchainInfo = swapchain->getInfo();
         renderFinishedSemaphores.resize(swapchainInfo.imageCount);
 
         gfx::SemaphoreDescriptor semaphoreDesc{};
@@ -807,8 +797,8 @@ bool ComputeApp::createComputePipeline()
         computeUniformBufferDesc.size = sizeof(ComputeUniformData);
         computeUniformBufferDesc.usage = gfx::BufferUsage::Uniform | gfx::BufferUsage::CopyDst;
 
-        computeUniformBuffers.resize(framesInFlightCount);
-        for (size_t i = 0; i < framesInFlightCount; ++i) {
+        computeUniformBuffers.resize(swapchainInfo.imageCount);
+        for (size_t i = 0; i < swapchainInfo.imageCount; ++i) {
             computeUniformBuffers[i] = device->createBuffer(computeUniformBufferDesc);
             if (!computeUniformBuffers[i]) {
                 std::cerr << "Failed to create compute uniform buffer " << i << std::endl;
@@ -817,8 +807,8 @@ bool ComputeApp::createComputePipeline()
         }
 
         // Create compute bind groups (one per frame in flight)
-        computeBindGroups.resize(framesInFlightCount);
-        for (size_t i = 0; i < framesInFlightCount; ++i) {
+        computeBindGroups.resize(swapchainInfo.imageCount);
+        for (size_t i = 0; i < swapchainInfo.imageCount; ++i) {
             gfx::BindGroupEntry textureEntry{};
             textureEntry.binding = 0;
             textureEntry.resource = computeTextureView;
@@ -1124,8 +1114,8 @@ bool ComputeApp::createRenderPipeline()
         renderUniformBufferDesc.size = sizeof(RenderUniformData);
         renderUniformBufferDesc.usage = gfx::BufferUsage::Uniform | gfx::BufferUsage::CopyDst;
 
-        renderUniformBuffers.resize(framesInFlightCount);
-        for (size_t i = 0; i < framesInFlightCount; ++i) {
+        renderUniformBuffers.resize(swapchainInfo.imageCount);
+        for (size_t i = 0; i < swapchainInfo.imageCount; ++i) {
             renderUniformBuffers[i] = device->createBuffer(renderUniformBufferDesc);
             if (!renderUniformBuffers[i]) {
                 std::cerr << "Failed to create render uniform buffer " << i << std::endl;
@@ -1134,8 +1124,8 @@ bool ComputeApp::createRenderPipeline()
         }
 
         // Create render bind groups (one per frame in flight)
-        renderBindGroups.resize(framesInFlightCount);
-        for (size_t i = 0; i < framesInFlightCount; ++i) {
+        renderBindGroups.resize(swapchainInfo.imageCount);
+        for (size_t i = 0; i < swapchainInfo.imageCount; ++i) {
             gfx::BindGroupEntry samplerBindEntry{};
             samplerBindEntry.binding = 0;
             samplerBindEntry.resource = sampler;
@@ -1381,7 +1371,7 @@ void ComputeApp::render()
 
         result = swapchain->present(presentDescriptor);
 
-        currentFrame = (currentFrame + 1) % framesInFlightCount;
+        currentFrame = (currentFrame + 1) % swapchainInfo.imageCount;
     } catch (const std::exception& e) {
         std::cerr << "Render error: " << e.what() << std::endl;
     }

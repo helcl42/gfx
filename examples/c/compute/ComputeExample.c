@@ -140,7 +140,6 @@ typedef struct {
 
     uint32_t windowWidth;
     uint32_t windowHeight;
-    uint32_t framesInFlightCount; // Dynamic based on surface capabilities
 
     // Per-frame resources (dynamic array)
     PerFrameResources* frameResources;
@@ -395,7 +394,7 @@ static void destroyGraphics(ComputeApp* app)
 static bool createPerFrameResources(ComputeApp* app)
 {
     // Allocate per-frame resources array
-    app->frameResources = (PerFrameResources*)calloc(app->framesInFlightCount, sizeof(PerFrameResources));
+    app->frameResources = (PerFrameResources*)calloc(app->swapchainInfo.imageCount, sizeof(PerFrameResources));
     if (!app->frameResources) {
         fprintf(stderr, "Failed to allocate per-frame resources array\n");
         return false;
@@ -411,7 +410,7 @@ static bool createPerFrameResources(ComputeApp* app)
     fenceDesc.pNext = NULL;
     fenceDesc.signaled = true;
 
-    for (uint32_t i = 0; i < app->framesInFlightCount; ++i) {
+    for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
         if (gfxDeviceCreateSemaphore(app->device, &semaphoreDesc, &app->frameResources[i].imageAvailableSemaphore) != GFX_RESULT_SUCCESS) {
             fprintf(stderr, "Failed to create image available semaphore\n");
             return false;
@@ -543,7 +542,7 @@ static bool createPerFrameResources(ComputeApp* app)
 static void destroyPerFrameResources(ComputeApp* app)
 {
     if (app->frameResources) {
-        for (uint32_t i = 0; i < app->framesInFlightCount; ++i) {
+        for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
             PerFrameResources* frame = &app->frameResources[i];
 
             // Wait for fence before destroying resources
@@ -677,16 +676,6 @@ static bool createSwapchain(ComputeApp* app, uint32_t width, uint32_t height)
         surfaceInfo.minExtent.width, surfaceInfo.minExtent.height,
         surfaceInfo.maxExtent.width, surfaceInfo.maxExtent.height);
 
-    // Calculate frames in flight based on surface capabilities (clamp to [2, 4])
-    app->framesInFlightCount = surfaceInfo.minImageCount;
-    if (app->framesInFlightCount < 2) {
-        app->framesInFlightCount = 2;
-    }
-    if (app->framesInFlightCount > 4) {
-        app->framesInFlightCount = 4;
-    }
-    printf("Frames in flight: %u\n", app->framesInFlightCount);
-
     GfxSwapchainDescriptor swapchainDesc = {};
     swapchainDesc.sType = GFX_STRUCTURE_TYPE_SWAPCHAIN_DESCRIPTOR;
     swapchainDesc.pNext = NULL;
@@ -696,7 +685,7 @@ static bool createSwapchain(ComputeApp* app, uint32_t width, uint32_t height)
     swapchainDesc.format = COLOR_FORMAT;
     swapchainDesc.usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
     swapchainDesc.presentMode = app->settings.vsync ? GFX_PRESENT_MODE_FIFO : GFX_PRESENT_MODE_IMMEDIATE;
-    swapchainDesc.imageCount = app->framesInFlightCount;
+    swapchainDesc.imageCount = surfaceInfo.minImageCount;
 
     if (gfxDeviceCreateSwapchain(app->device, &swapchainDesc, &app->swapchain) != GFX_RESULT_SUCCESS) {
         fprintf(stderr, "Failed to create swapchain\n");
@@ -752,13 +741,13 @@ static void destroySwapchain(ComputeApp* app)
 static bool createFramebuffers(ComputeApp* app)
 {
     // Allocate framebuffers array
-    app->framebuffers = (GfxFramebuffer*)calloc(app->framesInFlightCount, sizeof(GfxFramebuffer));
+    app->framebuffers = (GfxFramebuffer*)calloc(app->swapchainInfo.imageCount, sizeof(GfxFramebuffer));
     if (!app->framebuffers) {
         fprintf(stderr, "Failed to allocate framebuffers array\n");
         return false;
     }
 
-    for (uint32_t i = 0; i < app->framesInFlightCount; ++i) {
+    for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
         GfxTextureView backbuffer = NULL;
         GfxResult result = gfxSwapchainGetTextureView(app->swapchain, i, &backbuffer);
         if (result != GFX_RESULT_SUCCESS || !backbuffer) {
@@ -801,7 +790,7 @@ static bool createFramebuffers(ComputeApp* app)
 
 static void destroyFramebuffers(ComputeApp* app)
 {
-    for (uint32_t i = 0; i < app->framesInFlightCount; ++i) {
+    for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
         if (app->framebuffers[i]) {
             gfxFramebufferDestroy(app->framebuffers[i]);
             app->framebuffers[i] = NULL;
@@ -1668,6 +1657,18 @@ static void render(ComputeApp* app)
         fprintf(stderr, "Failed to acquire swapchain image\n");
         return;
     }
+    
+    // Validate framebuffer array and image index
+    if (!app->framebuffers || imageIndex >= app->swapchainInfo.imageCount) {
+        fprintf(stderr, "Invalid framebuffer state: framebuffers=%p, imageIndex=%u, swapchain images=%u\n",
+                (void*)app->framebuffers, imageIndex, app->swapchainInfo.imageCount);
+        return;
+    }
+    
+    if (!app->framebuffers[imageIndex]) {
+        fprintf(stderr, "Framebuffer at index %u is NULL\n", imageIndex);
+        return;
+    }
 
     // Update compute uniforms for current frame
     ComputeUniformData computeUniforms = {
@@ -1844,7 +1845,7 @@ static void render(ComputeApp* app)
         return;
     }
 
-    app->currentFrame = (app->currentFrame + 1) % app->framesInFlightCount;
+    app->currentFrame = (app->currentFrame + 1) % app->swapchainInfo.imageCount;
 }
 
 #ifdef __ANDROID__

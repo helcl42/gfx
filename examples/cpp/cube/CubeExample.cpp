@@ -205,6 +205,7 @@ private:
     std::shared_ptr<gfx::Queue> queue;
     std::shared_ptr<gfx::Surface> surface;
     std::shared_ptr<gfx::Swapchain> swapchain;
+    gfx::SwapchainInfo swapchainInfo;
 
     std::shared_ptr<gfx::Buffer> vertexBuffer;
     std::shared_ptr<gfx::Buffer> indexBuffer;
@@ -231,7 +232,6 @@ private:
     uint32_t previousHeight = WINDOW_HEIGHT;
 
     // Per-frame resources
-    size_t framesInFlightCount = 0;
     std::shared_ptr<gfx::Buffer> sharedUniformBuffer;
     size_t uniformAlignedSize = 0;
     std::vector<PerFrameResources> frameResources;
@@ -492,17 +492,6 @@ bool CubeApp::createSizeDependentResources(uint32_t width, uint32_t height)
         std::cout << "  Extent: min (" << surfaceInfo.minExtent.width << ", " << surfaceInfo.minExtent.height << "), "
                   << "max (" << surfaceInfo.maxExtent.width << ", " << surfaceInfo.maxExtent.height << ")" << std::endl;
 
-        // Calculate frames in flight based on surface capabilities
-        // Use min image count, but clamp to reasonable values (2-4 is typical)
-        framesInFlightCount = surfaceInfo.minImageCount;
-        if (framesInFlightCount < 2) {
-            framesInFlightCount = 2;
-        }
-        if (framesInFlightCount > 4) {
-            framesInFlightCount = 4;
-        }
-        std::cout << "Frames in flight: " << framesInFlightCount << std::endl;
-
         // Create swapchain
         gfx::SwapchainDescriptor swapchainDesc{};
         swapchainDesc.label = "Main Swapchain";
@@ -512,7 +501,7 @@ bool CubeApp::createSizeDependentResources(uint32_t width, uint32_t height)
         swapchainDesc.format = COLOR_FORMAT;
         swapchainDesc.usage = gfx::TextureUsage::RenderAttachment;
         swapchainDesc.presentMode = settings.vsync ? gfx::PresentMode::Fifo : gfx::PresentMode::Immediate;
-        swapchainDesc.imageCount = framesInFlightCount;
+        swapchainDesc.imageCount = surfaceInfo.minImageCount;
 
         swapchain = device->createSwapchain(swapchainDesc);
         if (!swapchain) {
@@ -521,7 +510,7 @@ bool CubeApp::createSizeDependentResources(uint32_t width, uint32_t height)
         }
 
         // Get actual swapchain dimensions (may differ from requested)
-        auto swapchainInfo = swapchain->getInfo();
+        swapchainInfo = swapchain->getInfo();
 
         // Create render finished semaphores (one per swapchain image)
         renderFinishedSemaphores.resize(swapchainInfo.imageCount);
@@ -718,10 +707,10 @@ bool CubeApp::createPerFrameResources()
 {
     try {
         // Resize frameResources vector for dynamic frame count
-        frameResources.resize(framesInFlightCount);
+        frameResources.resize(swapchainInfo.imageCount);
 
         // Create per-frame resources for each frame in flight
-        for (size_t i = 0; i < framesInFlightCount; ++i) {
+        for (size_t i = 0; i < swapchainInfo.imageCount; ++i) {
             auto& frame = frameResources[i];
 
             // Create binary semaphores for image availability and render completion
@@ -885,7 +874,7 @@ bool CubeApp::createUniformBuffer()
 
         size_t uniformSize = sizeof(UniformData);
         uniformAlignedSize = gfx::utils::alignUp(uniformSize, limits.minUniformBufferOffsetAlignment);
-        size_t totalBufferSize = uniformAlignedSize * framesInFlightCount * CUBE_COUNT;
+        size_t totalBufferSize = uniformAlignedSize * swapchainInfo.imageCount * CUBE_COUNT;
 
         gfx::BufferDescriptor uniformBufferDesc{};
         uniformBufferDesc.label = "Shared Transform Uniforms";
@@ -1292,7 +1281,7 @@ void CubeApp::render()
         }
 
         // Advance to next frame
-        currentFrame = (currentFrame + 1) % framesInFlightCount;
+        currentFrame = (currentFrame + 1) % swapchainInfo.imageCount;
     } catch (const std::exception& e) {
         std::cerr << "Render error: " << e.what() << std::endl;
     }
