@@ -1,5 +1,13 @@
 #include <gfx/gfx.h>
 
+#include <float.h>
+#include <math.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
@@ -15,13 +23,7 @@
 #include <GLFW/glfw3native.h>
 #endif
 
-#include <float.h>
-#include <math.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -40,29 +42,49 @@
 #define USE_THREADING 1
 #endif
 
+// Logging macros
+#define LOG_INFO(...)                  \
+    do {                               \
+        printf("[INFO] " __VA_ARGS__); \
+        printf("\n");                  \
+    } while (0)
+#define LOG_ERROR(...)                           \
+    do {                                         \
+        fprintf(stderr, "[ERROR] " __VA_ARGS__); \
+        fprintf(stderr, "\n");                   \
+    } while (0)
+#define LOG_WARN(...)                           \
+    do {                                        \
+        fprintf(stderr, "[WARN] " __VA_ARGS__); \
+        fprintf(stderr, "\n");                  \
+    } while (0)
+#define LOG_DEBUG(...)                  \
+    do {                                \
+        printf("[DEBUG] " __VA_ARGS__); \
+        printf("\n");                   \
+    } while (0)
+
 // Log callback function
 static void logCallback(GfxLogLevel level, const char* message, void* userData)
 {
     (void)userData;
-    const char* levelStr = "UNKNOWN";
     switch (level) {
     case GFX_LOG_LEVEL_ERROR:
-        levelStr = "ERROR";
+        LOG_ERROR("%s", message);
         break;
     case GFX_LOG_LEVEL_WARNING:
-        levelStr = "WARNING";
+        LOG_WARN("%s", message);
         break;
     case GFX_LOG_LEVEL_INFO:
-        levelStr = "INFO";
+        LOG_INFO("%s", message);
         break;
     case GFX_LOG_LEVEL_DEBUG:
-        levelStr = "DEBUG";
+        LOG_DEBUG("%s", message);
         break;
     default:
-        levelStr = "UNKNOWN";
+        LOG_INFO("[UNKNOWN] %s", message);
         break;
     }
-    printf("[%s] %s\n", levelStr, message);
 }
 
 // Math types for improved API clarity and type safety
@@ -133,6 +155,8 @@ typedef struct CubeApp {
 
     GfxBuffer vertexBuffer;
     GfxBuffer indexBuffer;
+    GfxBufferInfo vertexBufferInfo;
+    GfxBufferInfo indexBufferInfo;
     GfxShader vertexShader;
     GfxShader fragmentShader;
     GfxRenderPass clearRenderPass; // For clear pass (UNDEFINED->COLOR_ATTACHMENT)
@@ -150,33 +174,26 @@ typedef struct CubeApp {
     GfxTexture msaaColorTexture;
     GfxTextureView msaaColorTextureView;
 
-    // Framebuffers (one per swapchain image) - dynamically allocated
-    GfxFramebuffer* framebuffers;
-    uint32_t framebufferCount;
-
-    uint32_t windowWidth;
-    uint32_t windowHeight;
-
-    // Per-frame-in-flight resources - dynamically allocated
-    PerFrameResources* frameResources;
-    uint32_t framesInFlight; // Dynamic frame count based on surface capabilities
-    uint32_t currentFrame;
-
-    // Per-swapchain-image semaphores - dynamically allocated
-    GfxSemaphore* renderFinishedSemaphores;
-
     // Shared resources (not per-frame)
     GfxBuffer sharedUniformBuffer; // Single buffer for all frames
     size_t uniformAlignedSize; // Aligned size per frame
 
-    // Animation state
-    float rotationAngleX;
-    float rotationAngleY;
+    // Framebuffers (one per swapchain image)
+    PerFrameResources* frameResources;
+    GfxSemaphore* renderFinishedSemaphores;
+    GfxFramebuffer* framebuffers;
+    uint32_t currentFrame;
 
-    // Loop state
+    uint32_t windowWidth;
+    uint32_t windowHeight;
     uint32_t previousWidth;
     uint32_t previousHeight;
-    float lastTime;
+
+    // State
+    float elapsedTime;
+    float lastFrameTime;
+    float rotationAngleX;
+    float rotationAngleY;
 
     // FPS tracking
     uint32_t fpsFrameCount;
@@ -259,11 +276,12 @@ static bool init(CubeApp* app);
 static void cleanup(CubeApp* app);
 static void update(CubeApp* app, float deltaTime);
 static void render(CubeApp* app);
+static bool handleResize(CubeApp* app, uint32_t width, uint32_t height);
 
 // GLFW callbacks
 static void errorCallback(int error, const char* description)
 {
-    fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+    LOG_ERROR("GLFW Error %d: %s", error, description);
 }
 
 static void framebufferSizeCallback(GLFWwindow* window, int width, int height)
@@ -287,7 +305,7 @@ static bool createWindow(CubeApp* app, uint32_t width, uint32_t height)
     glfwSetErrorCallback(errorCallback);
 
     if (!glfwInit()) {
-        fprintf(stderr, "Failed to initialize GLFW\n");
+        LOG_ERROR("Failed to initialize GLFW");
         return false;
     }
 
@@ -307,7 +325,7 @@ static bool createWindow(CubeApp* app, uint32_t width, uint32_t height)
     app->window = glfwCreateWindow(width, height, windowTitle, NULL, NULL);
 
     if (!app->window) {
-        fprintf(stderr, "Failed to create GLFW window\n");
+        LOG_ERROR("Failed to create GLFW window");
         glfwTerminate();
         return false;
     }
@@ -338,123 +356,116 @@ static bool createGraphics(CubeApp* app)
 
     // Load the graphics backend BEFORE creating an instance
     // This is now decoupled - you load the backend API once at startup
-    printf("Loading graphics backend...\n");
+    LOG_INFO("Loading graphics backend...");
     if (gfxLoadBackend(app->settings.backend) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to load any graphics backend\n");
+        LOG_ERROR("Failed to load any graphics backend");
         return false;
     }
-    printf("Graphics backend loaded successfully!\n");
+    LOG_INFO("Graphics backend loaded successfully!");
 
     // Create graphics instance
     const char* instanceExtensions[] = { GFX_INSTANCE_EXTENSION_SURFACE, GFX_INSTANCE_EXTENSION_DEBUG };
-    GfxInstanceDescriptor instanceDesc = {};
-    instanceDesc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
-    instanceDesc.pNext = NULL;
-    instanceDesc.backend = app->settings.backend;
-    instanceDesc.applicationName = "Cube Example (C)";
-    instanceDesc.applicationVersion = 1;
-    instanceDesc.enabledExtensions = instanceExtensions;
-    instanceDesc.enabledExtensionCount = 2;
+    GfxInstanceDescriptor instanceDesc = {
+        .sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR,
+        .pNext = NULL,
+        .backend = app->settings.backend,
+        .applicationName = "Cube Example (C)",
+        .applicationVersion = 1,
+        .enabledExtensions = instanceExtensions,
+        .enabledExtensionCount = ARRAY_SIZE(instanceExtensions)
+    };
 
     if (gfxCreateInstance(&instanceDesc, &app->instance) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create graphics instance\n");
+        LOG_ERROR("Failed to create graphics instance");
         return false;
     }
 
     // Get adapter
-    GfxAdapterDescriptor adapterDesc = {};
-    adapterDesc.sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR;
-    adapterDesc.pNext = NULL;
-    adapterDesc.adapterIndex = UINT32_MAX;
-    adapterDesc.preference = GFX_ADAPTER_PREFERENCE_HIGH_PERFORMANCE;
+    GfxAdapterDescriptor adapterDesc = {
+        .sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR,
+        .pNext = NULL,
+        .adapterIndex = UINT32_MAX, // Use preference-based selection
+        .preference = GFX_ADAPTER_PREFERENCE_HIGH_PERFORMANCE
+    };
 
     if (gfxInstanceRequestAdapter(app->instance, &adapterDesc, &app->adapter) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to get graphics adapter\n");
+        LOG_ERROR("Failed to get graphics adapter");
         return false;
     }
 
     // Query and store adapter info
     gfxAdapterGetInfo(app->adapter, &app->adapterInfo);
-    printf("Using adapter: %s\n", app->adapterInfo.name);
-    printf("  Vendor ID: 0x%04X, Device ID: 0x%04X\n", app->adapterInfo.vendorID, app->adapterInfo.deviceID);
-    printf("  Type: %s\n",
+    LOG_INFO("Using adapter: %s", app->adapterInfo.name);
+    LOG_INFO("  Vendor ID: 0x%04X, Device ID: 0x%04X", app->adapterInfo.vendorID, app->adapterInfo.deviceID);
+    LOG_INFO("  Type: %s",
         app->adapterInfo.adapterType == GFX_ADAPTER_TYPE_DISCRETE_GPU ? "Discrete GPU" : app->adapterInfo.adapterType == GFX_ADAPTER_TYPE_INTEGRATED_GPU ? "Integrated GPU"
             : app->adapterInfo.adapterType == GFX_ADAPTER_TYPE_CPU                                                                                       ? "CPU"
                                                                                                                                                          : "Unknown");
-    printf("  Backend: %s\n", app->adapterInfo.backend == GFX_BACKEND_VULKAN ? "Vulkan" : "WebGPU");
+    LOG_INFO("  Backend: %s", app->adapterInfo.backend == GFX_BACKEND_VULKAN ? "Vulkan" : "WebGPU");
 
     // Create device
     const char* deviceExtensions[] = { GFX_DEVICE_EXTENSION_SWAPCHAIN };
-    GfxDeviceDescriptor deviceDesc = {};
-    deviceDesc.sType = GFX_STRUCTURE_TYPE_DEVICE_DESCRIPTOR;
-    deviceDesc.pNext = NULL;
-    deviceDesc.label = "Main Device";
-    deviceDesc.enabledExtensions = deviceExtensions;
-    deviceDesc.enabledExtensionCount = 1;
+    GfxDeviceDescriptor deviceDesc = {
+        .sType = GFX_STRUCTURE_TYPE_DEVICE_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Main Device",
+        .enabledExtensions = deviceExtensions,
+        .enabledExtensionCount = ARRAY_SIZE(deviceExtensions)
+    };
 
     if (gfxAdapterCreateDevice(app->adapter, &deviceDesc, &app->device) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create device\n");
+        LOG_ERROR("Failed to create device");
         return false;
     }
 
     // Query and print device limits
     GfxDeviceLimits limits;
     if (gfxDeviceGetLimits(app->device, &limits) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to get device limits\n");
+        LOG_ERROR("Failed to get device limits");
         return false;
     }
-    printf("Device Limits:\n");
-    printf("  Min Uniform Buffer Offset Alignment: %u bytes\n", limits.minUniformBufferOffsetAlignment);
-    printf("  Min Storage Buffer Offset Alignment: %u bytes\n", limits.minStorageBufferOffsetAlignment);
-    printf("  Max Uniform Buffer Binding Size: %u bytes\n", limits.maxUniformBufferBindingSize);
-    printf("  Max Storage Buffer Binding Size: %u bytes\n", limits.maxStorageBufferBindingSize);
-    printf("  Max Buffer Size: %llu bytes\n", (unsigned long long)limits.maxBufferSize);
-    printf("  Max Texture Dimension 1D: %u\n", limits.maxTextureDimension1D);
-    printf("  Max Texture Dimension 2D: %u\n", limits.maxTextureDimension2D);
-    printf("  Max Texture Dimension 3D: %u\n", limits.maxTextureDimension3D);
-    printf("  Max Texture Array Layers: %u\n", limits.maxTextureArrayLayers);
+    LOG_INFO("Device Limits:");
+    LOG_INFO("  Min Uniform Buffer Offset Alignment: %u bytes", limits.minUniformBufferOffsetAlignment);
+    LOG_INFO("  Min Storage Buffer Offset Alignment: %u bytes", limits.minStorageBufferOffsetAlignment);
+    LOG_INFO("  Max Uniform Buffer Binding Size: %u bytes", limits.maxUniformBufferBindingSize);
+    LOG_INFO("  Max Storage Buffer Binding Size: %u bytes", limits.maxStorageBufferBindingSize);
+    LOG_INFO("  Max Buffer Size: %llu bytes", (unsigned long long)limits.maxBufferSize);
+    LOG_INFO("  Max Texture Dimension 1D: %u", limits.maxTextureDimension1D);
+    LOG_INFO("  Max Texture Dimension 2D: %u", limits.maxTextureDimension2D);
+    LOG_INFO("  Max Texture Dimension 3D: %u", limits.maxTextureDimension3D);
+    LOG_INFO("  Max Texture Array Layers: %u", limits.maxTextureArrayLayers);
 
     if (gfxDeviceGetQueue(app->device, &app->queue) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to get device queue\n");
+        LOG_ERROR("Failed to get device queue");
         return false;
     }
 
     // Create surface
     GfxPlatformWindowHandle windowHandle = getPlatformWindowHandle(app->window);
-    GfxSurfaceDescriptor surfaceDesc = {};
-    surfaceDesc.sType = GFX_STRUCTURE_TYPE_SURFACE_DESCRIPTOR;
-    surfaceDesc.pNext = NULL;
-    surfaceDesc.label = "Main Surface";
-    surfaceDesc.windowHandle = windowHandle;
+    GfxSurfaceDescriptor surfaceDesc = {
+        .sType = GFX_STRUCTURE_TYPE_SURFACE_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Main Surface",
+        .windowHandle = windowHandle
+    };
 
     if (gfxDeviceCreateSurface(app->device, &surfaceDesc, &app->surface) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create surface\n");
+        LOG_ERROR("Failed to create surface");
         return false;
     }
 
     // Query surface capabilities to determine frames in flight
     if (gfxSurfaceGetInfo(app->surface, &app->surfaceInfo) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to get surface info\n");
+        LOG_ERROR("Failed to get surface info");
         return false;
     }
 
-    printf("Surface Info:\n");
-    printf("  Min Image Count: %u\n", app->surfaceInfo.minImageCount);
-    printf("  Max Image Count: %u\n", app->surfaceInfo.maxImageCount);
-    printf("  Extent: min (%u, %u), max (%u, %u)\n",
+    LOG_INFO("Surface Info:");
+    LOG_INFO("  Min Image Count: %u", app->surfaceInfo.minImageCount);
+    LOG_INFO("  Max Image Count: %u", app->surfaceInfo.maxImageCount);
+    LOG_INFO("  Extent: min (%u, %u), max (%u, %u)",
         app->surfaceInfo.minExtent.width, app->surfaceInfo.minExtent.height,
         app->surfaceInfo.maxExtent.width, app->surfaceInfo.maxExtent.height);
-
-    // Calculate frames in flight based on surface capabilities
-    // Clamp to a reasonable range [2-4] to avoid excessive memory usage
-    app->framesInFlight = app->surfaceInfo.minImageCount;
-    if (app->framesInFlight < 2) {
-        app->framesInFlight = 2;
-    }
-    if (app->framesInFlight > 4) {
-        app->framesInFlight = 4;
-    }
-    printf("Frames in flight: %u\n", app->framesInFlight);
 
     return true;
 }
@@ -475,113 +486,124 @@ static void destroyGraphics(CubeApp* app)
     }
 
     // Unload the backend API after destroying all instances
-    printf("Unloading graphics backend...\n");
+    LOG_INFO("Unloading graphics backend...");
     gfxUnloadBackend(app->settings.backend);
 }
 
 static bool createPerFrameResources(CubeApp* app)
 {
     // Allocate per-frame resources dynamically
-    app->frameResources = (PerFrameResources*)calloc(app->framesInFlight, sizeof(PerFrameResources));
+    app->frameResources = (PerFrameResources*)calloc(app->swapchainInfo.imageCount, sizeof(PerFrameResources));
     if (!app->frameResources) {
-        fprintf(stderr, "Failed to allocate frame resources\n");
+        LOG_ERROR("Failed to allocate frame resources");
         return false;
     }
 
     // Create synchronization objects and command encoders for each frame in flight
-    GfxSemaphoreDescriptor semaphoreDesc = {};
-    semaphoreDesc.sType = GFX_STRUCTURE_TYPE_SEMAPHORE_DESCRIPTOR;
-    semaphoreDesc.pNext = NULL;
-    semaphoreDesc.label = "Semaphore";
-    semaphoreDesc.type = GFX_SEMAPHORE_TYPE_BINARY;
-    semaphoreDesc.initialValue = 0;
-
-    GfxFenceDescriptor fenceDesc = {};
-    fenceDesc.sType = GFX_STRUCTURE_TYPE_FENCE_DESCRIPTOR;
-    fenceDesc.pNext = NULL;
-    fenceDesc.label = "Fence";
-    fenceDesc.signaled = true; // Start signaled so first frame doesn't wait
-
-    for (uint32_t i = 0; i < app->framesInFlight; ++i) {
+    for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
         char label[64];
         PerFrameResources* frame = &app->frameResources[i];
 
         // Create semaphores
-        snprintf(label, sizeof(label), "Image Available Semaphore %d", i);
-        semaphoreDesc.label = label;
-        if (gfxDeviceCreateSemaphore(app->device, &semaphoreDesc, &frame->imageAvailableSemaphore) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create image available semaphore %d\n", i);
+        snprintf(label, sizeof(label), "Image Available Semaphore %u", i);
+        GfxSemaphoreDescriptor imageAvailableSemaphoreDesc = {
+            .sType = GFX_STRUCTURE_TYPE_SEMAPHORE_DESCRIPTOR,
+            .pNext = NULL,
+            .label = label,
+            .type = GFX_SEMAPHORE_TYPE_BINARY,
+            .initialValue = 0
+        };
+
+        if (gfxDeviceCreateSemaphore(app->device, &imageAvailableSemaphoreDesc, &frame->imageAvailableSemaphore) != GFX_RESULT_SUCCESS) {
+            LOG_ERROR("Failed to create image available semaphore %u", i);
             return false;
         }
 
-        snprintf(label, sizeof(label), "Clear Finished Semaphore %d", i);
-        semaphoreDesc.label = label;
-        if (gfxDeviceCreateSemaphore(app->device, &semaphoreDesc, &frame->clearFinishedSemaphore) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create clear finished semaphore %d\n", i);
+        snprintf(label, sizeof(label), "Clear Finished Semaphore %u", i);
+        GfxSemaphoreDescriptor clearFinishedSemaphoreDesc = {
+            .sType = GFX_STRUCTURE_TYPE_SEMAPHORE_DESCRIPTOR,
+            .pNext = NULL,
+            .label = label,
+            .type = GFX_SEMAPHORE_TYPE_BINARY,
+            .initialValue = 0
+        };
+
+        if (gfxDeviceCreateSemaphore(app->device, &clearFinishedSemaphoreDesc, &frame->clearFinishedSemaphore) != GFX_RESULT_SUCCESS) {
+            LOG_ERROR("Failed to create clear finished semaphore %u", i);
             return false;
         }
 
         // Create fence
-        snprintf(label, sizeof(label), "In Flight Fence %d", i);
-        fenceDesc.label = label;
+        snprintf(label, sizeof(label), "In Flight Fence %u", i);
+        GfxFenceDescriptor fenceDesc = {
+            .sType = GFX_STRUCTURE_TYPE_FENCE_DESCRIPTOR,
+            .pNext = NULL,
+            .label = label,
+            .signaled = true // Start signaled so first frame doesn't wait
+        };
+
         if (gfxDeviceCreateFence(app->device, &fenceDesc, &frame->inFlightFence) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create in flight fence %d\n", i);
+            LOG_ERROR("Failed to create in flight fence %u", i);
             return false;
         }
 
         // Create clear encoder
-        snprintf(label, sizeof(label), "Clear Encoder Frame %d", i);
-        GfxCommandEncoderDescriptor encoderDesc = {};
-        encoderDesc.sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR;
-        encoderDesc.pNext = NULL;
-        encoderDesc.label = label;
+        snprintf(label, sizeof(label), "Clear Encoder Frame %u", i);
+        GfxCommandEncoderDescriptor encoderDesc = {
+            .sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR,
+            .pNext = NULL,
+            .label = label
+        };
 
         if (gfxDeviceCreateCommandEncoder(app->device, &encoderDesc, &frame->clearEncoder) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create clear encoder %d\n", i);
+            LOG_ERROR("Failed to create clear encoder %d", i);
             return false;
         }
 
         // Create command encoders - one per cube for parallel recording
         for (int cubeIdx = 0; cubeIdx < CUBE_COUNT; ++cubeIdx) {
-            snprintf(label, sizeof(label), "Command Encoder Frame %d Cube %d", i, cubeIdx);
-            GfxCommandEncoderDescriptor encoderDesc = {};
-            encoderDesc.sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR;
-            encoderDesc.pNext = NULL;
-            encoderDesc.label = label;
+            snprintf(label, sizeof(label), "Command Encoder Frame %u Cube %d", i, cubeIdx);
+            GfxCommandEncoderDescriptor encoderDesc = {
+                .sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR,
+                .pNext = NULL,
+                .label = label
+            };
 
             if (gfxDeviceCreateCommandEncoder(app->device, &encoderDesc, &frame->cubeEncoders[cubeIdx]) != GFX_RESULT_SUCCESS) {
-                fprintf(stderr, "Failed to create command encoder %d cube %d\n", i, cubeIdx);
+                LOG_ERROR("Failed to create command encoder %u cube %d", i, cubeIdx);
                 return false;
             }
         }
 
         // Create resolve encoder
-        snprintf(label, sizeof(label), "Resolve Encoder Frame %d", i);
-        GfxCommandEncoderDescriptor resolveEncoderDesc = {};
-        resolveEncoderDesc.sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR;
-        resolveEncoderDesc.pNext = NULL;
-        resolveEncoderDesc.label = label;
+        snprintf(label, sizeof(label), "Resolve Encoder Frame %u", i);
+        GfxCommandEncoderDescriptor resolveEncoderDesc = {
+            .sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR,
+            .pNext = NULL,
+            .label = label
+        };
 
         if (gfxDeviceCreateCommandEncoder(app->device, &resolveEncoderDesc, &frame->resolveEncoder) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create resolve encoder %d\n", i);
+            LOG_ERROR("Failed to create resolve encoder %u", i);
             return false;
         }
 
         // Create transition encoder (for COLOR_ATTACHMENT->PRESENT_SRC when MSAA=1)
-        snprintf(label, sizeof(label), "Transition Encoder %d", i);
-        GfxCommandEncoderDescriptor transitionEncoderDesc = {};
-        transitionEncoderDesc.sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR;
-        transitionEncoderDesc.pNext = NULL;
-        transitionEncoderDesc.label = label;
+        snprintf(label, sizeof(label), "Transition Encoder %u", i);
+        GfxCommandEncoderDescriptor transitionEncoderDesc = {
+            .sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR,
+            .pNext = NULL,
+            .label = label
+        };
 
         if (gfxDeviceCreateCommandEncoder(app->device, &transitionEncoderDesc, &frame->transitionEncoder) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create transition encoder %d\n", i);
+            LOG_ERROR("Failed to create transition encoder %u", i);
             return false;
         }
 
         // Create bind groups for each cube in this frame
         for (int cubeIdx = 0; cubeIdx < CUBE_COUNT; ++cubeIdx) {
-            snprintf(label, sizeof(label), "Uniform Bind Group (Frame %d, Cube %d)", i, cubeIdx);
+            snprintf(label, sizeof(label), "Uniform Bind Group (Frame %u, Cube %d)", i, cubeIdx);
 
             size_t offset = (i * CUBE_COUNT + cubeIdx) * app->uniformAlignedSize;
 
@@ -595,16 +617,17 @@ static bool createPerFrameResources(CubeApp* app)
                         .size = sizeof(UniformData) } }
             };
 
-            GfxBindGroupDescriptor bindGroupDesc = {};
-            bindGroupDesc.sType = GFX_STRUCTURE_TYPE_BIND_GROUP_DESCRIPTOR;
-            bindGroupDesc.pNext = NULL;
-            bindGroupDesc.label = label;
-            bindGroupDesc.layout = app->uniformBindGroupLayout;
-            bindGroupDesc.entries = &entry;
-            bindGroupDesc.entryCount = 1;
+            GfxBindGroupDescriptor bindGroupDesc = {
+                .sType = GFX_STRUCTURE_TYPE_BIND_GROUP_DESCRIPTOR,
+                .pNext = NULL,
+                .label = label,
+                .layout = app->uniformBindGroupLayout,
+                .entries = &entry,
+                .entryCount = 1
+            };
 
             if (gfxDeviceCreateBindGroup(app->device, &bindGroupDesc, &frame->uniformBindGroups[cubeIdx]) != GFX_RESULT_SUCCESS) {
-                fprintf(stderr, "Failed to create bind group for frame %d, cube %d\n", i, cubeIdx);
+                LOG_ERROR("Failed to create bind group for frame %u, cube %d", i, cubeIdx);
                 return false;
             }
         }
@@ -622,7 +645,7 @@ static void destroyPerFrameResources(CubeApp* app)
     }
 
     // Wait for all in-flight frames to complete before destroying
-    for (uint32_t i = 0; i < app->framesInFlight; ++i) {
+    for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
         PerFrameResources* frame = &app->frameResources[i];
         if (frame->inFlightFence) {
             gfxFenceWait(frame->inFlightFence, GFX_TIMEOUT_INFINITE);
@@ -630,7 +653,7 @@ static void destroyPerFrameResources(CubeApp* app)
     }
 
     // Destroy per-frame resources
-    for (uint32_t i = 0; i < app->framesInFlight; ++i) {
+    for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
         PerFrameResources* frame = &app->frameResources[i];
 
         // Destroy bind groups
@@ -791,31 +814,33 @@ static bool createRenderPass(CubeApp* app)
         .resolveTarget = (app->settings.msaaSampleCount > GFX_SAMPLE_COUNT_1) ? &dummyResolveTarget : NULL // Include for framebuffer compatibility only when MSAA is used
     };
 
-    GfxRenderPassDescriptor clearPassDesc = {};
-    clearPassDesc.sType = GFX_STRUCTURE_TYPE_RENDER_PASS_DESCRIPTOR;
-    clearPassDesc.pNext = NULL;
-    clearPassDesc.label = "Clear Render Pass";
-    clearPassDesc.colorAttachments = &clearColorAttachment;
-    clearPassDesc.colorAttachmentCount = 1;
-    clearPassDesc.depthStencilAttachment = &depthAttachment;
+    GfxRenderPassDescriptor clearPassDesc = {
+        .sType = GFX_STRUCTURE_TYPE_RENDER_PASS_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Clear Render Pass",
+        .colorAttachments = &clearColorAttachment,
+        .colorAttachmentCount = 1,
+        .depthStencilAttachment = &depthAttachment
+    };
 
     if (gfxDeviceCreateRenderPass(app->device, &clearPassDesc, &app->clearRenderPass) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create clear render pass\n");
+        LOG_ERROR("Failed to create clear render pass");
         return false;
     }
 
     // Create main render pass (loadOp=LOAD)
 
-    GfxRenderPassDescriptor renderPassDesc = {};
-    renderPassDesc.sType = GFX_STRUCTURE_TYPE_RENDER_PASS_DESCRIPTOR;
-    renderPassDesc.pNext = NULL;
-    renderPassDesc.label = "Cube Render Pass (LOAD)";
-    renderPassDesc.colorAttachments = &colorAttachment;
-    renderPassDesc.colorAttachmentCount = 1;
-    renderPassDesc.depthStencilAttachment = &depthAttachment;
+    GfxRenderPassDescriptor renderPassDesc = {
+        .sType = GFX_STRUCTURE_TYPE_RENDER_PASS_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Cube Render Pass (LOAD)",
+        .colorAttachments = &colorAttachment,
+        .colorAttachmentCount = 1,
+        .depthStencilAttachment = &depthAttachment
+    };
 
     if (gfxDeviceCreateRenderPass(app->device, &renderPassDesc, &app->renderPass) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create render pass\n");
+        LOG_ERROR("Failed to create render pass");
         return false;
     }
 
@@ -851,16 +876,17 @@ static bool createRenderPass(CubeApp* app)
             .resolveTarget = NULL
         };
 
-        GfxRenderPassDescriptor transitionPassDesc = {};
-        transitionPassDesc.sType = GFX_STRUCTURE_TYPE_RENDER_PASS_DESCRIPTOR;
-        transitionPassDesc.pNext = NULL;
-        transitionPassDesc.label = "Layout Transition Pass";
-        transitionPassDesc.colorAttachments = &transitionColorAttachment;
-        transitionPassDesc.colorAttachmentCount = 1;
-        transitionPassDesc.depthStencilAttachment = &transitionDepthAttachment; // Include for framebuffer compatibility
+        GfxRenderPassDescriptor transitionPassDesc = {
+            .sType = GFX_STRUCTURE_TYPE_RENDER_PASS_DESCRIPTOR,
+            .pNext = NULL,
+            .label = "Layout Transition Pass",
+            .colorAttachments = &transitionColorAttachment,
+            .colorAttachmentCount = 1,
+            .depthStencilAttachment = &transitionDepthAttachment
+        };
 
         if (gfxDeviceCreateRenderPass(app->device, &transitionPassDesc, &app->transitionRenderPass) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create transition render pass\n");
+            LOG_ERROR("Failed to create transition render pass");
             return false;
         }
     } else {
@@ -889,16 +915,17 @@ static bool createRenderPass(CubeApp* app)
         .resolveTarget = NULL
     };
 
-    GfxRenderPassDescriptor resolvePassDesc = {};
-    resolvePassDesc.sType = GFX_STRUCTURE_TYPE_RENDER_PASS_DESCRIPTOR;
-    resolvePassDesc.pNext = NULL;
-    resolvePassDesc.label = "Resolve Render Pass";
-    resolvePassDesc.colorAttachments = &resolveColorAttachment;
-    resolvePassDesc.colorAttachmentCount = 1;
-    resolvePassDesc.depthStencilAttachment = &resolveDepthAttachment; // Include depth for framebuffer compatibility
+    GfxRenderPassDescriptor resolvePassDesc = {
+        .sType = GFX_STRUCTURE_TYPE_RENDER_PASS_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Resolve Render Pass",
+        .colorAttachments = &resolveColorAttachment,
+        .colorAttachmentCount = 1,
+        .depthStencilAttachment = &resolveDepthAttachment
+    };
 
     if (gfxDeviceCreateRenderPass(app->device, &resolvePassDesc, &app->resolveRenderPass) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create resolve render pass\n");
+        LOG_ERROR("Failed to create resolve render pass");
         return false;
     }
 
@@ -927,52 +954,55 @@ static void destroyRenderPass(CubeApp* app)
 
 static bool createSwapchain(CubeApp* app, uint32_t width, uint32_t height)
 {
-    GfxSwapchainDescriptor swapchainDesc = {};
-    swapchainDesc.sType = GFX_STRUCTURE_TYPE_SWAPCHAIN_DESCRIPTOR;
-    swapchainDesc.pNext = NULL;
-    swapchainDesc.label = "Main Swapchain";
-    swapchainDesc.surface = app->surface;
-    swapchainDesc.extent.width = width;
-    swapchainDesc.extent.height = height;
-    swapchainDesc.format = COLOR_FORMAT;
-    swapchainDesc.usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
-    swapchainDesc.presentMode = app->settings.vsync ? GFX_PRESENT_MODE_FIFO : GFX_PRESENT_MODE_IMMEDIATE;
-    swapchainDesc.imageCount = app->framesInFlight;
+    GfxSwapchainDescriptor swapchainDesc = {
+        .sType = GFX_STRUCTURE_TYPE_SWAPCHAIN_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Main Swapchain",
+        .surface = app->surface,
+        .extent.width = width,
+        .extent.height = height,
+        .format = COLOR_FORMAT,
+        .usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT,
+        .presentMode = app->settings.vsync ? GFX_PRESENT_MODE_FIFO : GFX_PRESENT_MODE_IMMEDIATE,
+        .imageCount = app->surfaceInfo.minImageCount
+    };
 
     if (gfxDeviceCreateSwapchain(app->device, &swapchainDesc, &app->swapchain) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create swapchain\n");
+        LOG_ERROR("Failed to create swapchain");
         return false;
     }
 
     // Query the actual swapchain format (may differ from requested format on web)
     GfxResult result = gfxSwapchainGetInfo(app->swapchain, &app->swapchainInfo);
     if (result != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "[ERROR] Failed to get swapchain info\n");
+        LOG_ERROR("Failed to get swapchain info");
         return false;
     }
-    fprintf(stderr, "[INFO] Requested format: %d, Actual swapchain format: %d\n", COLOR_FORMAT, app->swapchainInfo.format);
+    LOG_INFO("Requested format: %d, Actual swapchain format: %d", COLOR_FORMAT, app->swapchainInfo.format);
 
     // Create render finished semaphores (one per swapchain image)
     app->renderFinishedSemaphores = (GfxSemaphore*)malloc(app->swapchainInfo.imageCount * sizeof(GfxSemaphore));
     if (!app->renderFinishedSemaphores) {
-        fprintf(stderr, "Failed to allocate renderFinishedSemaphores\n");
+        LOG_ERROR("Failed to allocate renderFinishedSemaphores");
         return false;
     }
     for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
         app->renderFinishedSemaphores[i] = NULL;
     }
 
-    char label[64];
-    GfxSemaphoreDescriptor semaphoreDesc = {};
-    semaphoreDesc.sType = GFX_STRUCTURE_TYPE_SEMAPHORE_DESCRIPTOR;
-    semaphoreDesc.pNext = NULL;
-    semaphoreDesc.type = GFX_SEMAPHORE_TYPE_BINARY;
-
     for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
+        char label[64];
+
         snprintf(label, sizeof(label), "Render Finished Semaphore Image %u", i);
-        semaphoreDesc.label = label;
+        GfxSemaphoreDescriptor semaphoreDesc = {
+            .sType = GFX_STRUCTURE_TYPE_SEMAPHORE_DESCRIPTOR,
+            .pNext = NULL,
+            .type = GFX_SEMAPHORE_TYPE_BINARY,
+            .label = label,
+        };
+
         if (gfxDeviceCreateSemaphore(app->device, &semaphoreDesc, &app->renderFinishedSemaphores[i]) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create render finished semaphore %u\n", i);
+            LOG_ERROR("Failed to create render finished semaphore %u", i);
             return false;
         }
     }
@@ -1002,72 +1032,76 @@ static void destroySwapchain(CubeApp* app)
 static bool createRenderTargetTextures(CubeApp* app, uint32_t width, uint32_t height)
 {
     // Create depth texture (MSAA must match color attachment)
-    GfxTextureDescriptor depthTextureDesc = {};
-    depthTextureDesc.sType = GFX_STRUCTURE_TYPE_TEXTURE_DESCRIPTOR;
-    depthTextureDesc.pNext = NULL;
-    depthTextureDesc.label = "Depth Buffer";
-    depthTextureDesc.type = GFX_TEXTURE_TYPE_2D;
-    depthTextureDesc.size = (GfxExtent3D){ .width = width, .height = height, .depth = 1 };
-    depthTextureDesc.arrayLayerCount = 1;
-    depthTextureDesc.mipLevelCount = 1;
-    depthTextureDesc.sampleCount = app->settings.msaaSampleCount;
-    depthTextureDesc.format = DEPTH_FORMAT;
-    depthTextureDesc.usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
+    GfxTextureDescriptor depthTextureDesc = {
+        .sType = GFX_STRUCTURE_TYPE_TEXTURE_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Depth Buffer",
+        .type = GFX_TEXTURE_TYPE_2D,
+        .size = (GfxExtent3D){ .width = width, .height = height, .depth = 1 },
+        .arrayLayerCount = 1,
+        .mipLevelCount = 1,
+        .sampleCount = app->settings.msaaSampleCount,
+        .format = DEPTH_FORMAT,
+        .usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT
+    };
 
     if (gfxDeviceCreateTexture(app->device, &depthTextureDesc, &app->depthTexture) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create depth texture\n");
+        LOG_ERROR("Failed to create depth texture");
         return false;
     }
 
     // Create depth texture view
-    GfxTextureViewDescriptor depthViewDesc = {};
-    depthViewDesc.sType = GFX_STRUCTURE_TYPE_TEXTURE_VIEW_DESCRIPTOR;
-    depthViewDesc.pNext = NULL;
-    depthViewDesc.label = "Depth Buffer View";
-    depthViewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
-    depthViewDesc.format = DEPTH_FORMAT;
-    depthViewDesc.baseMipLevel = 0;
-    depthViewDesc.mipLevelCount = 1;
-    depthViewDesc.baseArrayLayer = 0;
-    depthViewDesc.arrayLayerCount = 1;
+    GfxTextureViewDescriptor depthViewDesc = {
+        .sType = GFX_STRUCTURE_TYPE_TEXTURE_VIEW_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Depth Buffer View",
+        .viewType = GFX_TEXTURE_VIEW_TYPE_2D,
+        .format = DEPTH_FORMAT,
+        .baseMipLevel = 0,
+        .mipLevelCount = 1,
+        .baseArrayLayer = 0,
+        .arrayLayerCount = 1
+    };
 
     if (gfxTextureCreateView(app->depthTexture, &depthViewDesc, &app->depthTextureView) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create depth texture view\n");
+        LOG_ERROR("Failed to create depth texture view");
         return false;
     }
 
     // Create MSAA color texture (is unused if app->settings.msaaSampleCount == 1)
-    GfxTextureDescriptor msaaColorTextureDesc = {};
-    msaaColorTextureDesc.sType = GFX_STRUCTURE_TYPE_TEXTURE_DESCRIPTOR;
-    msaaColorTextureDesc.pNext = NULL;
-    msaaColorTextureDesc.label = "MSAA Color Buffer";
-    msaaColorTextureDesc.type = GFX_TEXTURE_TYPE_2D;
-    msaaColorTextureDesc.size = (GfxExtent3D){ .width = width, .height = height, .depth = 1 };
-    msaaColorTextureDesc.arrayLayerCount = 1;
-    msaaColorTextureDesc.mipLevelCount = 1;
-    msaaColorTextureDesc.sampleCount = app->settings.msaaSampleCount;
-    msaaColorTextureDesc.format = app->swapchainInfo.format;
-    msaaColorTextureDesc.usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
+    GfxTextureDescriptor msaaColorTextureDesc = {
+        .sType = GFX_STRUCTURE_TYPE_TEXTURE_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "MSAA Color Buffer",
+        .type = GFX_TEXTURE_TYPE_2D,
+        .size = (GfxExtent3D){ .width = width, .height = height, .depth = 1 },
+        .arrayLayerCount = 1,
+        .mipLevelCount = 1,
+        .sampleCount = app->settings.msaaSampleCount,
+        .format = app->swapchainInfo.format,
+        .usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT
+    };
 
     if (gfxDeviceCreateTexture(app->device, &msaaColorTextureDesc, &app->msaaColorTexture) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create MSAA color texture\n");
+        LOG_ERROR("Failed to create MSAA color texture");
         return false;
     }
 
     // Create MSAA color texture view (is unused if app->settings.msaaSampleCount == 1)
-    GfxTextureViewDescriptor msaaColorViewDesc = {};
-    msaaColorViewDesc.sType = GFX_STRUCTURE_TYPE_TEXTURE_VIEW_DESCRIPTOR;
-    msaaColorViewDesc.pNext = NULL;
-    msaaColorViewDesc.label = "MSAA Color Buffer View";
-    msaaColorViewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
-    msaaColorViewDesc.format = app->swapchainInfo.format;
-    msaaColorViewDesc.baseMipLevel = 0;
-    msaaColorViewDesc.mipLevelCount = 1;
-    msaaColorViewDesc.baseArrayLayer = 0;
-    msaaColorViewDesc.arrayLayerCount = 1;
+    GfxTextureViewDescriptor msaaColorViewDesc = {
+        .sType = GFX_STRUCTURE_TYPE_TEXTURE_VIEW_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "MSAA Color Buffer View",
+        .viewType = GFX_TEXTURE_VIEW_TYPE_2D,
+        .format = app->swapchainInfo.format,
+        .baseMipLevel = 0,
+        .mipLevelCount = 1,
+        .baseArrayLayer = 0,
+        .arrayLayerCount = 1
+    };
 
     if (gfxTextureCreateView(app->msaaColorTexture, &msaaColorViewDesc, &app->msaaColorTextureView) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create MSAA color texture view\n");
+        LOG_ERROR("Failed to create MSAA color texture view");
         return false;
     }
 
@@ -1100,19 +1134,18 @@ static void destroyRenderTargetTextures(CubeApp* app)
 static bool createFrameBuffers(CubeApp* app, uint32_t width, uint32_t height)
 {
     // Allocate framebuffers array dynamically based on actual swapchain image count
-    app->framebufferCount = app->swapchainInfo.imageCount;
-    app->framebuffers = (GfxFramebuffer*)calloc(app->framebufferCount, sizeof(GfxFramebuffer));
+    app->framebuffers = (GfxFramebuffer*)calloc(app->swapchainInfo.imageCount, sizeof(GfxFramebuffer));
     if (!app->framebuffers) {
-        fprintf(stderr, "Failed to allocate framebuffers\n");
+        LOG_ERROR("Failed to allocate framebuffers");
         return false;
     }
 
     // Create framebuffers (one per swapchain image)
-    for (uint32_t i = 0; i < app->framebufferCount; ++i) {
+    for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
         GfxTextureView backbuffer = NULL;
         GfxResult result = gfxSwapchainGetTextureView(app->swapchain, i, &backbuffer);
         if (result != GFX_RESULT_SUCCESS || !backbuffer) {
-            fprintf(stderr, "[ERROR] Failed to get swapchain image view %d\n", i);
+            LOG_ERROR("Failed to get swapchain image view %u", i);
             return false;
         }
 
@@ -1130,20 +1163,20 @@ static bool createFrameBuffers(CubeApp* app, uint32_t width, uint32_t height)
 
         char label[64];
         snprintf(label, sizeof(label), "Framebuffer %u", i);
-
-        GfxFramebufferDescriptor fbDesc = {};
-        fbDesc.sType = GFX_STRUCTURE_TYPE_FRAMEBUFFER_DESCRIPTOR;
-        fbDesc.pNext = NULL;
-        fbDesc.label = label;
-        fbDesc.renderPass = app->resolveRenderPass;
-        fbDesc.colorAttachments = &fbColorAttachment;
-        fbDesc.colorAttachmentCount = 1;
-        fbDesc.depthStencilAttachment = fbDepthAttachment;
-        fbDesc.extent.width = width;
-        fbDesc.extent.height = height;
+        GfxFramebufferDescriptor fbDesc = {
+            .sType = GFX_STRUCTURE_TYPE_FRAMEBUFFER_DESCRIPTOR,
+            .pNext = NULL,
+            .label = label,
+            .renderPass = app->resolveRenderPass,
+            .colorAttachments = &fbColorAttachment,
+            .colorAttachmentCount = 1,
+            .depthStencilAttachment = fbDepthAttachment,
+            .extent.width = width,
+            .extent.height = height
+        };
 
         if (gfxDeviceCreateFramebuffer(app->device, &fbDesc, &app->framebuffers[i]) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create framebuffer %u\n", i);
+            LOG_ERROR("Failed to create framebuffer %u", i);
             return false;
         }
     }
@@ -1153,16 +1186,17 @@ static bool createFrameBuffers(CubeApp* app, uint32_t width, uint32_t height)
 
 static void destroyFrameBuffers(CubeApp* app)
 {
-    if (app->framebuffers) {
-        for (uint32_t i = 0; i < app->framebufferCount; ++i) {
-            if (app->framebuffers[i]) {
-                gfxFramebufferDestroy(app->framebuffers[i]);
-                app->framebuffers[i] = NULL;
-            }
+    for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
+        if (app->framebuffers[i]) {
+            gfxFramebufferDestroy(app->framebuffers[i]);
+            app->framebuffers[i] = NULL;
         }
+    }
+
+    // Free the framebuffers array
+    if (app->framebuffers) {
         free(app->framebuffers);
         app->framebuffers = NULL;
-        app->framebufferCount = 0;
     }
 }
 
@@ -1201,32 +1235,36 @@ static bool createGeometry(CubeApp* app)
     };
 
     // Create vertex buffer
-    GfxBufferDescriptor vertexBufferDesc = {};
-    vertexBufferDesc.sType = GFX_STRUCTURE_TYPE_BUFFER_DESCRIPTOR;
-    vertexBufferDesc.pNext = NULL;
-    vertexBufferDesc.label = "Cube Vertices";
-    vertexBufferDesc.size = sizeof(vertices);
-    vertexBufferDesc.usage = GFX_BUFFER_USAGE_VERTEX | GFX_BUFFER_USAGE_COPY_DST;
-    vertexBufferDesc.memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL;
+    GfxBufferDescriptor vertexBufferDesc = {
+        .sType = GFX_STRUCTURE_TYPE_BUFFER_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Cube Vertices",
+        .size = sizeof(vertices),
+        .usage = GFX_BUFFER_USAGE_VERTEX | GFX_BUFFER_USAGE_COPY_DST,
+        .memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL
+    };
 
     if (gfxDeviceCreateBuffer(app->device, &vertexBufferDesc, &app->vertexBuffer) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create vertex buffer\n");
+        LOG_ERROR("Failed to create vertex buffer");
         return false;
     }
+    gfxBufferGetInfo(app->vertexBuffer, &app->vertexBufferInfo);
 
     // Create index buffer
-    GfxBufferDescriptor indexBufferDesc = {};
-    indexBufferDesc.sType = GFX_STRUCTURE_TYPE_BUFFER_DESCRIPTOR;
-    indexBufferDesc.pNext = NULL;
-    indexBufferDesc.label = "Cube Indices";
-    indexBufferDesc.size = sizeof(indices);
-    indexBufferDesc.usage = GFX_BUFFER_USAGE_INDEX | GFX_BUFFER_USAGE_COPY_DST;
-    indexBufferDesc.memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL;
+    GfxBufferDescriptor indexBufferDesc = {
+        .sType = GFX_STRUCTURE_TYPE_BUFFER_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Cube Indices",
+        .size = sizeof(indices),
+        .usage = GFX_BUFFER_USAGE_INDEX | GFX_BUFFER_USAGE_COPY_DST,
+        .memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL
+    };
 
     if (gfxDeviceCreateBuffer(app->device, &indexBufferDesc, &app->indexBuffer) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create index buffer\n");
+        LOG_ERROR("Failed to create index buffer");
         return false;
     }
+    gfxBufferGetInfo(app->indexBuffer, &app->indexBufferInfo);
 
     // Upload vertex and index data
     gfxQueueWriteBuffer(app->queue, app->vertexBuffer, 0, vertices, sizeof(vertices));
@@ -1252,25 +1290,26 @@ static bool createUniformBuffer(CubeApp* app)
     // Create single large uniform buffer for all frames with proper alignment
     GfxDeviceLimits limits;
     if (gfxDeviceGetLimits(app->device, &limits) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to get device limits\n");
+        LOG_ERROR("Failed to get device limits");
         return false;
     }
 
     size_t uniformSize = sizeof(UniformData);
     app->uniformAlignedSize = gfxAlignUp(uniformSize, limits.minUniformBufferOffsetAlignment);
     // Need space for CUBE_COUNT cubes per frame
-    size_t totalBufferSize = app->uniformAlignedSize * app->framesInFlight * CUBE_COUNT;
+    size_t totalBufferSize = app->uniformAlignedSize * app->swapchainInfo.imageCount * CUBE_COUNT;
 
-    GfxBufferDescriptor uniformBufferDesc = {};
-    uniformBufferDesc.sType = GFX_STRUCTURE_TYPE_BUFFER_DESCRIPTOR;
-    uniformBufferDesc.pNext = NULL;
-    uniformBufferDesc.label = "Shared Transform Uniforms";
-    uniformBufferDesc.size = totalBufferSize;
-    uniformBufferDesc.usage = GFX_BUFFER_USAGE_UNIFORM | GFX_BUFFER_USAGE_COPY_DST;
-    uniformBufferDesc.memoryProperties = GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT;
+    GfxBufferDescriptor uniformBufferDesc = {
+        .sType = GFX_STRUCTURE_TYPE_BUFFER_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Shared Transform Uniforms",
+        .size = totalBufferSize,
+        .usage = GFX_BUFFER_USAGE_UNIFORM | GFX_BUFFER_USAGE_COPY_DST,
+        .memoryProperties = GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT
+    };
 
     if (gfxDeviceCreateBuffer(app->device, &uniformBufferDesc, &app->sharedUniformBuffer) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create shared uniform buffer\n");
+        LOG_ERROR("Failed to create shared uniform buffer");
         return false;
     }
 
@@ -1297,15 +1336,16 @@ static bool createBindGroup(CubeApp* app)
             .minBindingSize = sizeof(UniformData) }
     };
 
-    GfxBindGroupLayoutDescriptor uniformLayoutDesc = {};
-    uniformLayoutDesc.sType = GFX_STRUCTURE_TYPE_BIND_GROUP_LAYOUT_DESCRIPTOR;
-    uniformLayoutDesc.pNext = NULL;
-    uniformLayoutDesc.label = "Uniform Bind Group Layout";
-    uniformLayoutDesc.entries = &uniformLayoutEntry;
-    uniformLayoutDesc.entryCount = 1;
+    GfxBindGroupLayoutDescriptor uniformLayoutDesc = {
+        .sType = GFX_STRUCTURE_TYPE_BIND_GROUP_LAYOUT_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Uniform Bind Group Layout",
+        .entries = &uniformLayoutEntry,
+        .entryCount = 1
+    };
 
     if (gfxDeviceCreateBindGroupLayout(app->device, &uniformLayoutDesc, &app->uniformBindGroupLayout) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create uniform bind group layout\n");
+        LOG_ERROR("Failed to create uniform bind group layout");
         return false;
     }
 
@@ -1326,74 +1366,97 @@ static void destroyBindGroup(CubeApp* app)
 
 static bool createShaders(CubeApp* app)
 {
-    // Load shaders from files (works for both native and web)
-    size_t vertexShaderSize, fragmentShaderSize;
-    void* vertexShaderCode = NULL;
-    void* fragmentShaderCode = NULL;
+    GfxShaderSourceType sourceType = GFX_SHADER_SOURCE_SPIRV;
+    void* vertexCode = NULL;
+    void* fragmentCode = NULL;
+    size_t vertexSize = 0;
+    size_t fragmentSize = 0;
 
-    GfxShaderSourceType sourceType;
-    if (app->adapterInfo.backend == GFX_BACKEND_WEBGPU) {
-        sourceType = GFX_SHADER_SOURCE_WGSL;
-        // Load WGSL shaders for WebGPU (both native and web)
-        printf("Loading WGSL shaders...\n");
-        vertexShaderCode = loadTextFile("shaders/cube.vert.wgsl", &vertexShaderSize);
-        fragmentShaderCode = loadTextFile("shaders/cube.frag.wgsl", &fragmentShaderSize);
-        if (!vertexShaderCode || !fragmentShaderCode) {
-            fprintf(stderr, "Failed to load WGSL shaders\n");
-            return false;
+    // Try shader formats in order of preference
+    const struct {
+        GfxShaderSourceType format;
+        const char* vertexPath;
+        const char* fragmentPath;
+    } shaderFormats[] = {
+        { GFX_SHADER_SOURCE_SPIRV, "shaders/cube.vert.spv", "shaders/cube.frag.spv" },
+        { GFX_SHADER_SOURCE_WGSL, "shaders/cube.vert.wgsl", "shaders/cube.frag.wgsl" }
+    };
+
+    for (size_t i = 0; i < ARRAY_SIZE(shaderFormats); ++i) {
+        bool formatSupported = false;
+        if (gfxDeviceSupportsShaderFormat(app->device, shaderFormats[i].format, &formatSupported) != GFX_RESULT_SUCCESS || !formatSupported) {
+            continue;
         }
-        printf("Successfully loaded WGSL shaders (vertex: %zu bytes, fragment: %zu bytes)\n",
-            vertexShaderSize, fragmentShaderSize);
-    } else {
-        sourceType = GFX_SHADER_SOURCE_SPIRV;
-        // Load SPIR-V shaders for Vulkan
-        printf("Loading SPIR-V shaders...\n");
-        vertexShaderCode = loadBinaryFile("shaders/cube.vert.spv", &vertexShaderSize);
-        fragmentShaderCode = loadBinaryFile("shaders/cube.frag.spv", &fragmentShaderSize);
-        if (!vertexShaderCode || !fragmentShaderCode) {
-            fprintf(stderr, "Failed to load SPIR-V shaders\n");
-            return false;
+
+        LOG_INFO("Loading shaders: %s, %s", shaderFormats[i].vertexPath, shaderFormats[i].fragmentPath);
+
+        if (shaderFormats[i].format == GFX_SHADER_SOURCE_SPIRV) {
+            vertexCode = loadBinaryFile(shaderFormats[i].vertexPath, &vertexSize);
+            fragmentCode = loadBinaryFile(shaderFormats[i].fragmentPath, &fragmentSize);
+        } else {
+            vertexCode = loadTextFile(shaderFormats[i].vertexPath, &vertexSize);
+            fragmentCode = loadTextFile(shaderFormats[i].fragmentPath, &fragmentSize);
         }
-        printf("Successfully loaded SPIR-V shaders (vertex: %zu bytes, fragment: %zu bytes)\n",
-            vertexShaderSize, fragmentShaderSize);
+
+        if (vertexCode && fragmentCode) {
+            sourceType = shaderFormats[i].format;
+            LOG_INFO("Successfully loaded shaders (vertex: %zu bytes, fragment: %zu bytes)",
+                vertexSize, fragmentSize);
+            break;
+        }
+
+        // Failed to load this format, try next
+        free(vertexCode);
+        free(fragmentCode);
+        vertexCode = NULL;
+        fragmentCode = NULL;
+    }
+
+    if (!vertexCode || !fragmentCode) {
+        LOG_ERROR("Error: No supported shader format found or failed to load shaders");
+        free(vertexCode);
+        free(fragmentCode);
+        return false;
     }
 
     // Create vertex shader
-    GfxShaderDescriptor vertexShaderDesc = {};
-    vertexShaderDesc.sType = GFX_STRUCTURE_TYPE_SHADER_DESCRIPTOR;
-    vertexShaderDesc.pNext = NULL;
-    vertexShaderDesc.label = "Cube Vertex Shader";
-    vertexShaderDesc.sourceType = sourceType;
-    vertexShaderDesc.code = vertexShaderCode;
-    vertexShaderDesc.codeSize = vertexShaderSize;
-    vertexShaderDesc.entryPoint = "main";
+    GfxShaderDescriptor vertexShaderDesc = {
+        .sType = GFX_STRUCTURE_TYPE_SHADER_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Cube Vertex Shader",
+        .sourceType = sourceType,
+        .code = vertexCode,
+        .codeSize = vertexSize,
+        .entryPoint = "main"
+    };
 
     if (gfxDeviceCreateShader(app->device, &vertexShaderDesc, &app->vertexShader) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create vertex shader\n");
-        free(vertexShaderCode);
-        free(fragmentShaderCode);
+        LOG_ERROR("Failed to create vertex shader");
+        free(vertexCode);
+        free(fragmentCode);
         return false;
     }
 
     // Create fragment shader
-    GfxShaderDescriptor fragmentShaderDesc = {};
-    fragmentShaderDesc.sType = GFX_STRUCTURE_TYPE_SHADER_DESCRIPTOR;
-    fragmentShaderDesc.pNext = NULL;
-    fragmentShaderDesc.label = "Cube Fragment Shader";
-    fragmentShaderDesc.sourceType = sourceType;
-    fragmentShaderDesc.code = fragmentShaderCode;
-    fragmentShaderDesc.codeSize = fragmentShaderSize;
-    fragmentShaderDesc.entryPoint = "main";
+    GfxShaderDescriptor fragmentShaderDesc = {
+        .sType = GFX_STRUCTURE_TYPE_SHADER_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Cube Fragment Shader",
+        .sourceType = sourceType,
+        .code = fragmentCode,
+        .codeSize = fragmentSize,
+        .entryPoint = "main"
+    };
 
     if (gfxDeviceCreateShader(app->device, &fragmentShaderDesc, &app->fragmentShader) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create fragment shader\n");
-        free(vertexShaderCode);
-        free(fragmentShaderCode);
+        LOG_ERROR("Failed to create fragment shader");
+        free(vertexCode);
+        free(fragmentCode);
         return false;
     }
 
-    free(vertexShaderCode);
-    free(fragmentShaderCode);
+    free(vertexCode);
+    free(fragmentCode);
     return true;
 }
 
@@ -1411,8 +1474,6 @@ static void destroyShaders(CubeApp* app)
 
 bool createRenderingResources(CubeApp* app)
 {
-    printf("[DEBUG] createRenderingResources called\n");
-
     if (!createGeometry(app)) {
         return false;
     }
@@ -1526,21 +1587,22 @@ bool createRenderPipeline(CubeApp* app)
     // Create array with the bind group layout pointer
     GfxBindGroupLayout bindGroupLayouts[] = { app->uniformBindGroupLayout };
 
-    GfxRenderPipelineDescriptor pipelineDesc = {};
-    pipelineDesc.sType = GFX_STRUCTURE_TYPE_RENDER_PIPELINE_DESCRIPTOR;
-    pipelineDesc.pNext = NULL;
-    pipelineDesc.label = "Cube Render Pipeline";
-    pipelineDesc.vertex = &vertexState;
-    pipelineDesc.fragment = &fragmentState;
-    pipelineDesc.primitive = &primitiveState;
-    pipelineDesc.depthStencil = &depthStencilState;
-    pipelineDesc.sampleCount = app->settings.msaaSampleCount;
-    pipelineDesc.renderPass = app->renderPass;
-    pipelineDesc.bindGroupLayouts = bindGroupLayouts;
-    pipelineDesc.bindGroupLayoutCount = 1;
+    GfxRenderPipelineDescriptor pipelineDesc = {
+        .sType = GFX_STRUCTURE_TYPE_RENDER_PIPELINE_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Cube Render Pipeline",
+        .vertex = &vertexState,
+        .fragment = &fragmentState,
+        .primitive = &primitiveState,
+        .depthStencil = &depthStencilState,
+        .sampleCount = app->settings.msaaSampleCount,
+        .renderPass = app->renderPass,
+        .bindGroupLayouts = bindGroupLayouts,
+        .bindGroupLayoutCount = ARRAY_SIZE(bindGroupLayouts)
+    };
 
     if (gfxDeviceCreateRenderPipeline(app->device, &pipelineDesc, &app->renderPipeline) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create render pipeline\n");
+        LOG_ERROR("Failed to create render pipeline");
         return false;
     }
 
@@ -1626,7 +1688,7 @@ static void* loadBinaryFile(const char* filepath, size_t* outSize)
 {
     FILE* file = fopen(filepath, "rb");
     if (!file) {
-        fprintf(stderr, "Failed to open file: %s\n", filepath);
+        LOG_ERROR("Failed to open file: %s", filepath);
         return NULL;
     }
 
@@ -1636,7 +1698,7 @@ static void* loadBinaryFile(const char* filepath, size_t* outSize)
     fseek(file, 0, SEEK_SET);
 
     if (fileSize <= 0) {
-        fprintf(stderr, "Invalid file size for: %s\n", filepath);
+        LOG_ERROR("Invalid file size for: %s", filepath);
         fclose(file);
         return NULL;
     }
@@ -1644,7 +1706,7 @@ static void* loadBinaryFile(const char* filepath, size_t* outSize)
     // Allocate buffer
     void* buffer = malloc(fileSize);
     if (!buffer) {
-        fprintf(stderr, "Failed to allocate memory for file: %s\n", filepath);
+        LOG_ERROR("Failed to allocate memory for file: %s", filepath);
         fclose(file);
         return NULL;
     }
@@ -1654,7 +1716,7 @@ static void* loadBinaryFile(const char* filepath, size_t* outSize)
     fclose(file);
 
     if (bytesRead != (size_t)fileSize) {
-        fprintf(stderr, "Failed to read complete file: %s\n", filepath);
+        LOG_ERROR("Failed to read complete file: %s", filepath);
         free(buffer);
         return NULL;
     }
@@ -1667,7 +1729,7 @@ static void* loadTextFile(const char* filepath, size_t* outSize)
 {
     FILE* file = fopen(filepath, "r");
     if (!file) {
-        fprintf(stderr, "Failed to open file: %s\n", filepath);
+        LOG_ERROR("Failed to open file: %s", filepath);
         return NULL;
     }
 
@@ -1677,7 +1739,7 @@ static void* loadTextFile(const char* filepath, size_t* outSize)
     fseek(file, 0, SEEK_SET);
 
     if (fileSize <= 0) {
-        fprintf(stderr, "Invalid file size for: %s\n", filepath);
+        LOG_ERROR("Invalid file size for: %s", filepath);
         fclose(file);
         return NULL;
     }
@@ -1685,7 +1747,7 @@ static void* loadTextFile(const char* filepath, size_t* outSize)
     // Allocate buffer with extra byte for null terminator
     char* buffer = (char*)malloc(fileSize + 1);
     if (!buffer) {
-        fprintf(stderr, "Failed to allocate memory for file: %s\n", filepath);
+        LOG_ERROR("Failed to allocate memory for file: %s", filepath);
         fclose(file);
         return NULL;
     }
@@ -1695,7 +1757,7 @@ static void* loadTextFile(const char* filepath, size_t* outSize)
     fclose(file);
 
     if (bytesRead != (size_t)fileSize) {
-        fprintf(stderr, "Failed to read complete file: %s\n", filepath);
+        LOG_ERROR("Failed to read complete file: %s", filepath);
         free(buffer);
         return NULL;
     }
@@ -1739,35 +1801,33 @@ static void recordCubeCommands(CubeApp* app, int cubeIndex, uint32_t imageIndex)
         gfxRenderPassEncoderSetPipeline(renderPass, app->renderPipeline);
 
         // Set viewport and scissor to fill the entire render target
-        GfxViewport viewport = { 0.0f, 0.0f, (float)app->swapchainInfo.extent.width, (float)app->swapchainInfo.extent.height, 0.0f, 1.0f };
-        GfxScissorRect scissor = { { 0, 0 }, { app->swapchainInfo.extent.width, app->swapchainInfo.extent.height } };
+        GfxViewport viewport = {
+            .x = 0.0f,
+            .y = 0.0f,
+            .width = (float)app->swapchainInfo.extent.width,
+            .height = (float)app->swapchainInfo.extent.height,
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f
+        };
+        GfxScissorRect scissor = {
+            .origin = { .x = 0, .y = 0 },
+            .extent = { .width = app->swapchainInfo.extent.width, .height = app->swapchainInfo.extent.height }
+        };
         gfxRenderPassEncoderSetViewport(renderPass, &viewport);
         gfxRenderPassEncoderSetScissorRect(renderPass, &scissor);
 
         // Set vertex buffer
-        GfxBufferInfo vertexBufferInfo;
-        if (gfxBufferGetInfo(app->vertexBuffer, &vertexBufferInfo) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to get vertex buffer info\n");
-            return;
-        }
-        gfxRenderPassEncoderSetVertexBuffer(renderPass, 0, app->vertexBuffer, 0,
-            vertexBufferInfo.size);
+        gfxRenderPassEncoderSetVertexBuffer(renderPass, 0, app->vertexBuffer, 0, app->vertexBufferInfo.size);
 
         // Set index buffer
-        GfxBufferInfo indexBufferInfo;
-        if (gfxBufferGetInfo(app->indexBuffer, &indexBufferInfo) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to get index buffer info\n");
-            return;
-        }
-        gfxRenderPassEncoderSetIndexBuffer(renderPass, app->indexBuffer,
-            GFX_INDEX_FORMAT_UINT16, 0,
-            indexBufferInfo.size);
+        gfxRenderPassEncoderSetIndexBuffer(renderPass, app->indexBuffer, GFX_INDEX_FORMAT_UINT16, 0, app->indexBufferInfo.size);
 
         // Bind this cube's bind group and draw
         gfxRenderPassEncoderSetBindGroup(renderPass, 0, frame->uniformBindGroups[cubeIndex], NULL, 0);
 
-        // Draw indexed (36 indices for the cube)
-        gfxRenderPassEncoderDrawIndexed(renderPass, 36, 1, 0, 0, 0);
+        // Draw indexed (calculate index count from buffer size)
+        uint32_t indexCount = app->indexBufferInfo.size / sizeof(uint16_t);
+        gfxRenderPassEncoderDrawIndexed(renderPass, indexCount, 1, 0, 0, 0);
 
         // End render pass
         gfxRenderPassEncoderEnd(renderPass);
@@ -1864,7 +1924,7 @@ bool createThreading(CubeApp* app)
 {
     // Initialize barrier for CUBE_COUNT threads + 1 main thread
     if (pthread_barrier_init(&app->recordBarrier, NULL, CUBE_COUNT + 1) != 0) {
-        fprintf(stderr, "Failed to initialize pthread barrier\n");
+        LOG_ERROR("Failed to initialize pthread barrier");
         return false;
     }
 
@@ -1877,12 +1937,12 @@ bool createThreading(CubeApp* app)
         app->threadData[i].barrier = &app->recordBarrier;
 
         if (pthread_create(&app->cubeThreads[i], NULL, cubeRecordThread, &app->threadData[i]) != 0) {
-            fprintf(stderr, "Failed to create cube thread %d\n", i);
+            LOG_ERROR("Failed to create cube thread %d", i);
             return false;
         }
     }
 
-    printf("Created %d worker threads for parallel command recording\n", CUBE_COUNT);
+    LOG_INFO("Created %d worker threads for parallel command recording", CUBE_COUNT);
     return true;
 }
 
@@ -1904,13 +1964,13 @@ void destroyThreading(CubeApp* app)
     }
 
     pthread_barrier_destroy(&app->recordBarrier);
-    printf("Cleaned up worker threads\n");
+    LOG_INFO("Cleaned up worker threads");
 }
 
 static void* cubeRecordThread(void* arg)
 {
     CubeThreadData* data = (CubeThreadData*)arg;
-    printf("Cube thread %d started\n", data->cubeIndex);
+    LOG_INFO("Cube thread %d started", data->cubeIndex);
 
     while (data->app->threadsRunning) {
         // Wait for signal to start recording
@@ -1928,7 +1988,7 @@ static void* cubeRecordThread(void* arg)
         pthread_barrier_wait(data->barrier);
     }
 
-    printf("Cube thread %d exiting\n", data->cubeIndex);
+    LOG_INFO("Cube thread %d exiting", data->cubeIndex);
     return NULL;
 }
 #endif
@@ -2082,44 +2142,44 @@ static bool init(CubeApp* app)
 
     // 1. Create window
     if (!createWindow(app, WINDOW_WIDTH, WINDOW_HEIGHT)) {
-        fprintf(stderr, "Failed to create window\n");
+        LOG_ERROR("Failed to create window");
         return false;
     }
 
     // 2. Create graphics context (instance, adapter, device, surface)
     if (!createGraphics(app)) {
-        fprintf(stderr, "Failed to create graphics\n");
+        LOG_ERROR("Failed to create graphics");
         return false;
     }
 
     // 3. Create size-dependent resources (swapchain, framebuffers, render pass)
     if (!createSizeDependentResources(app, app->windowWidth, app->windowHeight)) {
-        fprintf(stderr, "Failed to create size-dependent resources\n");
+        LOG_ERROR("Failed to create size-dependent resources");
         return false;
     }
 
     // 4. Create rendering resources (textures, buffers, layouts)
     if (!createRenderingResources(app)) {
-        fprintf(stderr, "Failed to create rendering resources\n");
+        LOG_ERROR("Failed to create rendering resources");
         return false;
     }
 
     // 5. Create per-frame resources (semaphores, fences, command encoders)
     if (!createPerFrameResources(app)) {
-        fprintf(stderr, "Failed to create per-frame resources\n");
+        LOG_ERROR("Failed to create per-frame resources");
         return false;
     }
 
     // 6. Create render pipeline
     if (!createRenderPipeline(app)) {
-        fprintf(stderr, "Failed to create render pipeline\n");
+        LOG_ERROR("Failed to create render pipeline");
         return false;
     }
 
 #if USE_THREADING
     // 7. Create threading infrastructure
     if (!createThreading(app)) {
-        fprintf(stderr, "Failed to create threading\n");
+        LOG_ERROR("Failed to create threading");
         return false;
     }
 #endif
@@ -2128,7 +2188,6 @@ static bool init(CubeApp* app)
     app->currentFrame = 0;
     app->previousWidth = app->windowWidth;
     app->previousHeight = app->windowHeight;
-    app->lastTime = getCurrentTime();
 
     // Initialize animation state
     app->rotationAngleX = 0.0f;
@@ -2140,11 +2199,13 @@ static bool init(CubeApp* app)
     app->fpsFrameTimeMin = FLT_MAX;
     app->fpsFrameTimeMax = 0.0f;
 
-    printf("Application initialized successfully!\n");
+    app->lastFrameTime = getCurrentTime();
+
+    LOG_INFO("Application initialized successfully!");
 #if USE_THREADING
-    printf("Running with %d worker threads for parallel command recording\n", CUBE_COUNT);
+    LOG_INFO("Running with %d worker threads for parallel command recording", CUBE_COUNT);
 #else
-    printf("Running in single-threaded mode\n");
+    LOG_INFO("Running in single-threaded mode");
 #endif
     return true;
 }
@@ -2182,8 +2243,42 @@ static void cleanup(CubeApp* app)
     destroyWindow(app);
 }
 
+// Track FPS and log statistics every second
+static void updateFPS(CubeApp* app, float deltaTime)
+{
+    app->fpsFrameCount++;
+    app->fpsTimeAccumulator += deltaTime;
+
+    if (deltaTime < app->fpsFrameTimeMin) {
+        app->fpsFrameTimeMin = deltaTime;
+    }
+    if (deltaTime > app->fpsFrameTimeMax) {
+        app->fpsFrameTimeMax = deltaTime;
+    }
+
+    // Log FPS every second
+    if (app->fpsTimeAccumulator >= 1.0f) {
+        float avgFPS = (float)app->fpsFrameCount / app->fpsTimeAccumulator;
+        float avgFrameTime = (app->fpsTimeAccumulator / (float)app->fpsFrameCount) * 1000.0f;
+        float minFPS = 1.0f / app->fpsFrameTimeMax;
+        float maxFPS = 1.0f / app->fpsFrameTimeMin;
+        LOG_INFO("FPS - Avg: %.1f, Min: %.1f, Max: %.1f | Frame Time - Avg: %.2f ms, Min: %.2f ms, Max: %.2f ms",
+            avgFPS, minFPS, maxFPS,
+            avgFrameTime, app->fpsFrameTimeMin * 1000.0f, app->fpsFrameTimeMax * 1000.0f);
+
+        // Reset for next second
+        app->fpsFrameCount = 0;
+        app->fpsTimeAccumulator = 0.0f;
+        app->fpsFrameTimeMin = FLT_MAX;
+        app->fpsFrameTimeMax = 0.0f;
+    }
+}
+
 void update(CubeApp* app, float deltaTime)
 {
+    updateFPS(app, deltaTime);
+    app->elapsedTime += deltaTime;
+
     // Update rotation angles (both X and Y axes)
     app->rotationAngleX += 45.0f * deltaTime; // 45 degrees per second around X
     app->rotationAngleY += 30.0f * deltaTime; // 30 degrees per second around Y
@@ -2214,7 +2309,7 @@ void render(CubeApp* app)
         frame->imageAvailableSemaphore, NULL, &imageIndex);
 
     if (result != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to acquire swapchain image\n");
+        LOG_ERROR("Failed to acquire swapchain image");
         return;
     }
 
@@ -2232,17 +2327,17 @@ void render(CubeApp* app)
     pthread_barrier_wait(&app->recordBarrier);
 
     // Submit clear encoder first (waits on imageAvailable, signals clearFinished)
-    GfxSubmitDescriptor clearSubmit = {};
-    clearSubmit.sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR;
-    clearSubmit.pNext = NULL;
-
-    clearSubmit.commandEncoders = &frame->clearEncoder;
-    clearSubmit.commandEncoderCount = 1;
-    clearSubmit.waitSemaphores = &frame->imageAvailableSemaphore;
-    clearSubmit.waitSemaphoreCount = 1;
-    clearSubmit.signalSemaphores = &frame->clearFinishedSemaphore;
-    clearSubmit.signalSemaphoreCount = 1;
-    clearSubmit.signalFence = NULL; // Don't signal fence yet
+    GfxSubmitDescriptor clearSubmit = {
+        .sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR,
+        .pNext = NULL,
+        .commandEncoders = &frame->clearEncoder,
+        .commandEncoderCount = 1,
+        .waitSemaphores = &frame->imageAvailableSemaphore,
+        .waitSemaphoreCount = 1,
+        .signalSemaphores = &frame->clearFinishedSemaphore,
+        .signalSemaphoreCount = 1,
+        .signalFence = NULL
+    };
 
     gfxQueueSubmit(app->queue, &clearSubmit);
 
@@ -2252,26 +2347,18 @@ void render(CubeApp* app)
         cubeEncoderArray[i] = frame->cubeEncoders[i];
     }
 
-    GfxSubmitDescriptor cubesSubmit = {};
-    cubesSubmit.sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR;
-    cubesSubmit.pNext = NULL;
-
-    cubesSubmit.commandEncoders = cubeEncoderArray;
-    cubesSubmit.commandEncoderCount = CUBE_COUNT;
-    cubesSubmit.waitSemaphores = &frame->clearFinishedSemaphore;
-    cubesSubmit.waitSemaphoreCount = 1;
-
-    if (app->settings.msaaSampleCount > GFX_SAMPLE_COUNT_1) {
-        // When using MSAA, don't signal yet - resolve pass will signal
-        cubesSubmit.signalSemaphores = NULL; // Don't signal yet, resolve pass will signal
-        cubesSubmit.signalSemaphoreCount = 0;
-        cubesSubmit.signalFence = NULL; // Don't signal fence yet
-    } else {
-        // When not using MSAA, don't signal yet - transition pass will signal
-        cubesSubmit.signalSemaphores = NULL;
-        cubesSubmit.signalSemaphoreCount = 0;
-        cubesSubmit.signalFence = NULL;
-    }
+    // Don't signal yet - either transition (no MSAA) or resolve (with MSAA) pass will signal
+    GfxSubmitDescriptor cubesSubmit = {
+        .sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR,
+        .pNext = NULL,
+        .commandEncoders = cubeEncoderArray,
+        .commandEncoderCount = CUBE_COUNT,
+        .waitSemaphores = &frame->clearFinishedSemaphore,
+        .waitSemaphoreCount = 1,
+        .signalSemaphores = NULL,
+        .signalSemaphoreCount = 0,
+        .signalFence = NULL
+    };
 
     gfxQueueSubmit(app->queue, &cubesSubmit);
 
@@ -2279,17 +2366,17 @@ void render(CubeApp* app)
     if (app->settings.msaaSampleCount == GFX_SAMPLE_COUNT_1) {
         recordLayoutTransition(app, imageIndex);
 
-        GfxSubmitDescriptor transitionSubmit = {};
-        transitionSubmit.sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR;
-        transitionSubmit.pNext = NULL;
-
-        transitionSubmit.commandEncoders = &frame->transitionEncoder;
-        transitionSubmit.commandEncoderCount = 1;
-        transitionSubmit.waitSemaphores = NULL; // No wait needed, depends on cube submits via queue ordering
-        transitionSubmit.waitSemaphoreCount = 0;
-        transitionSubmit.signalSemaphores = &app->renderFinishedSemaphores[imageIndex];
-        transitionSubmit.signalSemaphoreCount = 1;
-        transitionSubmit.signalFence = frame->inFlightFence;
+        GfxSubmitDescriptor transitionSubmit = {
+            .sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR,
+            .pNext = NULL,
+            .commandEncoders = &frame->transitionEncoder,
+            .commandEncoderCount = 1,
+            .waitSemaphores = NULL,
+            .waitSemaphoreCount = 0,
+            .signalSemaphores = &app->renderFinishedSemaphores[imageIndex],
+            .signalSemaphoreCount = 1,
+            .signalFence = frame->inFlightFence
+        };
 
         gfxQueueSubmit(app->queue, &transitionSubmit);
     }
@@ -2298,17 +2385,17 @@ void render(CubeApp* app)
     if (app->settings.msaaSampleCount > GFX_SAMPLE_COUNT_1) {
         recordResolveCommands(app, imageIndex);
 
-        GfxSubmitDescriptor resolveSubmit = {};
-        resolveSubmit.sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR;
-        resolveSubmit.pNext = NULL;
-
-        resolveSubmit.commandEncoders = &frame->resolveEncoder;
-        resolveSubmit.commandEncoderCount = 1;
-        resolveSubmit.waitSemaphores = NULL; // No wait needed, depends on cube submits via queue ordering
-        resolveSubmit.waitSemaphoreCount = 0;
-        resolveSubmit.signalSemaphores = &app->renderFinishedSemaphores[imageIndex];
-        resolveSubmit.signalSemaphoreCount = 1;
-        resolveSubmit.signalFence = frame->inFlightFence;
+        GfxSubmitDescriptor resolveSubmit = {
+            .sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR,
+            .pNext = NULL,
+            .commandEncoders = &frame->resolveEncoder,
+            .commandEncoderCount = 1,
+            .waitSemaphores = NULL,
+            .waitSemaphoreCount = 0,
+            .signalSemaphores = &app->renderFinishedSemaphores[imageIndex],
+            .signalSemaphoreCount = 1,
+            .signalFence = frame->inFlightFence
+        };
 
         gfxQueueSubmit(app->queue, &resolveSubmit);
     }
@@ -2335,27 +2422,34 @@ void render(CubeApp* app)
         gfxRenderPassEncoderSetPipeline(renderPass, app->renderPipeline);
 
         // Set viewport and scissor
-        GfxViewport viewport = { 0.0f, 0.0f, (float)app->swapchainInfo.extent.width, (float)app->swapchainInfo.extent.height, 0.0f, 1.0f };
-        GfxScissorRect scissor = { { 0, 0 }, { app->swapchainInfo.extent.width, app->swapchainInfo.extent.height } };
+        GfxViewport viewport = {
+            .x = 0.0f,
+            .y = 0.0f,
+            .width = (float)app->swapchainInfo.extent.width,
+            .height = (float)app->swapchainInfo.extent.height,
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f
+        };
+        GfxScissorRect scissor = {
+            .origin = { .x = 0, .y = 0 },
+            .extent = { .width = app->swapchainInfo.extent.width, .height = app->swapchainInfo.extent.height }
+        };
         gfxRenderPassEncoderSetViewport(renderPass, &viewport);
         gfxRenderPassEncoderSetScissorRect(renderPass, &scissor);
 
         // Set vertex buffer once
-        GfxBufferInfo vertexBufferInfo;
-        if (gfxBufferGetInfo(app->vertexBuffer, &vertexBufferInfo) == GFX_RESULT_SUCCESS) {
-            gfxRenderPassEncoderSetVertexBuffer(renderPass, 0, app->vertexBuffer, 0, vertexBufferInfo.size);
-        }
+        gfxRenderPassEncoderSetVertexBuffer(renderPass, 0, app->vertexBuffer, 0, app->vertexBufferInfo.size);
 
         // Set index buffer once
-        GfxBufferInfo indexBufferInfo;
-        if (gfxBufferGetInfo(app->indexBuffer, &indexBufferInfo) == GFX_RESULT_SUCCESS) {
-            gfxRenderPassEncoderSetIndexBuffer(renderPass, app->indexBuffer, GFX_INDEX_FORMAT_UINT16, 0, indexBufferInfo.size);
-        }
+        gfxRenderPassEncoderSetIndexBuffer(renderPass, app->indexBuffer, GFX_INDEX_FORMAT_UINT16, 0, app->indexBufferInfo.size);
+
+        // Calculate index count from buffer size
+        uint32_t indexCount = app->indexBufferInfo.size / sizeof(uint16_t);
 
         // Draw all 3 cubes in ONE render pass
         for (int cubeIdx = 0; cubeIdx < CUBE_COUNT; cubeIdx++) {
             gfxRenderPassEncoderSetBindGroup(renderPass, 0, frame->uniformBindGroups[cubeIdx], NULL, 0);
-            gfxRenderPassEncoderDrawIndexed(renderPass, 36, 1, 0, 0, 0);
+            gfxRenderPassEncoderDrawIndexed(renderPass, indexCount, 1, 0, 0, 0);
         }
 
         gfxRenderPassEncoderEnd(renderPass);
@@ -2364,31 +2458,68 @@ void render(CubeApp* app)
     gfxCommandEncoderEnd(encoder);
 
     // Submit single command buffer for WebGPU
-    GfxSubmitDescriptor submitDescriptor = {};
-    submitDescriptor.sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR;
-    submitDescriptor.pNext = NULL;
-
-    submitDescriptor.commandEncoders = &encoder;
-    submitDescriptor.commandEncoderCount = 1;
-    submitDescriptor.waitSemaphores = &frame->imageAvailableSemaphore;
-    submitDescriptor.waitSemaphoreCount = 1;
-    submitDescriptor.signalSemaphores = &app->renderFinishedSemaphores[imageIndex];
-    submitDescriptor.signalSemaphoreCount = 1;
-    submitDescriptor.signalFence = frame->inFlightFence;
+    GfxSubmitDescriptor submitDescriptor = {
+        .sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR,
+        .pNext = NULL,
+        .commandEncoders = &encoder,
+        .commandEncoderCount = 1,
+        .waitSemaphores = &frame->imageAvailableSemaphore,
+        .waitSemaphoreCount = 1,
+        .signalSemaphores = &app->renderFinishedSemaphores[imageIndex],
+        .signalSemaphoreCount = 1,
+        .signalFence = frame->inFlightFence
+    };
 
     gfxQueueSubmit(app->queue, &submitDescriptor);
 #endif
 
     // Present with synchronization
-    GfxPresentDescriptor presentDescriptor = {};
-    presentDescriptor.sType = GFX_STRUCTURE_TYPE_PRESENT_DESCRIPTOR;
-    presentDescriptor.pNext = NULL;
-    presentDescriptor.waitSemaphores = &app->renderFinishedSemaphores[imageIndex];
-    presentDescriptor.waitSemaphoreCount = 1;
+    GfxPresentDescriptor presentDescriptor = {
+        .sType = GFX_STRUCTURE_TYPE_PRESENT_DESCRIPTOR,
+        .pNext = NULL,
+        .waitSemaphores = &app->renderFinishedSemaphores[imageIndex],
+        .waitSemaphoreCount = 1
+    };
     gfxSwapchainPresent(app->swapchain, &presentDescriptor);
 
     // Move to next frame
-    app->currentFrame = (app->currentFrame + 1) % app->framesInFlight;
+    app->currentFrame = (app->currentFrame + 1) % app->swapchainInfo.imageCount;
+}
+
+static bool handleResize(CubeApp* app, uint32_t width, uint32_t height)
+{
+    LOG_INFO("Resizing to %dx%d", width, height);
+
+    app->windowWidth = width;
+    app->windowHeight = height;
+
+    // Wait for all in-flight frames to complete
+    gfxDeviceWaitIdle(app->device);
+
+    // Destroy per-frame resources first (they depend on swapchain image count)
+    destroyPerFrameResources(app);
+
+    // Recreate size-dependent resources (including swapchain)
+    destroySizeDependentResources(app);
+    if (!createSizeDependentResources(app, width, height)) {
+        LOG_ERROR("Failed to recreate size-dependent resources after resize");
+        return false;
+    }
+
+    // Recreate per-frame resources with new swapchain image count
+    if (!createPerFrameResources(app)) {
+        LOG_ERROR("Failed to recreate per-frame resources after resize");
+        return false;
+    }
+
+    // Reset frame index to prevent out-of-bounds access
+    app->currentFrame = 0;
+
+    app->previousWidth = app->windowWidth;
+    app->previousHeight = app->windowHeight;
+
+    LOG_INFO("Successfully recreated resources for new size");
+    return true;
 }
 
 // Returns false if loop should exit
@@ -2402,58 +2533,16 @@ static bool mainLoopIteration(CubeApp* app)
 
     // Handle framebuffer resize
     if (app->previousWidth != app->windowWidth || app->previousHeight != app->windowHeight) {
-        // Wait for all in-flight frames to complete
-        gfxDeviceWaitIdle(app->device);
-
-        // Recreate only size-dependent resources (including swapchain)
-        gfxDeviceWaitIdle(app->device); // Wait for GPU to finish before destroying resources
-        destroySizeDependentResources(app);
-        if (!createSizeDependentResources(app, app->windowWidth, app->windowHeight)) {
-            fprintf(stderr, "Failed to recreate size-dependent resources after resize\n");
+        if (!handleResize(app, app->windowWidth, app->windowHeight)) {
             return false;
         }
-
-        app->previousWidth = app->windowWidth;
-        app->previousHeight = app->windowHeight;
-
-        printf("Window resized: %dx%d\n", app->windowWidth, app->windowHeight);
         return true; // Skip rendering this frame
     }
 
     // Calculate delta time
     float currentTime = getCurrentTime();
-    float deltaTime = currentTime - app->lastTime;
-    app->lastTime = currentTime;
-
-    // Track FPS
-    if (deltaTime > 0.0f) {
-        app->fpsFrameCount++;
-        app->fpsTimeAccumulator += deltaTime;
-
-        if (deltaTime < app->fpsFrameTimeMin) {
-            app->fpsFrameTimeMin = deltaTime;
-        }
-        if (deltaTime > app->fpsFrameTimeMax) {
-            app->fpsFrameTimeMax = deltaTime;
-        }
-
-        // Log FPS every second
-        if (app->fpsTimeAccumulator >= 1.0f) {
-            float avgFPS = (float)app->fpsFrameCount / app->fpsTimeAccumulator;
-            float avgFrameTime = (app->fpsTimeAccumulator / (float)app->fpsFrameCount) * 1000.0f;
-            float minFPS = 1.0f / app->fpsFrameTimeMax;
-            float maxFPS = 1.0f / app->fpsFrameTimeMin;
-            printf("FPS - Avg: %.1f, Min: %.1f, Max: %.1f | Frame Time - Avg: %.2f ms, Min: %.2f ms, Max: %.2f ms\n",
-                avgFPS, minFPS, maxFPS,
-                avgFrameTime, app->fpsFrameTimeMin * 1000.0f, app->fpsFrameTimeMax * 1000.0f);
-
-            // Reset for next second
-            app->fpsFrameCount = 0;
-            app->fpsTimeAccumulator = 0.0f;
-            app->fpsFrameTimeMin = FLT_MAX;
-            app->fpsFrameTimeMax = 0.0f;
-        }
-    }
+    float deltaTime = currentTime - app->lastFrameTime;
+    app->lastFrameTime = currentTime;
 
     update(app, deltaTime);
     render(app);
@@ -2472,6 +2561,81 @@ static void emscriptenMainLoop(void* userData)
 }
 #endif
 
+// Command line argument parsing helpers
+static bool parseBackend(const char* backendStr, GfxBackend* outBackend)
+{
+    if (strcmp(backendStr, "vulkan") == 0) {
+        *outBackend = GFX_BACKEND_VULKAN;
+        return true;
+    } else if (strcmp(backendStr, "webgpu") == 0) {
+        *outBackend = GFX_BACKEND_WEBGPU;
+        return true;
+    } else {
+        LOG_ERROR("Unknown backend: %s", backendStr);
+        LOG_ERROR("Valid values: vulkan, webgpu");
+        return false;
+    }
+}
+
+static bool parseMsaa(const char* msaaStr, GfxSampleCount* outSampleCount)
+{
+    int samples = atoi(msaaStr);
+    switch (samples) {
+    case 1:
+        *outSampleCount = GFX_SAMPLE_COUNT_1;
+        break;
+    case 2:
+        *outSampleCount = GFX_SAMPLE_COUNT_2;
+        break;
+    case 4:
+        *outSampleCount = GFX_SAMPLE_COUNT_4;
+        break;
+    case 8:
+        *outSampleCount = GFX_SAMPLE_COUNT_8;
+        break;
+    case 16:
+        *outSampleCount = GFX_SAMPLE_COUNT_16;
+        break;
+    case 32:
+        *outSampleCount = GFX_SAMPLE_COUNT_32;
+        break;
+    case 64:
+        *outSampleCount = GFX_SAMPLE_COUNT_64;
+        break;
+    default:
+        LOG_ERROR("Invalid MSAA sample count: %d", samples);
+        LOG_ERROR("Valid values: 1, 2, 4, 8, 16, 32, 64");
+        return false;
+    }
+    return true;
+}
+
+static bool parseVsync(const char* vsyncStr, bool* outVsync)
+{
+    int vsync = atoi(vsyncStr);
+    if (vsync == 0) {
+        *outVsync = false;
+        return true;
+    } else if (vsync == 1) {
+        *outVsync = true;
+        return true;
+    } else {
+        LOG_ERROR("Invalid vsync value: %s", vsyncStr);
+        LOG_ERROR("Valid values: 0 (off), 1 (on)");
+        return false;
+    }
+}
+
+static void printHelp(const char* programName)
+{
+    LOG_INFO("Usage: %s [options]", programName);
+    LOG_INFO("Options:");
+    LOG_INFO("  --backend [vulkan|webgpu]   Select graphics backend");
+    LOG_INFO("  --msaa [1|2|4|8]            Select MSAA sample count");
+    LOG_INFO("  --vsync [0|1]               VSync: 0=off, 1=on");
+    LOG_INFO("  --help                      Show this help message");
+}
+
 // Parse command line arguments
 static bool parseArguments(int argc, char** argv, Settings* settings)
 {
@@ -2486,66 +2650,24 @@ static bool parseArguments(int argc, char** argv, Settings* settings)
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--backend") == 0 && i + 1 < argc) {
             i++;
-            if (strcmp(argv[i], "vulkan") == 0) {
-                settings->backend = GFX_BACKEND_VULKAN;
-            } else if (strcmp(argv[i], "webgpu") == 0) {
-                settings->backend = GFX_BACKEND_WEBGPU;
-            } else {
-                fprintf(stderr, "Unknown backend: %s\\n", argv[i]);
+            if (!parseBackend(argv[i], &settings->backend)) {
                 return false;
             }
         } else if (strcmp(argv[i], "--msaa") == 0 && i + 1 < argc) {
             i++;
-            int samples = atoi(argv[i]);
-            switch (samples) {
-            case 1:
-                settings->msaaSampleCount = GFX_SAMPLE_COUNT_1;
-                break;
-            case 2:
-                settings->msaaSampleCount = GFX_SAMPLE_COUNT_2;
-                break;
-            case 4:
-                settings->msaaSampleCount = GFX_SAMPLE_COUNT_4;
-                break;
-            case 8:
-                settings->msaaSampleCount = GFX_SAMPLE_COUNT_8;
-                break;
-            case 16:
-                settings->msaaSampleCount = GFX_SAMPLE_COUNT_16;
-                break;
-            case 32:
-                settings->msaaSampleCount = GFX_SAMPLE_COUNT_32;
-                break;
-            case 64:
-                settings->msaaSampleCount = GFX_SAMPLE_COUNT_64;
-                break;
-            default:
-                fprintf(stderr, "Invalid MSAA sample count: %d\\n", samples);
-                fprintf(stderr, "Valid values: 1, 2, 4, 8, 16, 32, 64\\n");
+            if (!parseMsaa(argv[i], &settings->msaaSampleCount)) {
                 return false;
             }
         } else if (strcmp(argv[i], "--vsync") == 0 && i + 1 < argc) {
             i++;
-            int vsync = atoi(argv[i]);
-            if (vsync == 0) {
-                settings->vsync = false;
-            } else if (vsync == 1) {
-                settings->vsync = true;
-            } else {
-                fprintf(stderr, "Invalid vsync value: %s\\n", argv[i]);
-                fprintf(stderr, "Valid values: 0 (off), 1 (on)\\n");
+            if (!parseVsync(argv[i], &settings->vsync)) {
                 return false;
             }
         } else if (strcmp(argv[i], "--help") == 0) {
-            printf("Usage: %s [options]\\n", argv[0]);
-            printf("Options:\\n");
-            printf("  --backend [vulkan|webgpu]   Select graphics backend\\n");
-            printf("  --msaa [1|2|4|8]            Select MSAA sample count\\n");
-            printf("  --vsync [0|1]               VSync: 0=off, 1=on\\n");
-            printf("  --help                      Show this help message\\n");
+            printHelp(argv[0]);
             return false;
         } else {
-            fprintf(stderr, "Unknown argument: %s\\n", argv[i]);
+            LOG_ERROR("Unknown argument: %s", argv[i]);
             return false;
         }
     }
@@ -2555,12 +2677,14 @@ static bool parseArguments(int argc, char** argv, Settings* settings)
 
 int main(int argc, char** argv)
 {
-    printf("=== Threaded Cube Example with Parallel Command Recording (C) ===\n\n");
+    LOG_INFO("=== Threaded Cube Example with Parallel Command Recording (C) ===");
+    LOG_INFO("");
 
     CubeApp app = { 0 }; // Initialize all members to NULL/0
 
     // Parse command line arguments
     if (!parseArguments(argc, argv, &app.settings)) {
+        printHelp(argv[0]);
         return 0;
     }
 
@@ -2570,7 +2694,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    printf("Press ESC to exit\n\n");
+    LOG_INFO("Press ESC to exit");
+    LOG_INFO("");
 
     // Run main loop (platform-specific)
 #if defined(__EMSCRIPTEN__)
@@ -2583,9 +2708,10 @@ int main(int argc, char** argv)
         // Loop continues until mainLoopIteration returns false
     }
 
-    printf("\nCleaning up resources...\n");
+    LOG_INFO("");
+    LOG_INFO("Cleaning up resources...");
     cleanup(&app);
-    printf("Example completed successfully!\n");
+    LOG_INFO("Example completed successfully!");
 #endif
 
     return 0;

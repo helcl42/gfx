@@ -25,22 +25,46 @@
 #include <cmath>
 #include <condition_variable>
 #include <cstddef>
+#include <cstdio>
 #include <cstring>
-#include <format>
 #include <fstream>
 #include <functional>
 #include <future>
-#include <iostream>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <stdexcept>
+#include <string>
 #include <thread>
 #include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+// Logging macros
+#define LOG_INFO(...)                  \
+    do {                               \
+        printf("[INFO] " __VA_ARGS__); \
+        printf("\n");                  \
+    } while (0)
+#define LOG_ERROR(...)                           \
+    do {                                         \
+        fprintf(stderr, "[ERROR] " __VA_ARGS__); \
+        fprintf(stderr, "\n");                   \
+    } while (0)
+#define LOG_WARN(...)                           \
+    do {                                        \
+        fprintf(stderr, "[WARN] " __VA_ARGS__); \
+        fprintf(stderr, "\n");                  \
+    } while (0)
+#define LOG_DEBUG(...)                  \
+    do {                                \
+        printf("[DEBUG] " __VA_ARGS__); \
+        printf("\n");                   \
+    } while (0)
 
 // Constants
 constexpr uint32_t WINDOW_WIDTH = 800;
@@ -62,7 +86,7 @@ public:
     {
         for (size_t i = 0; i < numThreads; ++i) {
             workers.emplace_back([this] {
-                while (true) {
+                for (;;) {
                     std::function<void()> task;
                     {
                         std::unique_lock<std::mutex> lock(queueMutex);
@@ -121,25 +145,23 @@ private:
 static void logCallback(GfxLogLevel level, const char* message, void* userData)
 {
     (void)userData;
-    const char* levelStr = "UNKNOWN";
     switch (level) {
     case GFX_LOG_LEVEL_ERROR:
-        levelStr = "ERROR";
+        LOG_ERROR("%s", message);
         break;
     case GFX_LOG_LEVEL_WARNING:
-        levelStr = "WARNING";
+        LOG_WARN("%s", message);
         break;
     case GFX_LOG_LEVEL_INFO:
-        levelStr = "INFO";
+        LOG_INFO("%s", message);
         break;
     case GFX_LOG_LEVEL_DEBUG:
-        levelStr = "DEBUG";
+        LOG_DEBUG("%s", message);
         break;
     default:
-        levelStr = "UNKNOWN";
+        LOG_INFO("%s", message);
         break;
     }
-    std::cout << "[" << levelStr << "] " << message << std::endl;
 }
 
 // Math types for improved API clarity and type safety
@@ -246,11 +268,13 @@ private:
     // Main loop
     void updateCube(int cubeIndex);
     void update(float deltaTime);
+    void updateFPS(float deltaTime);
     void recordClearCommands(uint32_t imageIndex);
     void recordCubeCommands(int cubeIndex, uint32_t imageIndex);
     void recordResolveCommands(uint32_t imageIndex);
     void recordLayoutTransition(uint32_t imageIndex);
     void render();
+    bool handleResize(uint32_t width, uint32_t height);
     float getCurrentTime();
     bool mainLoopIteration();
 #if defined(__EMSCRIPTEN__)
@@ -270,8 +294,6 @@ private:
 
     // Public for GLFW callbacks
     GLFWwindow* window = nullptr;
-    uint32_t windowWidth = WINDOW_WIDTH;
-    uint32_t windowHeight = WINDOW_HEIGHT;
 
     // Graphics resources
     GfxInstance instance = nullptr;
@@ -287,6 +309,8 @@ private:
 
     GfxBuffer vertexBuffer = nullptr;
     GfxBuffer indexBuffer = nullptr;
+    GfxBufferInfo vertexBufferInfo = {};
+    GfxBufferInfo indexBufferInfo = {};
     GfxShader vertexShader = nullptr;
     GfxShader fragmentShader = nullptr;
     GfxRenderPass clearRenderPass = nullptr;
@@ -302,28 +326,26 @@ private:
     GfxTexture msaaColorTexture = nullptr;
     GfxTextureView msaaColorTextureView = nullptr;
 
-    // Framebuffers
-    std::vector<GfxFramebuffer> framebuffers;
-
     // Uniform buffers
     GfxBuffer sharedUniformBuffer = nullptr;
     size_t uniformAlignedSize = 0;
 
     // Per-frame resources
+    std::vector<GfxFramebuffer> framebuffers;
     std::vector<PerFrameResources> frameResources;
+    std::vector<GfxSemaphore> renderFinishedSemaphores;
     uint32_t currentFrame = 0;
 
-    // Per-swapchain-image semaphores
-    std::vector<GfxSemaphore> renderFinishedSemaphores;
+    uint32_t previousWidth = WINDOW_WIDTH;
+    uint32_t previousHeight = WINDOW_HEIGHT;
+    uint32_t windowWidth = WINDOW_WIDTH;
+    uint32_t windowHeight = WINDOW_HEIGHT;
 
     // Animation state
     float rotationAngleX = 0.0f;
     float rotationAngleY = 0.0f;
-
-    // Loop state
-    uint32_t previousWidth = WINDOW_WIDTH;
-    uint32_t previousHeight = WINDOW_HEIGHT;
-    float lastTime = 0.0f;
+    float elapsedTime = 0.0f;
+    float lastFrameTime = 0.0f;
 
     // FPS tracking
     uint32_t fpsFrameCount = 0;
@@ -371,12 +393,12 @@ bool CubeApp::init()
     // Initialize thread pool if using threading
     if constexpr (USE_THREADING) {
         threadPool = std::make_unique<ThreadPool>(CUBE_COUNT);
-        std::cout << "Created ThreadPool with " << CUBE_COUNT << " worker threads for parallel command recording" << std::endl;
+        LOG_INFO("Created ThreadPool with %u worker threads for parallel command recording", CUBE_COUNT);
     }
 
     previousWidth = windowWidth;
     previousHeight = windowHeight;
-    lastTime = getCurrentTime();
+    lastFrameTime = getCurrentTime();
 
     // Initialize FPS tracking
     fpsFrameCount = 0;
@@ -384,14 +406,13 @@ bool CubeApp::init()
     fpsFrameTimeMin = FLT_MAX;
     fpsFrameTimeMax = 0.0f;
 
-    std::cout << "Application initialized successfully!" << std::endl;
+    LOG_INFO("Application initialized successfully!");
     if constexpr (USE_THREADING) {
-        std::cout << "Running with ThreadPool (" << CUBE_COUNT << " threads) for parallel command recording" << std::endl;
+        LOG_INFO("Running with ThreadPool (%u threads) for parallel command recording", CUBE_COUNT);
     } else {
-        std::cout << "Running in single-threaded mode" << std::endl;
+        LOG_INFO("Running in single-threaded mode");
     }
-    std::cout << "Press ESC to exit" << std::endl
-              << std::endl;
+    LOG_INFO("Press ESC to exit\n");
 
     return true;
 }
@@ -442,7 +463,7 @@ bool CubeApp::createWindow(uint32_t width, uint32_t height)
     glfwSetErrorCallback(errorCallback);
 
     if (!glfwInit()) {
-        std::cerr << "Failed to initialize GLFW\n";
+        LOG_ERROR("Failed to initialize GLFW");
         return false;
     }
 
@@ -455,7 +476,7 @@ bool CubeApp::createWindow(uint32_t width, uint32_t height)
 
     window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!window) {
-        std::cerr << "Failed to create GLFW window\n";
+        LOG_ERROR("Failed to create GLFW window");
         glfwTerminate();
         return false;
     }
@@ -483,16 +504,16 @@ bool CubeApp::createGraphics()
 
     auto result = gfxLoadBackend(settings.backend);
     if (result != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to load graphics backend: " << gfxResultToString(result) << std::endl;
+        LOG_ERROR("Failed to load graphics backend: %s", gfxResultToString(result));
         return false;
     }
 
-    std::cout << "Loading graphics backend...\n";
+    LOG_INFO("Loading graphics backend...");
     if (gfxLoadBackend(settings.backend) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to load graphics backend\n";
+        LOG_ERROR("Failed to load graphics backend");
         return false;
     }
-    std::cout << "Graphics backend loaded successfully!\n";
+    LOG_INFO("Graphics backend loaded successfully!");
 
     // Create instance
     const char* instanceExtensions[] = { GFX_INSTANCE_EXTENSION_SURFACE, GFX_INSTANCE_EXTENSION_DEBUG };
@@ -501,11 +522,11 @@ bool CubeApp::createGraphics()
         .applicationName = "Cube Example (C++ ThreadPool)",
         .applicationVersion = 1,
         .enabledExtensions = instanceExtensions,
-        .enabledExtensionCount = 2
+        .enabledExtensionCount = ARRAY_SIZE(instanceExtensions)
     };
 
     if (gfxCreateInstance(&instanceDesc, &instance) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create graphics instance\n";
+        LOG_ERROR("Failed to create graphics instance");
         return false;
     }
 
@@ -516,45 +537,43 @@ bool CubeApp::createGraphics()
     };
 
     if (gfxInstanceRequestAdapter(instance, &adapterDesc, &adapter) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to get graphics adapter\n";
+        LOG_ERROR("Failed to get graphics adapter");
         return false;
     }
 
     gfxAdapterGetInfo(adapter, &adapterInfo);
-    std::cout << "Using adapter: " << adapterInfo.name << std::endl;
-    std::cout << "  Vendor ID: 0x" << std::hex << adapterInfo.vendorID
-              << ", Device ID: 0x" << adapterInfo.deviceID << std::dec << std::endl;
-    std::cout << "  Type: " << (adapterInfo.adapterType == GFX_ADAPTER_TYPE_DISCRETE_GPU ? "Discrete GPU" : adapterInfo.adapterType == GFX_ADAPTER_TYPE_INTEGRATED_GPU ? "Integrated GPU"
-            : adapterInfo.adapterType == GFX_ADAPTER_TYPE_CPU                                                                                                          ? "CPU"
-                                                                                                                                                                       : "Unknown")
-              << std::endl;
-    std::cout << "  Backend: " << (adapterInfo.backend == GFX_BACKEND_VULKAN ? "Vulkan" : "WebGPU") << std::endl;
+    LOG_INFO("Using adapter: %s", adapterInfo.name);
+    LOG_INFO("  Vendor ID: 0x%04X, Device ID: 0x%04X", adapterInfo.vendorID, adapterInfo.deviceID);
+    LOG_INFO("  Type: %s", (adapterInfo.adapterType == GFX_ADAPTER_TYPE_DISCRETE_GPU ? "Discrete GPU" : adapterInfo.adapterType == GFX_ADAPTER_TYPE_INTEGRATED_GPU ? "Integrated GPU"
+                                   : adapterInfo.adapterType == GFX_ADAPTER_TYPE_CPU                                                                               ? "CPU"
+                                                                                                                                                                   : "Unknown"));
+    LOG_INFO("  Backend: %s", (adapterInfo.backend == GFX_BACKEND_VULKAN ? "Vulkan" : "WebGPU"));
 
     // Create device
     const char* deviceExtensions[] = { GFX_DEVICE_EXTENSION_SWAPCHAIN };
     GfxDeviceDescriptor deviceDesc = {
         .label = "Main Device",
         .enabledExtensions = deviceExtensions,
-        .enabledExtensionCount = 1
+        .enabledExtensionCount = ARRAY_SIZE(deviceExtensions)
     };
     if (gfxAdapterCreateDevice(adapter, &deviceDesc, &device) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create device\n";
+        LOG_ERROR("Failed to create device");
         return false;
     }
 
     // Query device limits
     GfxDeviceLimits limits;
     if (gfxDeviceGetLimits(device, &limits) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to get device limits\n";
+        LOG_ERROR("Failed to get device limits");
         return false;
     }
-    std::cout << "Device Limits:\n";
-    std::cout << std::format("  Min Uniform Buffer Offset Alignment: {} bytes\n", limits.minUniformBufferOffsetAlignment);
-    std::cout << std::format("  Max Buffer Size: {} bytes\n", limits.maxBufferSize);
+    LOG_INFO("Device Limits:");
+    LOG_INFO("  Min Uniform Buffer Offset Alignment: %u bytes", limits.minUniformBufferOffsetAlignment);
+    LOG_INFO("  Max Buffer Size: %llu bytes", (unsigned long long)limits.maxBufferSize);
 
     // Get queue
     if (gfxDeviceGetQueue(device, &queue) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to get device queue\n";
+        LOG_ERROR("Failed to get device queue");
         return false;
     }
 
@@ -566,18 +585,18 @@ bool CubeApp::createGraphics()
     };
 
     if (gfxDeviceCreateSurface(device, &surfaceDesc, &surface) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create surface\n";
+        LOG_ERROR("Failed to create surface");
         return false;
     }
 
     // Query surface capabilities to determine frames in flight
     if (gfxSurfaceGetInfo(surface, &surfaceInfo) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to get surface info\n";
+        LOG_ERROR("Failed to get surface info");
         return false;
     }
 
-    std::cout << std::format("  Image Count: min {}, max {}\n", surfaceInfo.minImageCount, surfaceInfo.maxImageCount);
-    std::cout << std::format("  Extent: min ({}x{}), max ({}x{})\n", surfaceInfo.minExtent.width, surfaceInfo.minExtent.height, surfaceInfo.maxExtent.width, surfaceInfo.maxExtent.height);
+    LOG_INFO("  Image Count: min %u, max %u", surfaceInfo.minImageCount, surfaceInfo.maxImageCount);
+    LOG_INFO("  Extent: min (%ux%u), max (%ux%u)", surfaceInfo.minExtent.width, surfaceInfo.minExtent.height, surfaceInfo.maxExtent.width, surfaceInfo.maxExtent.height);
 
     // Calculate frames in flight based on surface capabilities
     // Use min image count, but clamp to reasonable values (2-4 is typical)
@@ -588,7 +607,7 @@ bool CubeApp::createGraphics()
     if (framesInFlight > 4) {
         framesInFlight = 4;
     }
-    std::cout << std::format("Frames in flight: {}\n", framesInFlight);
+    LOG_INFO("Frames in flight: %u", framesInFlight);
 
     return true;
 }
@@ -614,7 +633,7 @@ void CubeApp::destroyGraphics()
         instance = nullptr;
     }
 
-    std::cout << "Unloading graphics backend..." << std::endl;
+    LOG_INFO("Unloading graphics backend...");
     gfxUnloadBackend(settings.backend);
 }
 
@@ -631,17 +650,16 @@ bool CubeApp::createSwapchain(uint32_t width, uint32_t height)
     };
 
     if (gfxDeviceCreateSwapchain(device, &swapchainDesc, &swapchain) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create swapchain" << std::endl;
+        LOG_ERROR("Failed to create swapchain");
         return false;
     }
 
     if (gfxSwapchainGetInfo(swapchain, &swapchainInfo) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to get swapchain info" << std::endl;
+        LOG_ERROR("Failed to get swapchain info");
         return false;
     }
 
-    std::cout << "Swapchain created: " << swapchainInfo.extent.width << "x" << swapchainInfo.extent.height
-              << ", format: " << swapchainInfo.format << std::endl;
+    LOG_INFO("Swapchain created: %ux%u, format: %d", swapchainInfo.extent.width, swapchainInfo.extent.height, swapchainInfo.format);
 
     // Create render finished semaphores (one per swapchain image)
     renderFinishedSemaphores.resize(swapchainInfo.imageCount, nullptr);
@@ -652,10 +670,10 @@ bool CubeApp::createSwapchain(uint32_t width, uint32_t height)
     };
 
     for (uint32_t i = 0; i < swapchainInfo.imageCount; ++i) {
-        std::string labelStr = std::format("Render Finished Semaphore Image {}", i);
+        std::string labelStr = "Render Finished Semaphore Image " + std::to_string(i);
         semaphoreDesc.label = labelStr.c_str();
         if (gfxDeviceCreateSemaphore(device, &semaphoreDesc, &renderFinishedSemaphores[i]) != GFX_RESULT_SUCCESS) {
-            std::cerr << std::format("Failed to create render finished semaphore {}\n", i);
+            LOG_ERROR("Failed to create render finished semaphore %u", i);
             return false;
         }
     }
@@ -695,7 +713,7 @@ bool CubeApp::createTextures(uint32_t width, uint32_t height)
     };
 
     if (gfxDeviceCreateTexture(device, &depthTextureDesc, &depthTexture) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create depth texture\n";
+        LOG_ERROR("Failed to create depth texture");
         return false;
     }
 
@@ -710,7 +728,7 @@ bool CubeApp::createTextures(uint32_t width, uint32_t height)
     };
 
     if (gfxTextureCreateView(depthTexture, &depthViewDesc, &depthTextureView) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create depth texture view\n";
+        LOG_ERROR("Failed to create depth texture view");
         return false;
     }
 
@@ -727,7 +745,7 @@ bool CubeApp::createTextures(uint32_t width, uint32_t height)
     };
 
     if (gfxDeviceCreateTexture(device, &msaaColorTextureDesc, &msaaColorTexture) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create MSAA color texture\n";
+        LOG_ERROR("Failed to create MSAA color texture");
         return false;
     }
 
@@ -742,7 +760,7 @@ bool CubeApp::createTextures(uint32_t width, uint32_t height)
     };
 
     if (gfxTextureCreateView(msaaColorTexture, &msaaColorViewDesc, &msaaColorTextureView) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create MSAA color texture view\n";
+        LOG_ERROR("Failed to create MSAA color texture view");
         return false;
     }
 
@@ -777,7 +795,7 @@ bool CubeApp::createFramebuffers(uint32_t width, uint32_t height)
     for (uint32_t i = 0; i < swapchainInfo.imageCount; ++i) {
         GfxTextureView backbuffer = nullptr;
         if (gfxSwapchainGetTextureView(swapchain, i, &backbuffer) != GFX_RESULT_SUCCESS || !backbuffer) {
-            std::cerr << std::format("Failed to get swapchain image view {}\n", i);
+            LOG_ERROR("Failed to get swapchain image view %u", i);
             return false;
         }
 
@@ -791,7 +809,7 @@ bool CubeApp::createFramebuffers(uint32_t width, uint32_t height)
             .resolveTarget = nullptr
         };
 
-        std::string labelStr = std::format("Framebuffer {}", i);
+        std::string labelStr = "Framebuffer " + std::to_string(i);
         const char* label = labelStr.c_str();
 
         GfxFramebufferDescriptor fbDesc = {
@@ -804,7 +822,7 @@ bool CubeApp::createFramebuffers(uint32_t width, uint32_t height)
         };
 
         if (gfxDeviceCreateFramebuffer(device, &fbDesc, &framebuffers[i]) != GFX_RESULT_SUCCESS) {
-            std::cerr << std::format("Failed to create framebuffer {}\n", i);
+            LOG_ERROR("Failed to create framebuffer %u", i);
             return false;
         }
     }
@@ -882,7 +900,7 @@ bool CubeApp::createRenderPass()
     };
 
     if (gfxDeviceCreateRenderPass(device, &clearPassDesc, &clearRenderPass) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create clear render pass\n";
+        LOG_ERROR("Failed to create clear render pass");
         return false;
     }
 
@@ -900,7 +918,7 @@ bool CubeApp::createRenderPass()
     };
 
     if (gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create render pass\n";
+        LOG_ERROR("Failed to create render pass");
         return false;
     }
 
@@ -940,7 +958,7 @@ bool CubeApp::createRenderPass()
         };
 
         if (gfxDeviceCreateRenderPass(device, &transitionPassDesc, &transitionRenderPass) != GFX_RESULT_SUCCESS) {
-            std::cerr << "Failed to create transition render pass\n";
+            LOG_ERROR("Failed to create transition render pass");
             return false;
         }
     }
@@ -972,7 +990,7 @@ bool CubeApp::createRenderPass()
     };
 
     if (gfxDeviceCreateRenderPass(device, &resolvePassDesc, &resolveRenderPass) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create resolve render pass\n";
+        LOG_ERROR("Failed to create resolve render pass");
         return false;
     }
 
@@ -1064,9 +1082,10 @@ bool CubeApp::createGeometry()
     };
 
     if (gfxDeviceCreateBuffer(device, &vertexBufferDesc, &vertexBuffer) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create vertex buffer\n";
+        LOG_ERROR("Failed to create vertex buffer");
         return false;
     }
+    gfxBufferGetInfo(vertexBuffer, &vertexBufferInfo);
 
     // Create index buffer
     GfxBufferDescriptor indexBufferDesc = {
@@ -1077,9 +1096,10 @@ bool CubeApp::createGeometry()
     };
 
     if (gfxDeviceCreateBuffer(device, &indexBufferDesc, &indexBuffer) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create index buffer\n";
+        LOG_ERROR("Failed to create index buffer");
         return false;
     }
+    gfxBufferGetInfo(indexBuffer, &indexBufferInfo);
 
     // Upload data
     gfxQueueWriteBuffer(queue, vertexBuffer, 0, vertices, sizeof(vertices));
@@ -1104,7 +1124,7 @@ bool CubeApp::createUniformBuffer()
 {
     GfxDeviceLimits limits;
     if (gfxDeviceGetLimits(device, &limits) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to get device limits" << std::endl;
+        LOG_ERROR("Failed to get device limits");
         return false;
     }
 
@@ -1120,7 +1140,7 @@ bool CubeApp::createUniformBuffer()
     };
 
     if (gfxDeviceCreateBuffer(device, &uniformBufferDesc, &sharedUniformBuffer) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create shared uniform buffer\n";
+        LOG_ERROR("Failed to create shared uniform buffer");
         return false;
     }
 
@@ -1141,7 +1161,7 @@ bool CubeApp::createUniformBuffer()
     };
 
     if (gfxDeviceCreateBindGroupLayout(device, &uniformLayoutDesc, &uniformBindGroupLayout) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create uniform bind group layout\n";
+        LOG_ERROR("Failed to create uniform bind group layout");
         return false;
     }
 
@@ -1163,81 +1183,80 @@ void CubeApp::destroyUniformBuffer()
 
 bool CubeApp::createShaders()
 {
+    // Data-driven shader loading - try formats in order of preference
+    struct ShaderFormat {
+        GfxShaderSourceType format;
+        const char* vertexPath;
+        const char* fragmentPath;
+    };
+
+    const ShaderFormat shaderFormats[] = {
+        { GFX_SHADER_SOURCE_SPIRV, "shaders/cube.vert.spv", "shaders/cube.frag.spv" },
+        { GFX_SHADER_SOURCE_WGSL, "shaders/cube.vert.wgsl", "shaders/cube.frag.wgsl" }
+    };
+
     GfxShaderSourceType sourceType;
-    if (adapterInfo.backend == GFX_BACKEND_WEBGPU) {
-        sourceType = GFX_SHADER_SOURCE_WGSL;
-        std::cout << "Loading WGSL shaders...\n";
-        auto vertexShaderData = util::loadTextFile("shaders/cube.vert.wgsl");
-        auto fragmentShaderData = util::loadTextFile("shaders/cube.frag.wgsl");
-        if (vertexShaderData.empty() || fragmentShaderData.empty()) {
-            std::cerr << "Failed to load WGSL shaders\n";
-            return false;
+    std::vector<uint8_t> vertexShaderData;
+    std::vector<uint8_t> fragmentShaderData;
+    bool shadersLoaded = false;
+
+    for (const auto& format : shaderFormats) {
+        LOG_INFO("Loading shaders: %s, %s", format.vertexPath, format.fragmentPath);
+
+        if (format.format == GFX_SHADER_SOURCE_SPIRV) {
+            vertexShaderData = util::loadBinaryFile(format.vertexPath);
+            fragmentShaderData = util::loadBinaryFile(format.fragmentPath);
+        } else {
+            auto vertexText = util::loadTextFile(format.vertexPath);
+            auto fragmentText = util::loadTextFile(format.fragmentPath);
+            vertexShaderData.assign(vertexText.begin(), vertexText.end());
+            fragmentShaderData.assign(fragmentText.begin(), fragmentText.end());
         }
 
-        // Create vertex shader
-        GfxShaderDescriptor vertexShaderDesc = {
-            .label = "Cube Vertex Shader",
-            .sourceType = sourceType,
-            .code = vertexShaderData.data(),
-            .codeSize = vertexShaderData.size(),
-            .entryPoint = "main"
-        };
-
-        if (gfxDeviceCreateShader(device, &vertexShaderDesc, &vertexShader) != GFX_RESULT_SUCCESS) {
-            std::cerr << "Failed to create vertex shader\n";
-            return false;
+        if (!vertexShaderData.empty() && !fragmentShaderData.empty()) {
+            sourceType = format.format;
+            LOG_INFO("Successfully loaded shaders (vertex: %zu bytes, fragment: %zu bytes)", vertexShaderData.size(), fragmentShaderData.size());
+            shadersLoaded = true;
+            break;
         }
 
-        // Create fragment shader
-        GfxShaderDescriptor fragmentShaderDesc = {
-            .label = "Cube Fragment Shader",
-            .sourceType = sourceType,
-            .code = fragmentShaderData.data(),
-            .codeSize = fragmentShaderData.size(),
-            .entryPoint = "main"
-        };
+        // Failed to load this format, clear and try next
+        LOG_ERROR("Failed to load shaders for format");
+        vertexShaderData.clear();
+        fragmentShaderData.clear();
+    }
 
-        if (gfxDeviceCreateShader(device, &fragmentShaderDesc, &fragmentShader) != GFX_RESULT_SUCCESS) {
-            std::cerr << "Failed to create fragment shader\n";
-            return false;
-        }
-    } else {
-        sourceType = GFX_SHADER_SOURCE_SPIRV;
-        std::cout << "Loading SPIR-V shaders...\n";
-        auto vertexShaderData = util::loadBinaryFile("shaders/cube.vert.spv");
-        auto fragmentShaderData = util::loadBinaryFile("shaders/cube.frag.spv");
-        if (vertexShaderData.empty() || fragmentShaderData.empty()) {
-            std::cerr << "Failed to load SPIR-V shaders\n";
-            return false;
-        }
+    if (!shadersLoaded) {
+        LOG_ERROR("No supported shader format found or failed to load shaders");
+        return false;
+    }
 
-        // Create vertex shader
-        GfxShaderDescriptor vertexShaderDesc = {
-            .label = "Cube Vertex Shader",
-            .sourceType = sourceType,
-            .code = vertexShaderData.data(),
-            .codeSize = vertexShaderData.size(),
-            .entryPoint = "main"
-        };
+    // Create vertex shader
+    GfxShaderDescriptor vertexShaderDesc = {
+        .label = "Cube Vertex Shader",
+        .sourceType = sourceType,
+        .code = vertexShaderData.data(),
+        .codeSize = vertexShaderData.size(),
+        .entryPoint = "main"
+    };
 
-        if (gfxDeviceCreateShader(device, &vertexShaderDesc, &vertexShader) != GFX_RESULT_SUCCESS) {
-            std::cerr << "Failed to create vertex shader\n";
-            return false;
-        }
+    if (gfxDeviceCreateShader(device, &vertexShaderDesc, &vertexShader) != GFX_RESULT_SUCCESS) {
+        LOG_ERROR("Failed to create vertex shader");
+        return false;
+    }
 
-        // Create fragment shader
-        GfxShaderDescriptor fragmentShaderDesc = {
-            .label = "Cube Fragment Shader",
-            .sourceType = sourceType,
-            .code = fragmentShaderData.data(),
-            .codeSize = fragmentShaderData.size(),
-            .entryPoint = "main"
-        };
+    // Create fragment shader
+    GfxShaderDescriptor fragmentShaderDesc = {
+        .label = "Cube Fragment Shader",
+        .sourceType = sourceType,
+        .code = fragmentShaderData.data(),
+        .codeSize = fragmentShaderData.size(),
+        .entryPoint = "main"
+    };
 
-        if (gfxDeviceCreateShader(device, &fragmentShaderDesc, &fragmentShader) != GFX_RESULT_SUCCESS) {
-            std::cerr << "Failed to create fragment shader\n";
-            return false;
-        }
+    if (gfxDeviceCreateShader(device, &fragmentShaderDesc, &fragmentShader) != GFX_RESULT_SUCCESS) {
+        LOG_ERROR("Failed to create fragment shader");
+        return false;
     }
 
     return true;
@@ -1257,8 +1276,6 @@ void CubeApp::destroyShaders()
 
 bool CubeApp::createRenderingResources()
 {
-    std::cout << "[DEBUG] createRenderingResources called" << std::endl;
-
     // 1. Create geometry (vertex/index buffers)
     if (!createGeometry()) {
         return false;
@@ -1312,7 +1329,7 @@ bool CubeApp::createRenderPipeline()
     GfxVertexBufferLayout vertexBufferLayout = {
         .arrayStride = sizeof(Vertex),
         .attributes = attributes,
-        .attributeCount = 2,
+        .attributeCount = ARRAY_SIZE(attributes),
         .stepMode = GFX_VERTEX_STEP_MODE_VERTEX
     };
 
@@ -1363,19 +1380,20 @@ bool CubeApp::createRenderPipeline()
 
     GfxBindGroupLayout bindGroupLayouts[] = { uniformBindGroupLayout };
 
-    GfxRenderPipelineDescriptor pipelineDesc = {};
-    pipelineDesc.label = "Cube Render Pipeline";
-    pipelineDesc.vertex = &vertexState;
-    pipelineDesc.fragment = &fragmentState;
-    pipelineDesc.primitive = &primitiveState;
-    pipelineDesc.depthStencil = &depthStencilState;
-    pipelineDesc.sampleCount = this->settings.msaaSampleCount;
-    pipelineDesc.renderPass = renderPass;
-    pipelineDesc.bindGroupLayouts = bindGroupLayouts;
-    pipelineDesc.bindGroupLayoutCount = 1;
+    GfxRenderPipelineDescriptor pipelineDesc = {
+        .label = "Cube Render Pipeline",
+        .renderPass = renderPass,
+        .vertex = &vertexState,
+        .fragment = &fragmentState,
+        .primitive = &primitiveState,
+        .depthStencil = &depthStencilState,
+        .sampleCount = this->settings.msaaSampleCount,
+        .bindGroupLayouts = bindGroupLayouts,
+        .bindGroupLayoutCount = ARRAY_SIZE(bindGroupLayouts)
+    };
 
     if (gfxDeviceCreateRenderPipeline(device, &pipelineDesc, &renderPipeline) != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to create render pipeline\n";
+        LOG_ERROR("Failed to create render pipeline");
         return false;
     }
 
@@ -1394,81 +1412,82 @@ bool CubeApp::createPerFrameResources()
 {
     frameResources.resize(framesInFlight);
 
-    GfxSemaphoreDescriptor semaphoreDesc = {
-        .label = "Semaphore",
-        .type = GFX_SEMAPHORE_TYPE_BINARY,
-        .initialValue = 0
-    };
-
-    GfxFenceDescriptor fenceDesc = {
-        .label = "Fence",
-        .signaled = true
-    };
-
     for (size_t i = 0; i < framesInFlight; ++i) {
         auto& frame = frameResources[i];
+
         std::string labelStr;
-        labelStr = std::format("Image Available Semaphore {}", i);
-        semaphoreDesc.label = labelStr.c_str();
-        if (gfxDeviceCreateSemaphore(device, &semaphoreDesc, &frame.imageAvailableSemaphore) != GFX_RESULT_SUCCESS) {
-            std::cerr << std::format("Failed to create image available semaphore {}\n", i);
+        labelStr = "Image Available Semaphore " + std::to_string(i);
+        GfxSemaphoreDescriptor imageAvailableSemaphoreDesc = {
+            .label = labelStr.c_str(),
+            .type = GFX_SEMAPHORE_TYPE_BINARY,
+            .initialValue = 0
+        };
+        if (gfxDeviceCreateSemaphore(device, &imageAvailableSemaphoreDesc, &frame.imageAvailableSemaphore) != GFX_RESULT_SUCCESS) {
+            LOG_ERROR("Failed to create image available semaphore %zu", i);
             return false;
         }
 
-        labelStr = std::format("Clear Finished Semaphore {}", i);
-        semaphoreDesc.label = labelStr.c_str();
-        if (gfxDeviceCreateSemaphore(device, &semaphoreDesc, &frame.clearFinishedSemaphore) != GFX_RESULT_SUCCESS) {
-            std::cerr << std::format("Failed to create clear finished semaphore {}\n", i);
+        labelStr = "Clear Finished Semaphore " + std::to_string(i);
+        GfxSemaphoreDescriptor clearFinishedSemaphoreDesc = {
+            .label = labelStr.c_str(),
+            .type = GFX_SEMAPHORE_TYPE_BINARY,
+            .initialValue = 0
+        };
+        if (gfxDeviceCreateSemaphore(device, &clearFinishedSemaphoreDesc, &frame.clearFinishedSemaphore) != GFX_RESULT_SUCCESS) {
+            LOG_ERROR("Failed to create clear finished semaphore %zu", i);
             return false;
         }
 
         // Create fence
-        labelStr = std::format("In Flight Fence {}", i);
-        fenceDesc.label = labelStr.c_str();
+        labelStr = "In Flight Fence " + std::to_string(i);
+        GfxFenceDescriptor fenceDesc = {
+            .label = labelStr.c_str(),
+            .signaled = true
+        };
         if (gfxDeviceCreateFence(device, &fenceDesc, &frame.inFlightFence) != GFX_RESULT_SUCCESS) {
-            std::cerr << std::format("Failed to create in flight fence {}\n", i);
+            LOG_ERROR("Failed to create in flight fence %zu", i);
             return false;
         }
 
         // Create clear encoder
-        labelStr = std::format("Clear Encoder Frame {}", i);
+        labelStr = "Clear Encoder Frame " + std::to_string(i);
         GfxCommandEncoderDescriptor encoderDesc = { .label = labelStr.c_str() };
         if (gfxDeviceCreateCommandEncoder(device, &encoderDesc, &frame.clearEncoder) != GFX_RESULT_SUCCESS) {
-            std::cerr << std::format("Failed to create clear encoder {}\n", i);
+            LOG_ERROR("Failed to create clear encoder %zu", i);
             return false;
         }
 
         // Create cube encoders
         frame.cubeEncoders.resize(CUBE_COUNT);
         for (size_t cubeIdx = 0; cubeIdx < CUBE_COUNT; ++cubeIdx) {
-            labelStr = std::format("Command Encoder Frame {} Cube {}", i, cubeIdx);
+            labelStr = "Command Encoder Frame " + std::to_string(i) + " Cube " + std::to_string(cubeIdx);
             GfxCommandEncoderDescriptor encoderDesc = { .label = labelStr.c_str() };
             if (gfxDeviceCreateCommandEncoder(device, &encoderDesc, &frame.cubeEncoders[cubeIdx]) != GFX_RESULT_SUCCESS) {
-                std::cerr << std::format("Failed to create command encoder {} cube {}\n", i, cubeIdx);
+                LOG_ERROR("Failed to create command encoder %zu cube %zu", i, cubeIdx);
                 return false;
             }
         }
 
         // Create resolve encoder
-        labelStr = std::format("Resolve Encoder Frame {}", i);
+        labelStr = "Resolve Encoder Frame " + std::to_string(i);
         GfxCommandEncoderDescriptor resolveEncoderDesc = { .label = labelStr.c_str() };
         if (gfxDeviceCreateCommandEncoder(device, &resolveEncoderDesc, &frame.resolveEncoder) != GFX_RESULT_SUCCESS) {
-            std::cerr << std::format("Failed to create resolve encoder {}\n", i);
+            LOG_ERROR("Failed to create resolve encoder %zu", i);
             return false;
         }
 
         // Create transition encoder
-        labelStr = std::format("Transition Encoder Frame {}", i);
+        labelStr = "Transition Encoder Frame " + std::to_string(i);
         GfxCommandEncoderDescriptor transitionEncoderDesc = { .label = labelStr.c_str() };
         if (gfxDeviceCreateCommandEncoder(device, &transitionEncoderDesc, &frame.transitionEncoder) != GFX_RESULT_SUCCESS) {
-            std::cerr << std::format("Failed to create transition encoder {}\n", i);
+            LOG_ERROR("Failed to create transition encoder %zu", i);
             return false;
         }
 
         // Create bind groups
         frame.uniformBindGroups.resize(CUBE_COUNT);
         for (size_t cubeIdx = 0; cubeIdx < CUBE_COUNT; ++cubeIdx) {
-            std::string labelStr = std::format("Uniform Bind Group Frame {} Cube {}", i, cubeIdx);
+            std::string labelStr = "Uniform Bind Group Frame " + std::to_string(i) + " Cube " + std::to_string(cubeIdx);
             const char* label = labelStr.c_str();
 
             GfxBindGroupEntry uniformEntry = {
@@ -1489,7 +1508,7 @@ bool CubeApp::createPerFrameResources()
             };
 
             if (gfxDeviceCreateBindGroup(device, &uniformBindGroupDesc, &frame.uniformBindGroups[cubeIdx]) != GFX_RESULT_SUCCESS) {
-                std::cerr << std::format("Failed to create uniform bind group {} cube {}\n", i, cubeIdx);
+                LOG_ERROR("Failed to create uniform bind group %zu cube %zu", i, cubeIdx);
                 return false;
             }
         }
@@ -1591,6 +1610,11 @@ void CubeApp::updateCube(int cubeIndex)
 
 void CubeApp::update(float deltaTime)
 {
+    // Accumulate total elapsed time
+    elapsedTime += deltaTime;
+
+    updateFPS(deltaTime);
+
     rotationAngleX += 45.0f * deltaTime;
     rotationAngleY += 30.0f * deltaTime;
     if (rotationAngleX >= 360.0f) {
@@ -1603,6 +1627,34 @@ void CubeApp::update(float deltaTime)
     // Update uniforms for each cube
     for (int i = 0; i < CUBE_COUNT; ++i) {
         updateCube(i);
+    }
+}
+
+void CubeApp::updateFPS(float deltaTime)
+{
+    fpsFrameCount++;
+    fpsTimeAccumulator += deltaTime;
+
+    if (deltaTime < fpsFrameTimeMin) {
+        fpsFrameTimeMin = deltaTime;
+    }
+    if (deltaTime > fpsFrameTimeMax) {
+        fpsFrameTimeMax = deltaTime;
+    }
+
+    // Log FPS every second
+    if (fpsTimeAccumulator >= 1.0f) {
+        float avgFPS = static_cast<float>(fpsFrameCount) / fpsTimeAccumulator;
+        float avgFrameTime = (fpsTimeAccumulator / static_cast<float>(fpsFrameCount)) * 1000.0f;
+        float minFPS = 1.0f / fpsFrameTimeMax;
+        float maxFPS = 1.0f / fpsFrameTimeMin;
+        LOG_INFO("FPS - Avg: %.1f, Min: %.1f, Max: %.1f | Frame Time - Avg: %.2f ms, Min: %.2f ms, Max: %.2f ms", avgFPS, minFPS, maxFPS, avgFrameTime, fpsFrameTimeMin * 1000.0f, fpsFrameTimeMax * 1000.0f);
+
+        // Reset for next second
+        fpsFrameCount = 0;
+        fpsTimeAccumulator = 0.0f;
+        fpsFrameTimeMin = FLT_MAX;
+        fpsFrameTimeMax = 0.0f;
     }
 }
 
@@ -1658,15 +1710,8 @@ void CubeApp::recordCubeCommands(int cubeIndex, uint32_t imageIndex)
         gfxRenderPassEncoderSetViewport(renderPass, &viewport);
         gfxRenderPassEncoderSetScissorRect(renderPass, &scissor);
 
-        GfxBufferInfo vertexBufferInfo;
-        if (gfxBufferGetInfo(vertexBuffer, &vertexBufferInfo) == GFX_RESULT_SUCCESS) {
-            gfxRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, vertexBufferInfo.size);
-        }
-
-        GfxBufferInfo indexBufferInfo;
-        if (gfxBufferGetInfo(indexBuffer, &indexBufferInfo) == GFX_RESULT_SUCCESS) {
-            gfxRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, GFX_INDEX_FORMAT_UINT16, 0, indexBufferInfo.size);
-        }
+        gfxRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, vertexBufferInfo.size);
+        gfxRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, GFX_INDEX_FORMAT_UINT16, 0, indexBufferInfo.size);
 
         gfxRenderPassEncoderSetBindGroup(renderPass, 0, frame.uniformBindGroups[cubeIndex], nullptr, 0);
         gfxRenderPassEncoderDrawIndexed(renderPass, 36, 1, 0, 0, 0);
@@ -1737,7 +1782,7 @@ void CubeApp::render()
         frame.imageAvailableSemaphore, nullptr, &imageIndex);
 
     if (result != GFX_RESULT_SUCCESS) {
-        std::cerr << "Failed to acquire swapchain image\n";
+        LOG_ERROR("Failed to acquire swapchain image");
         return;
     }
 
@@ -1857,15 +1902,8 @@ void CubeApp::render()
             gfxRenderPassEncoderSetViewport(renderPass, &viewport);
             gfxRenderPassEncoderSetScissorRect(renderPass, &scissor);
 
-            GfxBufferInfo vertexBufferInfo;
-            if (gfxBufferGetInfo(vertexBuffer, &vertexBufferInfo) == GFX_RESULT_SUCCESS) {
-                gfxRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, vertexBufferInfo.size);
-            }
-
-            GfxBufferInfo indexBufferInfo;
-            if (gfxBufferGetInfo(indexBuffer, &indexBufferInfo) == GFX_RESULT_SUCCESS) {
-                gfxRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, GFX_INDEX_FORMAT_UINT16, 0, indexBufferInfo.size);
-            }
+            gfxRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, vertexBufferInfo.size);
+            gfxRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, GFX_INDEX_FORMAT_UINT16, 0, indexBufferInfo.size);
 
             for (int cubeIdx = 0; cubeIdx < CUBE_COUNT; ++cubeIdx) {
                 gfxRenderPassEncoderSetBindGroup(renderPass, 0, frame.uniformBindGroups[cubeIdx], nullptr, 0);
@@ -1890,11 +1928,12 @@ void CubeApp::render()
     }
 
     // Present
-    GfxPresentDescriptor presentDescriptor = {};
-    presentDescriptor.sType = GFX_STRUCTURE_TYPE_PRESENT_DESCRIPTOR;
-    presentDescriptor.pNext = NULL;
-    presentDescriptor.waitSemaphores = &renderFinishedSemaphores[imageIndex];
-    presentDescriptor.waitSemaphoreCount = 1;
+    GfxPresentDescriptor presentDescriptor = {
+        .sType = GFX_STRUCTURE_TYPE_PRESENT_DESCRIPTOR,
+        .pNext = NULL,
+        .waitSemaphores = &renderFinishedSemaphores[imageIndex],
+        .waitSemaphoreCount = 1
+    };
     gfxSwapchainPresent(swapchain, &presentDescriptor);
 
     currentFrame = (currentFrame + 1) % framesInFlight;
@@ -1919,59 +1958,56 @@ bool CubeApp::mainLoopIteration()
 
     // Handle framebuffer resize
     if (previousWidth != windowWidth || previousHeight != windowHeight) {
-        gfxDeviceWaitIdle(device);
-
-        destroySizeDependentResources();
-        if (!createSizeDependentResources(windowWidth, windowHeight)) {
-            std::cerr << "Failed to recreate size-dependent resources after resize" << std::endl;
+        if (!handleResize(windowWidth, windowHeight)) {
             return false;
         }
-
-        previousWidth = windowWidth;
-        previousHeight = windowHeight;
-
-        std::cout << "Window resized: " << windowWidth << "x" << windowHeight << std::endl;
         return true; // Skip rendering this frame
     }
 
     // Calculate delta time
     float currentTime = getCurrentTime();
-    float deltaTime = currentTime - lastTime;
-    lastTime = currentTime;
-
-    // Track FPS
-    if (deltaTime > 0.0f) {
-        fpsFrameCount++;
-        fpsTimeAccumulator += deltaTime;
-
-        if (deltaTime < fpsFrameTimeMin) {
-            fpsFrameTimeMin = deltaTime;
-        }
-        if (deltaTime > fpsFrameTimeMax) {
-            fpsFrameTimeMax = deltaTime;
-        }
-
-        // Log FPS every second
-        if (fpsTimeAccumulator >= 1.0f) {
-            float avgFPS = static_cast<float>(fpsFrameCount) / fpsTimeAccumulator;
-            float avgFrameTime = (fpsTimeAccumulator / static_cast<float>(fpsFrameCount)) * 1000.0f;
-            float minFPS = 1.0f / fpsFrameTimeMax;
-            float maxFPS = 1.0f / fpsFrameTimeMin;
-            std::cout << "FPS - Avg: " << avgFPS << ", Min: " << minFPS << ", Max: " << maxFPS
-                      << " | Frame Time - Avg: " << avgFrameTime << " ms, Min: " << (fpsFrameTimeMin * 1000.0f)
-                      << " ms, Max: " << (fpsFrameTimeMax * 1000.0f) << " ms" << std::endl;
-
-            // Reset for next second
-            fpsFrameCount = 0;
-            fpsTimeAccumulator = 0.0f;
-            fpsFrameTimeMin = FLT_MAX;
-            fpsFrameTimeMax = 0.0f;
-        }
-    }
+    float deltaTime = currentTime - lastFrameTime;
+    lastFrameTime = currentTime;
 
     update(deltaTime);
     render();
 
+    return true;
+}
+
+bool CubeApp::handleResize(uint32_t width, uint32_t height)
+{
+    LOG_INFO("Resizing to %ux%u", width, height);
+
+    windowWidth = width;
+    windowHeight = height;
+
+    // Wait for all in-flight frames to complete
+    gfxDeviceWaitIdle(device);
+
+    // Destroy per-frame resources first (they depend on swapchain image count)
+    destroyPerFrameResources();
+
+    // Recreate size-dependent resources (including swapchain)
+    destroySizeDependentResources();
+    if (!createSizeDependentResources(windowWidth, windowHeight)) {
+        LOG_ERROR("Failed to recreate size-dependent resources after resize");
+        return false;
+    }
+
+    // Recreate per-frame resources with new swapchain image count
+    if (!createPerFrameResources()) {
+        LOG_ERROR("Failed to recreate per-frame resources after resize");
+        return false;
+    }
+
+    // Reset frame index to prevent out-of-bounds access
+    currentFrame = 0;
+
+    previousWidth = windowWidth;
+    previousHeight = windowHeight;
+
+    LOG_INFO("Successfully recreated resources for new size");
     return true;
 }
 
@@ -1993,7 +2029,7 @@ GfxPlatformWindowHandle CubeApp::getPlatformWindowHandle()
 
 void CubeApp::errorCallback(int error, const char* description)
 {
-    std::cerr << "GLFW Error " << error << ": " << description << std::endl;
+    LOG_ERROR("GLFW Error %d: %s", error, description);
 }
 
 void CubeApp::framebufferSizeCallback(GLFWwindow* window, int width, int height)
@@ -2017,7 +2053,7 @@ std::vector<uint8_t> loadBinaryFile(const char* filepath)
 {
     std::FILE* file = std::fopen(filepath, "rb");
     if (!file) {
-        std::cerr << "Failed to open binary file: " << filepath << std::endl;
+        LOG_ERROR("Failed to open binary file: %s", filepath);
         return {};
     }
 
@@ -2026,7 +2062,7 @@ std::vector<uint8_t> loadBinaryFile(const char* filepath)
     std::fseek(file, 0, SEEK_SET);
 
     if (fileSize <= 0) {
-        std::cerr << "Invalid file size for binary file: " << filepath << std::endl;
+        LOG_ERROR("Invalid file size for binary file: %s", filepath);
         std::fclose(file);
         return {};
     }
@@ -2036,7 +2072,7 @@ std::vector<uint8_t> loadBinaryFile(const char* filepath)
     std::fclose(file);
 
     if (bytesRead != static_cast<size_t>(fileSize)) {
-        std::cerr << "Failed to read complete binary file: " << filepath << std::endl;
+        LOG_ERROR("Failed to read complete binary file: %s", filepath);
         return {};
     }
 
@@ -2047,7 +2083,7 @@ std::string loadTextFile(const char* filepath)
 {
     std::FILE* file = std::fopen(filepath, "r");
     if (!file) {
-        std::cerr << "Failed to open text file: " << filepath << std::endl;
+        LOG_ERROR("Failed to open text file: %s", filepath);
         return {};
     }
 
@@ -2056,7 +2092,7 @@ std::string loadTextFile(const char* filepath)
     std::fseek(file, 0, SEEK_SET);
 
     if (fileSize <= 0) {
-        std::cerr << "Invalid file size for text file: " << filepath << std::endl;
+        LOG_ERROR("Invalid file size for text file: %s", filepath);
         std::fclose(file);
         return {};
     }
@@ -2066,7 +2102,7 @@ std::string loadTextFile(const char* filepath)
     std::fclose(file);
 
     if (bytesRead != static_cast<size_t>(fileSize)) {
-        std::cerr << "Failed to read complete text file: " << filepath << std::endl;
+        LOG_ERROR("Failed to read complete text file: %s", filepath);
         return {};
     }
 
@@ -2207,9 +2243,82 @@ bool vectorNormalize(Vec3& v)
 }
 } // namespace math
 
+static bool parseBackend(const char* backendStr, GfxBackend& outBackend)
+{
+    if (std::strcmp(backendStr, "vulkan") == 0) {
+        outBackend = GFX_BACKEND_VULKAN;
+        return true;
+    } else if (std::strcmp(backendStr, "webgpu") == 0) {
+        outBackend = GFX_BACKEND_WEBGPU;
+        return true;
+    } else {
+        LOG_ERROR("Error: Unknown backend: %s", backendStr);
+        LOG_ERROR("Valid values: vulkan, webgpu");
+        return false;
+    }
+}
+
+static bool parseMsaa(const char* msaaStr, GfxSampleCount& outSampleCount)
+{
+    int samples = std::atoi(msaaStr);
+    switch (samples) {
+    case 1:
+        outSampleCount = GFX_SAMPLE_COUNT_1;
+        break;
+    case 2:
+        outSampleCount = GFX_SAMPLE_COUNT_2;
+        break;
+    case 4:
+        outSampleCount = GFX_SAMPLE_COUNT_4;
+        break;
+    case 8:
+        outSampleCount = GFX_SAMPLE_COUNT_8;
+        break;
+    case 16:
+        outSampleCount = GFX_SAMPLE_COUNT_16;
+        break;
+    case 32:
+        outSampleCount = GFX_SAMPLE_COUNT_32;
+        break;
+    case 64:
+        outSampleCount = GFX_SAMPLE_COUNT_64;
+        break;
+    default:
+        LOG_ERROR("Error: Invalid MSAA sample count: %d", samples);
+        LOG_ERROR("Valid values: 1, 2, 4, 8, 16, 32, 64");
+        return false;
+    }
+    return true;
+}
+
+static bool parseVsync(const char* vsyncStr, bool& outVsync)
+{
+    int vsync = std::atoi(vsyncStr);
+    if (vsync == 0) {
+        outVsync = false;
+        return true;
+    } else if (vsync == 1) {
+        outVsync = true;
+        return true;
+    } else {
+        LOG_ERROR("Error: Invalid vsync value: %s", vsyncStr);
+        LOG_ERROR("Valid values: 0 (off), 1 (on)");
+        return false;
+    }
+}
+
+static void printHelp(const char* programName)
+{
+    LOG_INFO("Usage: %s [options]", programName);
+    LOG_INFO("Options:");
+    LOG_INFO("  --backend [vulkan|webgpu]   Select graphics backend");
+    LOG_INFO("  --msaa [1|2|4|8|16|32|64]   Select MSAA sample count");
+    LOG_INFO("  --vsync [0|1]               VSync: 0=off, 1=on");
+    LOG_INFO("  --help                      Show this help message");
+}
+
 bool parseArguments(int argc, char** argv, Settings& settings)
 {
-    // Set defaults
 #if defined(__EMSCRIPTEN__)
     settings.backend = GFX_BACKEND_WEBGPU;
 #else
@@ -2218,60 +2327,27 @@ bool parseArguments(int argc, char** argv, Settings& settings)
     settings.msaaSampleCount = GFX_SAMPLE_COUNT_4;
     settings.vsync = true;
 
-    for (int i = 1; i < argc; i++) {
-        std::string arg = argv[i];
-
-        if (arg == "--help" || arg == "-h") {
-            std::cout << "Usage: " << argv[0] << " [options]\n";
-            std::cout << "Options:\n";
-            std::cout << "  --backend [vulkan|webgpu]  Select backend (default: vulkan on native, webgpu on emscripten)\n";
-            std::cout << "  --msaa [1|2|4|8|16|32|64]  MSAA sample count (default: 4)\n";
-            std::cout << "  --vsync [0|1]              Enable/disable vsync (default: 1)\n";
-            std::cout << "  --help, -h                 Show this help message\n";
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--backend") == 0 && i + 1 < argc) {
+            i++;
+            if (!parseBackend(argv[i], settings.backend)) {
+                return false;
+            }
+        } else if (std::strcmp(argv[i], "--msaa") == 0 && i + 1 < argc) {
+            i++;
+            if (!parseMsaa(argv[i], settings.msaaSampleCount)) {
+                return false;
+            }
+        } else if (std::strcmp(argv[i], "--vsync") == 0 && i + 1 < argc) {
+            i++;
+            if (!parseVsync(argv[i], settings.vsync)) {
+                return false;
+            }
+        } else if (std::strcmp(argv[i], "--help") == 0) {
+            printHelp(argv[0]);
             return false;
-        } else if (arg == "--backend" && i + 1 < argc) {
-            std::string backend = argv[++i];
-            if (backend == "vulkan") {
-                settings.backend = GFX_BACKEND_VULKAN;
-            } else if (backend == "webgpu") {
-                settings.backend = GFX_BACKEND_WEBGPU;
-            } else {
-                std::cerr << "Error: Invalid backend '" << backend << "'. Use 'vulkan' or 'webgpu'." << std::endl;
-                return false;
-            }
-        } else if (arg == "--msaa" && i + 1 < argc) {
-            int msaa = std::atoi(argv[++i]);
-            switch (msaa) {
-            case 1:
-                settings.msaaSampleCount = GFX_SAMPLE_COUNT_1;
-                break;
-            case 2:
-                settings.msaaSampleCount = GFX_SAMPLE_COUNT_2;
-                break;
-            case 4:
-                settings.msaaSampleCount = GFX_SAMPLE_COUNT_4;
-                break;
-            case 8:
-                settings.msaaSampleCount = GFX_SAMPLE_COUNT_8;
-                break;
-            case 16:
-                settings.msaaSampleCount = GFX_SAMPLE_COUNT_16;
-                break;
-            case 32:
-                settings.msaaSampleCount = GFX_SAMPLE_COUNT_32;
-                break;
-            case 64:
-                settings.msaaSampleCount = GFX_SAMPLE_COUNT_64;
-                break;
-            default:
-                std::cerr << "Error: Invalid MSAA sample count '" << msaa << "'. Use 1, 2, 4, 8, 16, 32, or 64." << std::endl;
-                return false;
-            }
-        } else if (arg == "--vsync" && i + 1 < argc) {
-            int vsync = std::atoi(argv[++i]);
-            settings.vsync = (vsync != 0);
         } else {
-            std::cerr << "Error: Unknown argument '" << arg << "'" << std::endl;
+            LOG_ERROR("Error: Unknown argument: %s", argv[i]);
             return false;
         }
     }
@@ -2281,8 +2357,7 @@ bool parseArguments(int argc, char** argv, Settings& settings)
 
 int main(int argc, char** argv)
 {
-    std::cout << "=== Threaded Cube Example (C++ ThreadPool with C API) ===" << std::endl
-              << std::endl;
+    LOG_INFO("=== Threaded Cube Example (C++ ThreadPool with C API) ===\n");
 
     Settings settings;
     if (!parseArguments(argc, argv, settings)) {
@@ -2291,13 +2366,13 @@ int main(int argc, char** argv)
 
     CubeApp app(settings);
     if (!app.init()) {
-        std::cerr << "Failed to initialize application" << std::endl;
+        LOG_ERROR("Failed to initialize application");
         app.cleanup();
         return -1;
     }
     app.run();
     app.cleanup();
 
-    std::cout << "Example completed successfully!" << std::endl;
+    LOG_INFO("Example completed successfully!");
     return 0;
 }

@@ -1,9 +1,17 @@
 #include <gfx/gfx.h>
 
-// Platform-specific includes
+#include <float.h>
+#include <math.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Platform-specific includes and macros
 #if defined(__ANDROID__)
-#include <android_native_app_glue.h>
 #include <android/log.h>
+#include <android_native_app_glue.h>
 #include <time.h>
 
 // Android logging macros
@@ -13,11 +21,27 @@
 #define LOG_WARN(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define LOG_DEBUG(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #else
-// Desktop/Web logging macros (map to printf)
-#define LOG_INFO(...) printf("[INFO] " __VA_ARGS__); printf("\n")
-#define LOG_ERROR(...) fprintf(stderr, "[ERROR] " __VA_ARGS__); fprintf(stderr, "\n")
-#define LOG_WARN(...) fprintf(stderr, "[WARN] " __VA_ARGS__); fprintf(stderr, "\n")
-#define LOG_DEBUG(...) printf("[DEBUG] " __VA_ARGS__); printf("\n")
+// Desktop/Web logging macros
+#define LOG_INFO(...)                  \
+    do {                               \
+        printf("[INFO] " __VA_ARGS__); \
+        printf("\n");                  \
+    } while (0)
+#define LOG_ERROR(...)                           \
+    do {                                         \
+        fprintf(stderr, "[ERROR] " __VA_ARGS__); \
+        fprintf(stderr, "\n");                   \
+    } while (0)
+#define LOG_WARN(...)                           \
+    do {                                        \
+        fprintf(stderr, "[WARN] " __VA_ARGS__); \
+        fprintf(stderr, "\n");                  \
+    } while (0)
+#define LOG_DEBUG(...)                  \
+    do {                                \
+        printf("[DEBUG] " __VA_ARGS__); \
+        printf("\n");                   \
+    } while (0)
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -37,17 +61,11 @@
 #endif
 #endif
 
-#include <float.h>
-#include <math.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
@@ -59,35 +77,33 @@
 static void logCallback(GfxLogLevel level, const char* message, void* userData)
 {
     (void)userData;
-    const char* levelStr = "UNKNOWN";
     switch (level) {
     case GFX_LOG_LEVEL_ERROR:
-        levelStr = "ERROR";
+        LOG_ERROR("%s", message);
         break;
     case GFX_LOG_LEVEL_WARNING:
-        levelStr = "WARNING";
+        LOG_WARN("%s", message);
         break;
     case GFX_LOG_LEVEL_INFO:
-        levelStr = "INFO";
+        LOG_INFO("%s", message);
         break;
     case GFX_LOG_LEVEL_DEBUG:
-        levelStr = "DEBUG";
+        LOG_DEBUG("%s", message);
         break;
     default:
-        levelStr = "UNKNOWN";
+        LOG_INFO("[UNKNOWN] %s", message);
         break;
     }
-    printf("[%s] %s\n", levelStr, message);
 }
 
 typedef struct {
     float time;
-    float padding[3];  // Pad to 16 bytes for WebGPU alignment
+    float padding[3]; // Pad to 16 bytes for WebGPU alignment
 } ComputeUniformData;
 
 typedef struct {
     float postProcessStrength;
-    float padding[3];  // Pad to 16 bytes for WebGPU alignment
+    float padding[3]; // Pad to 16 bytes for WebGPU alignment
 } RenderUniformData;
 
 // Application settings/configuration
@@ -110,6 +126,8 @@ typedef struct {
 #if defined(__ANDROID__)
     struct android_app* androidApp;
     bool animating;
+#elif TARGET_OS_IOS
+    void* metalLayer;
 #else
     GLFWwindow* window;
 #endif
@@ -138,20 +156,20 @@ typedef struct {
     GfxBindGroupLayout renderBindGroupLayout;
     GfxSampler sampler;
 
-    uint32_t windowWidth;
-    uint32_t windowHeight;
-
-    // Per-frame resources (dynamic array)
+    // Per-frame resources (one per swapchain image)
     PerFrameResources* frameResources;
     GfxFramebuffer* framebuffers;
-
-    // Per-swapchain-image semaphores
     GfxSemaphore* renderFinishedSemaphores;
-
     uint32_t currentFrame;
+
+    uint32_t windowWidth;
+    uint32_t windowHeight;
     uint32_t previousWidth;
     uint32_t previousHeight;
+
+    // State
     float elapsedTime;
+    float lastFrameTime;
 
     // FPS tracking
     uint32_t fpsFrameCount;
@@ -212,8 +230,17 @@ static bool init(ComputeApp* app);
 static void cleanup(ComputeApp* app);
 static void update(ComputeApp* app, float deltaTime);
 static void render(ComputeApp* app);
+static bool handleResize(ComputeApp* app, uint32_t width, uint32_t height);
+static void updateFPS(ComputeApp* app, float deltaTime);
 
-#if !defined(__ANDROID__)
+#if defined(__ANDROID__)
+// Android-specific callbacks
+static void handleAppCommand(struct android_app* app, int32_t cmd);
+static int32_t handleInput(struct android_app* app, AInputEvent* event);
+#elif TARGET_OS_IOS
+// iOS doesn't use GLFW callbacks - UIKit handles events
+#else
+// GLFW callbacks
 static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
     ComputeApp* app = (ComputeApp*)glfwGetWindowUserPointer(window);
@@ -232,24 +259,23 @@ static void keyCallback(GLFWwindow* window, int key, int scancode, int action, i
 
 static void errorCallback(int error, const char* description)
 {
-    fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+    LOG_ERROR("GLFW Error %d: %s", error, description);
 }
-#endif // !defined(__ANDROID__)
+#endif // __ANDROID__ / TARGET_OS_IOS / desktop
 
 static bool createWindow(ComputeApp* app, uint32_t width, uint32_t height)
 {
-#if defined(__ANDROID__)
-    // On Android, window is managed by NativeActivity
-    // Window will be provided via handleAppCommand(APP_CMD_INIT_WINDOW)
+#if defined(__ANDROID__) || TARGET_OS_IOS
+    // On mobile platforms, window/layer is managed by the system
     app->windowWidth = width;
     app->windowHeight = height;
-    LOG_INFO("Android window placeholder created");
+    LOG_INFO("Mobile window placeholder created");
     return true;
 #else
     glfwSetErrorCallback(errorCallback);
 
     if (!glfwInit()) {
-        fprintf(stderr, "Failed to initialize GLFW\n");
+        LOG_ERROR("Failed to initialize GLFW");
         return false;
     }
 
@@ -262,7 +288,7 @@ static bool createWindow(ComputeApp* app, uint32_t width, uint32_t height)
 
     app->window = glfwCreateWindow(width, height, windowTitle, NULL, NULL);
     if (!app->window) {
-        fprintf(stderr, "Failed to create GLFW window\n");
+        LOG_ERROR("Failed to create GLFW window");
         glfwTerminate();
         return false;
     }
@@ -280,8 +306,8 @@ static bool createWindow(ComputeApp* app, uint32_t width, uint32_t height)
 
 static void destroyWindow(ComputeApp* app)
 {
-#if defined(__ANDROID__)
-    // Android window is managed by NativeActivity
+#if defined(__ANDROID__) || TARGET_OS_IOS
+    // Mobile window/layer is managed by the system
     (void)app;
 #else
     if (app->window) {
@@ -298,75 +324,80 @@ static bool createGraphics(ComputeApp* app)
     gfxSetLogCallback(logCallback, NULL);
 
     const char* backendName = (app->settings.backend == GFX_BACKEND_VULKAN) ? "Vulkan" : "WebGPU";
-    printf("Loading graphics backend (%s)...\n", backendName);
+    LOG_INFO("Loading graphics backend (%s)...", backendName);
     if (gfxLoadBackend(app->settings.backend) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to load any graphics backend\n");
+        LOG_ERROR("Failed to load any graphics backend");
         return false;
     }
 
     // Create graphics instance
     const char* instanceExtensions[] = { GFX_INSTANCE_EXTENSION_SURFACE, GFX_INSTANCE_EXTENSION_DEBUG };
-    GfxInstanceDescriptor instanceDesc = {};
-    instanceDesc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
-    instanceDesc.pNext = NULL;
-    instanceDesc.backend = app->settings.backend;
-    instanceDesc.applicationName = "Compute Example (C)";
-    instanceDesc.applicationVersion = 1;
-    instanceDesc.enabledExtensions = instanceExtensions;
-    instanceDesc.enabledExtensionCount = 2;
+    GfxInstanceDescriptor instanceDesc = {
+        .sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR,
+        .pNext = NULL,
+        .backend = app->settings.backend,
+        .applicationName = "Compute Example (C)",
+        .applicationVersion = 1,
+        .enabledExtensions = instanceExtensions,
+        .enabledExtensionCount = ARRAY_SIZE(instanceExtensions)
+    };
 
     if (gfxCreateInstance(&instanceDesc, &app->instance) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create graphics instance\n");
+        LOG_ERROR("Failed to create graphics instance");
         return false;
     }
 
     // Get adapter
-    GfxAdapterDescriptor adapterDesc = {};
-    adapterDesc.sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR;
-    adapterDesc.pNext = NULL;
-    adapterDesc.adapterIndex = UINT32_MAX;
-    adapterDesc.preference = GFX_ADAPTER_PREFERENCE_HIGH_PERFORMANCE;
+    GfxAdapterDescriptor adapterDesc = {
+        .sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR,
+        .pNext = NULL,
+        .adapterIndex = UINT32_MAX,
+        .preference = GFX_ADAPTER_PREFERENCE_HIGH_PERFORMANCE
+    };
 
     if (gfxInstanceRequestAdapter(app->instance, &adapterDesc, &app->adapter) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to request adapter\n");
+        LOG_ERROR("Failed to request adapter");
         return false;
     }
 
     // Query and store adapter info
     gfxAdapterGetInfo(app->adapter, &app->adapterInfo);
-    printf("Using adapter: %s\n", app->adapterInfo.name);
-    printf("  Backend: %s\n", app->adapterInfo.backend == GFX_BACKEND_VULKAN ? "Vulkan" : "WebGPU");
+    LOG_INFO("Using adapter: %s", app->adapterInfo.name);
+    LOG_INFO("  Backend: %s", app->adapterInfo.backend == GFX_BACKEND_VULKAN ? "Vulkan" : "WebGPU");
+    LOG_INFO("  Vendor ID: 0x%04X, Device ID: 0x%04X", app->adapterInfo.vendorID, app->adapterInfo.deviceID);
 
     // Create device
     const char* deviceExtensions[] = { GFX_DEVICE_EXTENSION_SWAPCHAIN };
-    GfxDeviceDescriptor deviceDesc = {};
-    deviceDesc.sType = GFX_STRUCTURE_TYPE_DEVICE_DESCRIPTOR;
-    deviceDesc.pNext = NULL;
-    deviceDesc.label = NULL;
-    deviceDesc.queueRequests = NULL;
-    deviceDesc.queueRequestCount = 0;
-    deviceDesc.enabledExtensions = deviceExtensions;
-    deviceDesc.enabledExtensionCount = 1;
+    GfxDeviceDescriptor deviceDesc = {
+        .sType = GFX_STRUCTURE_TYPE_DEVICE_DESCRIPTOR,
+        .pNext = NULL,
+        .label = NULL,
+        .queueRequests = NULL,
+        .queueRequestCount = 0,
+        .enabledExtensions = deviceExtensions,
+        .enabledExtensionCount = ARRAY_SIZE(deviceExtensions)
+    };
 
     if (gfxAdapterCreateDevice(app->adapter, &deviceDesc, &app->device) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create device\n");
+        LOG_ERROR("Failed to create device");
         return false;
     }
 
     if (gfxDeviceGetQueue(app->device, &app->queue) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to get device queue\n");
+        LOG_ERROR("Failed to get device queue");
         return false;
     }
 
     GfxPlatformWindowHandle windowHandle = getPlatformWindowHandle(app);
-    GfxSurfaceDescriptor surfaceDesc = {};
-    surfaceDesc.sType = GFX_STRUCTURE_TYPE_SURFACE_DESCRIPTOR;
-    surfaceDesc.pNext = NULL;
-    surfaceDesc.label = "Main Surface";
-    surfaceDesc.windowHandle = windowHandle;
+    GfxSurfaceDescriptor surfaceDesc = {
+        .sType = GFX_STRUCTURE_TYPE_SURFACE_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Main Surface",
+        .windowHandle = windowHandle
+    };
 
     if (gfxDeviceCreateSurface(app->device, &surfaceDesc, &app->surface) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create surface\n");
+        LOG_ERROR("Failed to create surface");
         return false;
     }
 
@@ -396,67 +427,72 @@ static bool createPerFrameResources(ComputeApp* app)
     // Allocate per-frame resources array
     app->frameResources = (PerFrameResources*)calloc(app->swapchainInfo.imageCount, sizeof(PerFrameResources));
     if (!app->frameResources) {
-        fprintf(stderr, "Failed to allocate per-frame resources array\n");
+        LOG_ERROR("Failed to allocate per-frame resources array");
         return false;
     }
 
-    GfxSemaphoreDescriptor semaphoreDesc = {};
-    semaphoreDesc.sType = GFX_STRUCTURE_TYPE_SEMAPHORE_DESCRIPTOR;
-    semaphoreDesc.pNext = NULL;
-    semaphoreDesc.type = GFX_SEMAPHORE_TYPE_BINARY;
-
-    GfxFenceDescriptor fenceDesc = {};
-    fenceDesc.sType = GFX_STRUCTURE_TYPE_FENCE_DESCRIPTOR;
-    fenceDesc.pNext = NULL;
-    fenceDesc.signaled = true;
-
     for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
+        GfxSemaphoreDescriptor semaphoreDesc = {
+            .sType = GFX_STRUCTURE_TYPE_SEMAPHORE_DESCRIPTOR,
+            .pNext = NULL,
+            .type = GFX_SEMAPHORE_TYPE_BINARY
+        };
+
         if (gfxDeviceCreateSemaphore(app->device, &semaphoreDesc, &app->frameResources[i].imageAvailableSemaphore) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create image available semaphore\n");
+            LOG_ERROR("Failed to create image available semaphore");
             return false;
         }
 
+        GfxFenceDescriptor fenceDesc = {
+            .sType = GFX_STRUCTURE_TYPE_FENCE_DESCRIPTOR,
+            .pNext = NULL,
+            .signaled = true
+        };
+
         if (gfxDeviceCreateFence(app->device, &fenceDesc, &app->frameResources[i].inFlightFence) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create fence\n");
+            LOG_ERROR("Failed to create fence");
             return false;
         }
 
         // Create command encoder for this frame
         char label[64];
         snprintf(label, sizeof(label), "Command Encoder %u", i);
-        GfxCommandEncoderDescriptor encoderDesc = {};
-        encoderDesc.sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR;
-        encoderDesc.pNext = NULL;
-        encoderDesc.label = label;
+        GfxCommandEncoderDescriptor encoderDesc = {
+            .sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR,
+            .pNext = NULL,
+            .label = label
+        };
 
         if (gfxDeviceCreateCommandEncoder(app->device, &encoderDesc, &app->frameResources[i].commandEncoder) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create command encoder %u\n", i);
+            LOG_ERROR("Failed to create command encoder %u", i);
             return false;
         }
 
         // Create compute uniform buffer for this frame
-        GfxBufferDescriptor computeUniformBufferDesc = {};
-        computeUniformBufferDesc.sType = GFX_STRUCTURE_TYPE_BUFFER_DESCRIPTOR;
-        computeUniformBufferDesc.pNext = NULL;
-        computeUniformBufferDesc.size = sizeof(ComputeUniformData);
-        computeUniformBufferDesc.usage = GFX_BUFFER_USAGE_UNIFORM | GFX_BUFFER_USAGE_COPY_DST;
-        computeUniformBufferDesc.memoryProperties = GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT;
+        GfxBufferDescriptor computeUniformBufferDesc = {
+            .sType = GFX_STRUCTURE_TYPE_BUFFER_DESCRIPTOR,
+            .pNext = NULL,
+            .size = sizeof(ComputeUniformData),
+            .usage = GFX_BUFFER_USAGE_UNIFORM | GFX_BUFFER_USAGE_COPY_DST,
+            .memoryProperties = GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT
+        };
 
         if (gfxDeviceCreateBuffer(app->device, &computeUniformBufferDesc, &app->frameResources[i].computeUniformBuffer) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create compute uniform buffer %u\n", i);
+            LOG_ERROR("Failed to create compute uniform buffer %u", i);
             return false;
         }
 
         // Create render uniform buffer for this frame
-        GfxBufferDescriptor renderUniformBufferDesc = {};
-        renderUniformBufferDesc.sType = GFX_STRUCTURE_TYPE_BUFFER_DESCRIPTOR;
-        renderUniformBufferDesc.pNext = NULL;
-        renderUniformBufferDesc.size = sizeof(RenderUniformData);
-        renderUniformBufferDesc.usage = GFX_BUFFER_USAGE_UNIFORM | GFX_BUFFER_USAGE_COPY_DST;
-        renderUniformBufferDesc.memoryProperties = GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT;
+        GfxBufferDescriptor renderUniformBufferDesc = {
+            .sType = GFX_STRUCTURE_TYPE_BUFFER_DESCRIPTOR,
+            .pNext = NULL,
+            .size = sizeof(RenderUniformData),
+            .usage = GFX_BUFFER_USAGE_UNIFORM | GFX_BUFFER_USAGE_COPY_DST,
+            .memoryProperties = GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT
+        };
 
         if (gfxDeviceCreateBuffer(app->device, &renderUniformBufferDesc, &app->frameResources[i].renderUniformBuffer) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create render uniform buffer %u\n", i);
+            LOG_ERROR("Failed to create render uniform buffer %u", i);
             return false;
         }
 
@@ -482,15 +518,16 @@ static bool createPerFrameResources(ComputeApp* app)
             },
         };
 
-        GfxBindGroupDescriptor computeBindGroupDesc = {};
-        computeBindGroupDesc.sType = GFX_STRUCTURE_TYPE_BIND_GROUP_DESCRIPTOR;
-        computeBindGroupDesc.pNext = NULL;
-        computeBindGroupDesc.layout = app->computeBindGroupLayout;
-        computeBindGroupDesc.entryCount = 2;
-        computeBindGroupDesc.entries = computeEntries;
+        GfxBindGroupDescriptor computeBindGroupDesc = {
+            .sType = GFX_STRUCTURE_TYPE_BIND_GROUP_DESCRIPTOR,
+            .pNext = NULL,
+            .layout = app->computeBindGroupLayout,
+            .entryCount = ARRAY_SIZE(computeEntries),
+            .entries = computeEntries
+        };
 
         if (gfxDeviceCreateBindGroup(app->device, &computeBindGroupDesc, &app->frameResources[i].computeBindGroup) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create compute bind group %u\n", i);
+            LOG_ERROR("Failed to create compute bind group %u", i);
             return false;
         }
 
@@ -523,15 +560,16 @@ static bool createPerFrameResources(ComputeApp* app)
             }
         };
 
-        GfxBindGroupDescriptor renderBindGroupDesc = {};
-        renderBindGroupDesc.sType = GFX_STRUCTURE_TYPE_BIND_GROUP_DESCRIPTOR;
-        renderBindGroupDesc.pNext = NULL;
-        renderBindGroupDesc.layout = app->renderBindGroupLayout;
-        renderBindGroupDesc.entryCount = 3;
-        renderBindGroupDesc.entries = renderEntries;
+        GfxBindGroupDescriptor renderBindGroupDesc = {
+            .sType = GFX_STRUCTURE_TYPE_BIND_GROUP_DESCRIPTOR,
+            .pNext = NULL,
+            .layout = app->renderBindGroupLayout,
+            .entryCount = ARRAY_SIZE(renderEntries),
+            .entries = renderEntries
+        };
 
         if (gfxDeviceCreateBindGroup(app->device, &renderBindGroupDesc, &app->frameResources[i].renderBindGroup) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create render bind group %u\n", i);
+            LOG_ERROR("Failed to create render bind group %u", i);
             return false;
         }
     }
@@ -637,16 +675,17 @@ static bool createRenderPass(ComputeApp* app)
         .resolveTarget = NULL
     };
 
-    GfxRenderPassDescriptor renderPassDesc = {};
-    renderPassDesc.sType = GFX_STRUCTURE_TYPE_RENDER_PASS_DESCRIPTOR;
-    renderPassDesc.pNext = NULL;
-    renderPassDesc.label = "Fullscreen Render Pass";
-    renderPassDesc.colorAttachments = &colorAttachment;
-    renderPassDesc.colorAttachmentCount = 1;
-    renderPassDesc.depthStencilAttachment = NULL;
+    GfxRenderPassDescriptor renderPassDesc = {
+        .sType = GFX_STRUCTURE_TYPE_RENDER_PASS_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Fullscreen Render Pass",
+        .colorAttachments = &colorAttachment,
+        .colorAttachmentCount = 1,
+        .depthStencilAttachment = NULL
+    };
 
     if (gfxDeviceCreateRenderPass(app->device, &renderPassDesc, &app->renderPass) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create render pass\n");
+        LOG_ERROR("Failed to create render pass");
         return false;
     }
 
@@ -666,29 +705,30 @@ static bool createSwapchain(ComputeApp* app, uint32_t width, uint32_t height)
     // Query surface capabilities to determine frame count
     GfxSurfaceInfo surfaceInfo;
     if (gfxSurfaceGetInfo(app->surface, &surfaceInfo) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to get surface info\n");
+        LOG_ERROR("Failed to get surface info");
         return false;
     }
 
-    printf("Surface Info:\n");
-    printf("  Image Count: min %u, max %u\n", surfaceInfo.minImageCount, surfaceInfo.maxImageCount);
-    printf("  Extent: min (%u, %u), max (%u, %u)\n",
+    LOG_INFO("Surface Info:");
+    LOG_INFO("  Image Count: min %u, max %u", surfaceInfo.minImageCount, surfaceInfo.maxImageCount);
+    LOG_INFO("  Extent: min (%u, %u), max (%u, %u)",
         surfaceInfo.minExtent.width, surfaceInfo.minExtent.height,
         surfaceInfo.maxExtent.width, surfaceInfo.maxExtent.height);
 
-    GfxSwapchainDescriptor swapchainDesc = {};
-    swapchainDesc.sType = GFX_STRUCTURE_TYPE_SWAPCHAIN_DESCRIPTOR;
-    swapchainDesc.pNext = NULL;
-    swapchainDesc.surface = app->surface;
-    swapchainDesc.extent.width = width;
-    swapchainDesc.extent.height = height;
-    swapchainDesc.format = COLOR_FORMAT;
-    swapchainDesc.usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
-    swapchainDesc.presentMode = app->settings.vsync ? GFX_PRESENT_MODE_FIFO : GFX_PRESENT_MODE_IMMEDIATE;
-    swapchainDesc.imageCount = surfaceInfo.minImageCount;
+    GfxSwapchainDescriptor swapchainDesc = {
+        .sType = GFX_STRUCTURE_TYPE_SWAPCHAIN_DESCRIPTOR,
+        .pNext = NULL,
+        .surface = app->surface,
+        .extent.width = width,
+        .extent.height = height,
+        .format = COLOR_FORMAT,
+        .usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT,
+        .presentMode = app->settings.vsync ? GFX_PRESENT_MODE_FIFO : GFX_PRESENT_MODE_IMMEDIATE,
+        .imageCount = surfaceInfo.minImageCount
+    };
 
     if (gfxDeviceCreateSwapchain(app->device, &swapchainDesc, &app->swapchain) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create swapchain\n");
+        LOG_ERROR("Failed to create swapchain");
         return false;
     }
 
@@ -697,21 +737,22 @@ static bool createSwapchain(ComputeApp* app, uint32_t width, uint32_t height)
     // Create render finished semaphores (one per swapchain image)
     app->renderFinishedSemaphores = (GfxSemaphore*)malloc(app->swapchainInfo.imageCount * sizeof(GfxSemaphore));
     if (!app->renderFinishedSemaphores) {
-        fprintf(stderr, "Failed to allocate renderFinishedSemaphores\n");
+        LOG_ERROR("Failed to allocate renderFinishedSemaphores");
         return false;
     }
     for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
         app->renderFinishedSemaphores[i] = NULL;
     }
 
-    GfxSemaphoreDescriptor semaphoreDesc = {};
-    semaphoreDesc.sType = GFX_STRUCTURE_TYPE_SEMAPHORE_DESCRIPTOR;
-    semaphoreDesc.pNext = NULL;
-    semaphoreDesc.type = GFX_SEMAPHORE_TYPE_BINARY;
+    GfxSemaphoreDescriptor semaphoreDesc = {
+        .sType = GFX_STRUCTURE_TYPE_SEMAPHORE_DESCRIPTOR,
+        .pNext = NULL,
+        .type = GFX_SEMAPHORE_TYPE_BINARY
+    };
 
     for (uint32_t i = 0; i < app->swapchainInfo.imageCount; ++i) {
         if (gfxDeviceCreateSemaphore(app->device, &semaphoreDesc, &app->renderFinishedSemaphores[i]) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create render finished semaphore %u\n", i);
+            LOG_ERROR("Failed to create render finished semaphore %u", i);
             return false;
         }
     }
@@ -743,7 +784,7 @@ static bool createFramebuffers(ComputeApp* app)
     // Allocate framebuffers array
     app->framebuffers = (GfxFramebuffer*)calloc(app->swapchainInfo.imageCount, sizeof(GfxFramebuffer));
     if (!app->framebuffers) {
-        fprintf(stderr, "Failed to allocate framebuffers array\n");
+        LOG_ERROR("Failed to allocate framebuffers array");
         return false;
     }
 
@@ -751,7 +792,7 @@ static bool createFramebuffers(ComputeApp* app)
         GfxTextureView backbuffer = NULL;
         GfxResult result = gfxSwapchainGetTextureView(app->swapchain, i, &backbuffer);
         if (result != GFX_RESULT_SUCCESS || !backbuffer) {
-            fprintf(stderr, "[ERROR] Failed to get swapchain image view %d\n", i);
+            LOG_ERROR("Failed to get swapchain image view %u", i);
             return false;
         }
 
@@ -768,19 +809,20 @@ static bool createFramebuffers(ComputeApp* app)
         char label[64];
         snprintf(label, sizeof(label), "Framebuffer %u", i);
 
-        GfxFramebufferDescriptor fbDesc = {};
-        fbDesc.sType = GFX_STRUCTURE_TYPE_FRAMEBUFFER_DESCRIPTOR;
-        fbDesc.pNext = NULL;
-        fbDesc.label = label;
-        fbDesc.renderPass = app->renderPass;
-        fbDesc.colorAttachments = &fbColorAttachment;
-        fbDesc.colorAttachmentCount = 1;
-        fbDesc.depthStencilAttachment = fbDepthAttachment;
-        fbDesc.extent.width = app->swapchainInfo.extent.width;
-        fbDesc.extent.height = app->swapchainInfo.extent.height;
+        GfxFramebufferDescriptor fbDesc = {
+            .sType = GFX_STRUCTURE_TYPE_FRAMEBUFFER_DESCRIPTOR,
+            .pNext = NULL,
+            .label = label,
+            .renderPass = app->renderPass,
+            .colorAttachments = &fbColorAttachment,
+            .colorAttachmentCount = 1,
+            .depthStencilAttachment = fbDepthAttachment,
+            .extent.width = app->swapchainInfo.extent.width,
+            .extent.height = app->swapchainInfo.extent.height
+        };
 
         if (gfxDeviceCreateFramebuffer(app->device, &fbDesc, &app->framebuffers[i]) != GFX_RESULT_SUCCESS) {
-            fprintf(stderr, "Failed to create framebuffer %u\n", i);
+            LOG_ERROR("Failed to create framebuffer %u", i);
             return false;
         }
     }
@@ -806,36 +848,38 @@ static void destroyFramebuffers(ComputeApp* app)
 
 static bool createComputeTexture(ComputeApp* app)
 {
-    GfxTextureDescriptor textureDesc = {};
-    textureDesc.sType = GFX_STRUCTURE_TYPE_TEXTURE_DESCRIPTOR;
-    textureDesc.pNext = NULL;
-    textureDesc.type = GFX_TEXTURE_TYPE_2D;
-    textureDesc.size = (GfxExtent3D){ COMPUTE_TEXTURE_WIDTH, COMPUTE_TEXTURE_HEIGHT, 1 };
-    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
-    textureDesc.usage = GFX_TEXTURE_USAGE_STORAGE_BINDING | GFX_TEXTURE_USAGE_TEXTURE_BINDING;
-    textureDesc.arrayLayerCount = 1;
-    textureDesc.mipLevelCount = 1;
-    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    GfxTextureDescriptor textureDesc = {
+        .sType = GFX_STRUCTURE_TYPE_TEXTURE_DESCRIPTOR,
+        .pNext = NULL,
+        .type = GFX_TEXTURE_TYPE_2D,
+        .size = (GfxExtent3D){ COMPUTE_TEXTURE_WIDTH, COMPUTE_TEXTURE_HEIGHT, 1 },
+        .format = GFX_FORMAT_R8G8B8A8_UNORM,
+        .usage = GFX_TEXTURE_USAGE_STORAGE_BINDING | GFX_TEXTURE_USAGE_TEXTURE_BINDING,
+        .arrayLayerCount = 1,
+        .mipLevelCount = 1,
+        .sampleCount = GFX_SAMPLE_COUNT_1
+    };
 
     if (gfxDeviceCreateTexture(app->device, &textureDesc, &app->computeTexture) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create compute texture\n");
+        LOG_ERROR("Failed to create compute texture");
         return false;
     }
 
-    printf("Created compute texture: %dx%d\n", COMPUTE_TEXTURE_WIDTH, COMPUTE_TEXTURE_HEIGHT);
+    LOG_INFO("Created compute texture: %dx%d", COMPUTE_TEXTURE_WIDTH, COMPUTE_TEXTURE_HEIGHT);
 
-    GfxTextureViewDescriptor viewDesc = {};
-    viewDesc.sType = GFX_STRUCTURE_TYPE_TEXTURE_VIEW_DESCRIPTOR;
-    viewDesc.pNext = NULL;
-    viewDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
-    viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
-    viewDesc.baseMipLevel = 0;
-    viewDesc.mipLevelCount = 1;
-    viewDesc.baseArrayLayer = 0;
-    viewDesc.arrayLayerCount = 1;
+    GfxTextureViewDescriptor viewDesc = {
+        .sType = GFX_STRUCTURE_TYPE_TEXTURE_VIEW_DESCRIPTOR,
+        .pNext = NULL,
+        .format = GFX_FORMAT_R8G8B8A8_UNORM,
+        .viewType = GFX_TEXTURE_VIEW_TYPE_2D,
+        .baseMipLevel = 0,
+        .mipLevelCount = 1,
+        .baseArrayLayer = 0,
+        .arrayLayerCount = 1
+    };
 
     if (gfxTextureCreateView(app->computeTexture, &viewDesc, &app->computeTextureView) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create compute texture view\n");
+        LOG_ERROR("Failed to create compute texture view");
         return false;
     }
 
@@ -856,46 +900,60 @@ static void destroyComputeTexture(ComputeApp* app)
 
 static bool createComputeShaders(ComputeApp* app)
 {
-    GfxShaderSourceType sourceType;
     void* computeCode = NULL;
     size_t computeSize = 0;
-    bool formatSupported = false;
+    GfxShaderSourceType sourceType = GFX_SHADER_SOURCE_SPIRV;
 
-    // Query shader format support and use the first supported format
-    // Try SPIR-V first (generally better performance)
-    if (gfxDeviceSupportsShaderFormat(app->device, GFX_SHADER_SOURCE_SPIRV, &formatSupported) == GFX_RESULT_SUCCESS && formatSupported) {
-        sourceType = GFX_SHADER_SOURCE_SPIRV;
-        printf("Loading SPIR-V shader: generate.comp.spv\n");
-        computeCode = loadBinaryFile(app, "shaders/generate.comp.spv", &computeSize);
-        if (!computeCode) {
-            fprintf(stderr, "Failed to load SPIR-V compute shader\n");
-            return false;
+    // Try shader formats in order of preference
+    const struct {
+        GfxShaderSourceType format;
+        const char* path;
+    } shaderFormats[] = {
+        { GFX_SHADER_SOURCE_SPIRV, "shaders/generate.comp.spv" },
+        { GFX_SHADER_SOURCE_WGSL, "shaders/generate.comp.wgsl" }
+    };
+
+    for (size_t i = 0; i < ARRAY_SIZE(shaderFormats); ++i) {
+        bool formatSupported = false;
+        if (gfxDeviceSupportsShaderFormat(app->device, shaderFormats[i].format, &formatSupported) != GFX_RESULT_SUCCESS || !formatSupported) {
+            continue;
         }
+
+        LOG_INFO("Loading compute shader: %s", shaderFormats[i].path);
+
+        if (shaderFormats[i].format == GFX_SHADER_SOURCE_SPIRV) {
+            computeCode = loadBinaryFile(app, shaderFormats[i].path, &computeSize);
+        } else {
+            computeCode = loadTextFile(app, shaderFormats[i].path, &computeSize);
+        }
+
+        if (computeCode) {
+            sourceType = shaderFormats[i].format;
+            LOG_INFO("Successfully loaded compute shader (%zu bytes)", computeSize);
+            break;
+        }
+
+        // Failed to load this format, try next
+        free(computeCode);
+        computeCode = NULL;
     }
-    // Fall back to WGSL
-    else if (gfxDeviceSupportsShaderFormat(app->device, GFX_SHADER_SOURCE_WGSL, &formatSupported) == GFX_RESULT_SUCCESS && formatSupported) {
-        sourceType = GFX_SHADER_SOURCE_WGSL;
-        printf("Loading WGSL shader: shaders/generate.comp.wgsl\n");
-        computeCode = loadTextFile(app, "shaders/generate.comp.wgsl", &computeSize);
-        if (!computeCode) {
-            fprintf(stderr, "Failed to load WGSL compute shader\n");
-            return false;
-        }
-    } else {
-        fprintf(stderr, "Error: No supported shader format found (neither SPIR-V nor WGSL)\n");
+
+    if (!computeCode) {
+        LOG_ERROR("Error: No supported shader format found or failed to load compute shader");
         return false;
     }
 
-    GfxShaderDescriptor computeShaderDesc = {};
-    computeShaderDesc.sType = GFX_STRUCTURE_TYPE_SHADER_DESCRIPTOR;
-    computeShaderDesc.pNext = NULL;
-    computeShaderDesc.sourceType = sourceType;
-    computeShaderDesc.code = computeCode;
-    computeShaderDesc.codeSize = computeSize;
-    computeShaderDesc.entryPoint = "main";
+    GfxShaderDescriptor computeShaderDesc = {
+        .sType = GFX_STRUCTURE_TYPE_SHADER_DESCRIPTOR,
+        .pNext = NULL,
+        .sourceType = sourceType,
+        .code = computeCode,
+        .codeSize = computeSize,
+        .entryPoint = "main"
+    };
 
     if (gfxDeviceCreateShader(app->device, &computeShaderDesc, &app->computeShader) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create compute shader\n");
+        LOG_ERROR("Failed to create compute shader");
         free(computeCode);
         return false;
     }
@@ -935,14 +993,15 @@ static bool createComputeBindGroupLayout(ComputeApp* app)
         }
     };
 
-    GfxBindGroupLayoutDescriptor computeLayoutDesc = {};
-    computeLayoutDesc.sType = GFX_STRUCTURE_TYPE_BIND_GROUP_LAYOUT_DESCRIPTOR;
-    computeLayoutDesc.pNext = NULL;
-    computeLayoutDesc.entryCount = 2;
-    computeLayoutDesc.entries = computeLayoutEntries;
+    GfxBindGroupLayoutDescriptor computeLayoutDesc = {
+        .sType = GFX_STRUCTURE_TYPE_BIND_GROUP_LAYOUT_DESCRIPTOR,
+        .pNext = NULL,
+        .entryCount = ARRAY_SIZE(computeLayoutEntries),
+        .entries = computeLayoutEntries
+    };
 
     if (gfxDeviceCreateBindGroupLayout(app->device, &computeLayoutDesc, &app->computeBindGroupLayout) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create compute bind group layout\n");
+        LOG_ERROR("Failed to create compute bind group layout");
         return false;
     }
 
@@ -962,16 +1021,17 @@ static void destroyComputeBindGroupLayout(ComputeApp* app)
 
 static bool createComputePipeline(ComputeApp* app)
 {
-    GfxComputePipelineDescriptor computePipelineDesc = {};
-    computePipelineDesc.sType = GFX_STRUCTURE_TYPE_COMPUTE_PIPELINE_DESCRIPTOR;
-    computePipelineDesc.pNext = NULL;
-    computePipelineDesc.compute = app->computeShader;
-    computePipelineDesc.entryPoint = "main";
-    computePipelineDesc.bindGroupLayouts = &app->computeBindGroupLayout;
-    computePipelineDesc.bindGroupLayoutCount = 1;
+    GfxComputePipelineDescriptor computePipelineDesc = {
+        .sType = GFX_STRUCTURE_TYPE_COMPUTE_PIPELINE_DESCRIPTOR,
+        .pNext = NULL,
+        .compute = app->computeShader,
+        .entryPoint = "main",
+        .bindGroupLayouts = &app->computeBindGroupLayout,
+        .bindGroupLayoutCount = 1
+    };
 
     if (gfxDeviceCreateComputePipeline(app->device, &computePipelineDesc, &app->computePipeline) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create compute pipeline\n");
+        LOG_ERROR("Failed to create compute pipeline");
         return false;
     }
     return true;
@@ -990,18 +1050,19 @@ static bool transitionComputeTexture(ComputeApp* app)
     // Transition compute texture to SHADER_READ_ONLY layout initially
     // This way we don't need special handling for the first frame
     GfxCommandEncoder initEncoder = NULL;
-    GfxCommandEncoderDescriptor initEncoderDesc = {};
-    initEncoderDesc.sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR;
-    initEncoderDesc.pNext = NULL;
-    initEncoderDesc.label = "Init Layout Transition";
+    GfxCommandEncoderDescriptor initEncoderDesc = {
+        .sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Init Layout Transition"
+    };
 
     if (gfxDeviceCreateCommandEncoder(app->device, &initEncoderDesc, &initEncoder) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create command encoder for initial layout transition\n");
+        LOG_ERROR("Failed to create command encoder for initial layout transition");
         return false;
     }
 
     if (gfxCommandEncoderBegin(initEncoder) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to begin initialization command encoder\n");
+        LOG_ERROR("Failed to begin initialization command encoder");
         gfxCommandEncoderDestroy(initEncoder);
         return false;
     }
@@ -1019,36 +1080,38 @@ static bool transitionComputeTexture(ComputeApp* app)
         .baseArrayLayer = 0,
         .arrayLayerCount = 1
     };
-    GfxPipelineBarrierDescriptor barrierDesc = {};
-    barrierDesc.sType = GFX_STRUCTURE_TYPE_PIPELINE_BARRIER_DESCRIPTOR;
-    barrierDesc.pNext = NULL;
-    barrierDesc.memoryBarriers = NULL;
-    barrierDesc.memoryBarrierCount = 0;
-    barrierDesc.bufferBarriers = NULL;
-    barrierDesc.bufferBarrierCount = 0;
-    barrierDesc.textureBarriers = &initBarrier;
-    barrierDesc.textureBarrierCount = 1;
+    GfxPipelineBarrierDescriptor barrierDesc = {
+        .sType = GFX_STRUCTURE_TYPE_PIPELINE_BARRIER_DESCRIPTOR,
+        .pNext = NULL,
+        .memoryBarriers = NULL,
+        .memoryBarrierCount = 0,
+        .bufferBarriers = NULL,
+        .bufferBarrierCount = 0,
+        .textureBarriers = &initBarrier,
+        .textureBarrierCount = 1
+    };
 
     if (gfxCommandEncoderPipelineBarrier(initEncoder, &barrierDesc) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to record initialization barrier\n");
+        LOG_ERROR("Failed to record initialization barrier");
         gfxCommandEncoderDestroy(initEncoder);
         return false;
     }
 
     if (gfxCommandEncoderEnd(initEncoder) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to end initialization command encoder\n");
+        LOG_ERROR("Failed to end initialization command encoder");
         gfxCommandEncoderDestroy(initEncoder);
         return false;
     }
 
-    GfxSubmitDescriptor submitDescriptor = {};
-    submitDescriptor.sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR;
-    submitDescriptor.pNext = NULL;
-    submitDescriptor.commandEncoderCount = 1;
-    submitDescriptor.commandEncoders = &initEncoder;
+    GfxSubmitDescriptor submitDescriptor = {
+        .sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR,
+        .pNext = NULL,
+        .commandEncoderCount = 1,
+        .commandEncoders = &initEncoder
+    };
 
     if (gfxQueueSubmit(app->queue, &submitDescriptor) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to submit initialization commands\n");
+        LOG_ERROR("Failed to submit initialization commands");
         gfxCommandEncoderDestroy(initEncoder);
         return false;
     }
@@ -1080,7 +1143,7 @@ static bool createComputeResources(ComputeApp* app)
         return false;
     }
 
-    printf("Compute resources created successfully\n");
+    LOG_INFO("Compute resources created successfully");
     return true;
 }
 
@@ -1094,17 +1157,18 @@ static void destroyComputeResources(ComputeApp* app)
 
 static bool createSampler(ComputeApp* app)
 {
-    GfxSamplerDescriptor samplerDesc = {};
-    samplerDesc.sType = GFX_STRUCTURE_TYPE_SAMPLER_DESCRIPTOR;
-    samplerDesc.pNext = NULL;
-    samplerDesc.magFilter = GFX_FILTER_MODE_LINEAR;
-    samplerDesc.minFilter = GFX_FILTER_MODE_LINEAR;
-    samplerDesc.addressModeU = GFX_ADDRESS_MODE_CLAMP_TO_EDGE;
-    samplerDesc.addressModeV = GFX_ADDRESS_MODE_CLAMP_TO_EDGE;
-    samplerDesc.maxAnisotropy = 1;
+    GfxSamplerDescriptor samplerDesc = {
+        .sType = GFX_STRUCTURE_TYPE_SAMPLER_DESCRIPTOR,
+        .pNext = NULL,
+        .magFilter = GFX_FILTER_MODE_LINEAR,
+        .minFilter = GFX_FILTER_MODE_LINEAR,
+        .addressModeU = GFX_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .addressModeV = GFX_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .maxAnisotropy = 1
+    };
 
     if (gfxDeviceCreateSampler(app->device, &samplerDesc, &app->sampler) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create sampler\n");
+        LOG_ERROR("Failed to create sampler");
         return false;
     }
 
@@ -1121,80 +1185,87 @@ static void destroySampler(ComputeApp* app)
 
 static bool createRenderShaders(ComputeApp* app)
 {
-    GfxShaderSourceType vertexSourceType;
+    GfxShaderSourceType sourceType = GFX_SHADER_SOURCE_SPIRV;
     void* vertexCode = NULL;
+    void* fragmentCode = NULL;
     size_t vertexSize = 0;
-    bool formatSupported = false;
+    size_t fragmentSize = 0;
 
-    // Query shader format support and use the first supported format
-    // Try SPIR-V first
-    if (gfxDeviceSupportsShaderFormat(app->device, GFX_SHADER_SOURCE_SPIRV, &formatSupported) == GFX_RESULT_SUCCESS && formatSupported) {
-        vertexSourceType = GFX_SHADER_SOURCE_SPIRV;
-        vertexCode = loadBinaryFile(app, "shaders/fullscreen.vert.spv", &vertexSize);
-        if (!vertexCode) {
-            fprintf(stderr, "Failed to load SPIR-V vertex shader\n");
-            return false;
+    // Try shader formats in order of preference
+    const struct {
+        GfxShaderSourceType format;
+        const char* vertexPath;
+        const char* fragmentPath;
+    } shaderFormats[] = {
+        { GFX_SHADER_SOURCE_SPIRV, "shaders/fullscreen.vert.spv", "shaders/postprocess.frag.spv" },
+        { GFX_SHADER_SOURCE_WGSL, "shaders/fullscreen.vert.wgsl", "shaders/postprocess.frag.wgsl" }
+    };
+
+    for (size_t i = 0; i < ARRAY_SIZE(shaderFormats); ++i) {
+        bool formatSupported = false;
+        if (gfxDeviceSupportsShaderFormat(app->device, shaderFormats[i].format, &formatSupported) != GFX_RESULT_SUCCESS || !formatSupported) {
+            continue;
         }
+
+        LOG_INFO("Loading render shaders: %s, %s", shaderFormats[i].vertexPath, shaderFormats[i].fragmentPath);
+
+        if (shaderFormats[i].format == GFX_SHADER_SOURCE_SPIRV) {
+            vertexCode = loadBinaryFile(app, shaderFormats[i].vertexPath, &vertexSize);
+            fragmentCode = loadBinaryFile(app, shaderFormats[i].fragmentPath, &fragmentSize);
+        } else {
+            vertexCode = loadTextFile(app, shaderFormats[i].vertexPath, &vertexSize);
+            fragmentCode = loadTextFile(app, shaderFormats[i].fragmentPath, &fragmentSize);
+        }
+
+        if (vertexCode && fragmentCode) {
+            sourceType = shaderFormats[i].format;
+            LOG_INFO("Successfully loaded render shaders (vertex: %zu bytes, fragment: %zu bytes)",
+                vertexSize, fragmentSize);
+            break;
+        }
+
+        // Failed to load this format, try next
+        free(vertexCode);
+        free(fragmentCode);
+        vertexCode = NULL;
+        fragmentCode = NULL;
     }
-    // Fall back to WGSL
-    else if (gfxDeviceSupportsShaderFormat(app->device, GFX_SHADER_SOURCE_WGSL, &formatSupported) == GFX_RESULT_SUCCESS && formatSupported) {
-        vertexSourceType = GFX_SHADER_SOURCE_WGSL;
-        vertexCode = loadTextFile(app, "shaders/fullscreen.vert.wgsl", &vertexSize);
-        if (!vertexCode) {
-            fprintf(stderr, "Failed to load WGSL vertex shader\n");
-            return false;
-        }
-    } else {
-        fprintf(stderr, "Error: No supported shader format found\n");
+
+    if (!vertexCode || !fragmentCode) {
+        LOG_ERROR("Error: No supported shader format found or failed to load render shaders");
+        free(vertexCode);
+        free(fragmentCode);
         return false;
     }
 
-    GfxShaderDescriptor vertexShaderDesc = {};
-    vertexShaderDesc.sType = GFX_STRUCTURE_TYPE_SHADER_DESCRIPTOR;
-    vertexShaderDesc.pNext = NULL;
-    vertexShaderDesc.sourceType = vertexSourceType;
-    vertexShaderDesc.code = vertexCode;
-    vertexShaderDesc.codeSize = vertexSize;
-    vertexShaderDesc.entryPoint = "main";
+    GfxShaderDescriptor vertexShaderDesc = {
+        .sType = GFX_STRUCTURE_TYPE_SHADER_DESCRIPTOR,
+        .pNext = NULL,
+        .sourceType = sourceType,
+        .code = vertexCode,
+        .codeSize = vertexSize,
+        .entryPoint = "main"
+    };
 
     if (gfxDeviceCreateShader(app->device, &vertexShaderDesc, &app->vertexShader) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create vertex shader\n");
+        LOG_ERROR("Failed to create vertex shader");
         free(vertexCode);
+        free(fragmentCode);
         return false;
     }
     free(vertexCode);
 
-    GfxShaderSourceType fragmentSourceType;
-    void* fragmentCode = NULL;
-    size_t fragmentSize = 0;
-
-    // Use same format as vertex shader (already queried above)
-    if (vertexSourceType == GFX_SHADER_SOURCE_SPIRV) {
-        fragmentSourceType = GFX_SHADER_SOURCE_SPIRV;
-        fragmentCode = loadBinaryFile(app, "shaders/postprocess.frag.spv", &fragmentSize);
-        if (!fragmentCode) {
-            fprintf(stderr, "Failed to load SPIR-V fragment shader\n");
-            return false;
-        }
-    } else {
-        fragmentSourceType = GFX_SHADER_SOURCE_WGSL;
-        fragmentCode = loadTextFile(app, "shaders/postprocess.frag.wgsl", &fragmentSize);
-        if (!fragmentCode) {
-            fprintf(stderr, "Failed to load WGSL fragment shader\n");
-            return false;
-        }
-    }
-
-    GfxShaderDescriptor fragmentShaderDesc = {};
-    fragmentShaderDesc.sType = GFX_STRUCTURE_TYPE_SHADER_DESCRIPTOR;
-    fragmentShaderDesc.pNext = NULL;
-    fragmentShaderDesc.sourceType = fragmentSourceType;
-    fragmentShaderDesc.code = fragmentCode;
-    fragmentShaderDesc.codeSize = fragmentSize;
-    fragmentShaderDesc.entryPoint = "main";
+    GfxShaderDescriptor fragmentShaderDesc = {
+        .sType = GFX_STRUCTURE_TYPE_SHADER_DESCRIPTOR,
+        .pNext = NULL,
+        .sourceType = sourceType,
+        .code = fragmentCode,
+        .codeSize = fragmentSize,
+        .entryPoint = "main"
+    };
 
     if (gfxDeviceCreateShader(app->device, &fragmentShaderDesc, &app->fragmentShader) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create fragment shader\n");
+        LOG_ERROR("Failed to create fragment shader");
         free(fragmentCode);
         return false;
     }
@@ -1247,14 +1318,15 @@ static bool createRenderBindGroupLayout(ComputeApp* app)
         },
     };
 
-    GfxBindGroupLayoutDescriptor renderLayoutDesc = {};
-    renderLayoutDesc.sType = GFX_STRUCTURE_TYPE_BIND_GROUP_LAYOUT_DESCRIPTOR;
-    renderLayoutDesc.pNext = NULL;
-    renderLayoutDesc.entryCount = 3;
-    renderLayoutDesc.entries = renderLayoutEntries;
+    GfxBindGroupLayoutDescriptor renderLayoutDesc = {
+        .sType = GFX_STRUCTURE_TYPE_BIND_GROUP_LAYOUT_DESCRIPTOR,
+        .pNext = NULL,
+        .entryCount = ARRAY_SIZE(renderLayoutEntries),
+        .entries = renderLayoutEntries
+    };
 
     if (gfxDeviceCreateBindGroupLayout(app->device, &renderLayoutDesc, &app->renderBindGroupLayout) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create render bind group layout\n");
+        LOG_ERROR("Failed to create render bind group layout");
         return false;
     }
 
@@ -1299,20 +1371,21 @@ static bool createRenderPipeline(ComputeApp* app)
         .polygonMode = GFX_POLYGON_MODE_FILL
     };
 
-    GfxRenderPipelineDescriptor pipelineDesc = {};
-    pipelineDesc.sType = GFX_STRUCTURE_TYPE_RENDER_PIPELINE_DESCRIPTOR;
-    pipelineDesc.pNext = NULL;
-    pipelineDesc.renderPass = app->renderPass;
-    pipelineDesc.vertex = &vertexState;
-    pipelineDesc.fragment = &fragmentState;
-    pipelineDesc.primitive = &primitiveState;
-    pipelineDesc.depthStencil = NULL;
-    pipelineDesc.sampleCount = GFX_SAMPLE_COUNT_1;
-    pipelineDesc.bindGroupLayoutCount = 1;
-    pipelineDesc.bindGroupLayouts = &app->renderBindGroupLayout;
+    GfxRenderPipelineDescriptor pipelineDesc = {
+        .sType = GFX_STRUCTURE_TYPE_RENDER_PIPELINE_DESCRIPTOR,
+        .pNext = NULL,
+        .renderPass = app->renderPass,
+        .vertex = &vertexState,
+        .fragment = &fragmentState,
+        .primitive = &primitiveState,
+        .depthStencil = NULL,
+        .sampleCount = GFX_SAMPLE_COUNT_1,
+        .bindGroupLayoutCount = 1,
+        .bindGroupLayouts = &app->renderBindGroupLayout
+    };
 
     if (gfxDeviceCreateRenderPipeline(app->device, &pipelineDesc, &app->renderPipeline) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to create render pipeline\n");
+        LOG_ERROR("Failed to create render pipeline");
         return false;
     }
 
@@ -1345,7 +1418,7 @@ static bool createRenderResources(ComputeApp* app)
         return false;
     }
 
-    printf("Render resources created successfully\n");
+    LOG_INFO("Render resources created successfully");
     return true;
 }
 
@@ -1364,6 +1437,8 @@ static GfxPlatformWindowHandle getPlatformWindowHandle(ComputeApp* app)
     handle = gfxPlatformWindowHandleFromAndroid(app->androidApp->window);
 #elif defined(__EMSCRIPTEN__)
     handle = gfxPlatformWindowHandleFromEmscripten("#canvas");
+#elif TARGET_OS_IOS
+    handle = gfxPlatformWindowHandleFromMetal(app->metalLayer);
 #elif defined(_WIN32)
     handle = gfxPlatformWindowHandleFromWin32(GetModuleHandle(NULL), glfwGetWin32Window(app->window));
 #elif defined(__linux__)
@@ -1377,7 +1452,7 @@ static GfxPlatformWindowHandle getPlatformWindowHandle(ComputeApp* app)
 
 static float getCurrentTime(void)
 {
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || TARGET_OS_IOS
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec + ts.tv_nsec / 1000000000.0f;
@@ -1396,38 +1471,38 @@ static void* loadBinaryFile(ComputeApp* app, const char* filepath, size_t* outSi
         LOG_ERROR("AssetManager not available");
         return NULL;
     }
-    
+
     AAsset* asset = AAssetManager_open(app->androidApp->activity->assetManager, filepath, AASSET_MODE_BUFFER);
     if (!asset) {
         LOG_ERROR("Failed to open asset: %s", filepath);
         return NULL;
     }
-    
+
     size_t size = AAsset_getLength(asset);
     void* buffer = malloc(size);
     if (!buffer) {
         AAsset_close(asset);
         return NULL;
     }
-    
+
     int bytesRead = AAsset_read(asset, buffer, size);
     AAsset_close(asset);
-    
+
     if (bytesRead < 0 || (size_t)bytesRead != size) {
         free(buffer);
         return NULL;
     }
-    
+
     if (outSize) {
         *outSize = size;
     }
-    
+
     return buffer;
 #else
     (void)app; // Unused on desktop
     FILE* file = fopen(filepath, "rb");
     if (!file) {
-        fprintf(stderr, "Failed to open file: %s\n", filepath);
+        LOG_ERROR("Failed to open file: %s", filepath);
         return NULL;
     }
 
@@ -1437,7 +1512,7 @@ static void* loadBinaryFile(ComputeApp* app, const char* filepath, size_t* outSi
     fseek(file, 0, SEEK_SET);
 
     if (fileSize <= 0) {
-        fprintf(stderr, "Invalid file size for: %s\n", filepath);
+        LOG_ERROR("Invalid file size for: %s", filepath);
         fclose(file);
         return NULL;
     }
@@ -1445,7 +1520,7 @@ static void* loadBinaryFile(ComputeApp* app, const char* filepath, size_t* outSi
     // Allocate buffer
     void* buffer = malloc(fileSize);
     if (!buffer) {
-        fprintf(stderr, "Failed to allocate memory for file: %s\n", filepath);
+        LOG_ERROR("Failed to allocate memory for file: %s", filepath);
         fclose(file);
         return NULL;
     }
@@ -1455,7 +1530,7 @@ static void* loadBinaryFile(ComputeApp* app, const char* filepath, size_t* outSi
     fclose(file);
 
     if (bytesRead != (size_t)fileSize) {
-        fprintf(stderr, "Failed to read complete file: %s\n", filepath);
+        LOG_ERROR("Failed to read complete file: %s", filepath);
         free(buffer);
         return NULL;
     }
@@ -1473,40 +1548,40 @@ static void* loadTextFile(ComputeApp* app, const char* filepath, size_t* outSize
         LOG_ERROR("AssetManager not available for text file");
         return NULL;
     }
-    
+
     AAsset* asset = AAssetManager_open(app->androidApp->activity->assetManager, filepath, AASSET_MODE_BUFFER);
     if (!asset) {
         LOG_ERROR("Failed to open asset: %s", filepath);
         return NULL;
     }
-    
+
     size_t size = AAsset_getLength(asset);
     char* buffer = (char*)malloc(size + 1);
     if (!buffer) {
         AAsset_close(asset);
         return NULL;
     }
-    
+
     int bytesRead = AAsset_read(asset, buffer, size);
     AAsset_close(asset);
-    
+
     if (bytesRead < 0 || (size_t)bytesRead != size) {
         free(buffer);
         return NULL;
     }
-    
+
     buffer[size] = '\0';
-    
+
     if (outSize) {
         *outSize = size + 1;
     }
-    
+
     return buffer;
 #else
     (void)app; // Unused on desktop
     FILE* file = fopen(filepath, "r");
     if (!file) {
-        fprintf(stderr, "Failed to open file: %s\n", filepath);
+        LOG_ERROR("Failed to open file: %s", filepath);
         return NULL;
     }
 
@@ -1516,7 +1591,7 @@ static void* loadTextFile(ComputeApp* app, const char* filepath, size_t* outSize
     fseek(file, 0, SEEK_SET);
 
     if (fileSize <= 0) {
-        fprintf(stderr, "Invalid file size for: %s\n", filepath);
+        LOG_ERROR("Invalid file size for: %s", filepath);
         fclose(file);
         return NULL;
     }
@@ -1524,7 +1599,7 @@ static void* loadTextFile(ComputeApp* app, const char* filepath, size_t* outSize
     // Allocate buffer with extra byte for null terminator
     char* buffer = (char*)malloc(fileSize + 1);
     if (!buffer) {
-        fprintf(stderr, "Failed to allocate memory for file: %s\n", filepath);
+        LOG_ERROR("Failed to allocate memory for file: %s", filepath);
         fclose(file);
         return NULL;
     }
@@ -1554,37 +1629,37 @@ static bool init(ComputeApp* app)
 
     // 1. Create window
     if (!createWindow(app, WINDOW_WIDTH, WINDOW_HEIGHT)) {
-        fprintf(stderr, "Failed to create window\n");
+        LOG_ERROR("Failed to create window");
         return false;
     }
 
     // 2. Create graphics context (instance, adapter, device, surface)
     if (!createGraphics(app)) {
-        fprintf(stderr, "Failed to create graphics\n");
+        LOG_ERROR("Failed to create graphics");
         return false;
     }
 
     // 3. Create size-dependent resources (swapchain, framebuffers, render pass)
     if (!createSizeDependentResources(app, app->windowWidth, app->windowHeight)) {
-        fprintf(stderr, "Failed to create size-dependent resources\n");
+        LOG_ERROR("Failed to create size-dependent resources");
         return false;
     }
 
     // 4. Create compute resources (textures, shaders, layouts, pipelines)
     if (!createComputeResources(app)) {
-        fprintf(stderr, "Failed to create compute resources\n");
+        LOG_ERROR("Failed to create compute resources");
         return false;
     }
 
     // 5. Create render resources (shaders, sampler, layouts, pipelines)
     if (!createRenderResources(app)) {
-        fprintf(stderr, "Failed to create render resources\n");
+        LOG_ERROR("Failed to create render resources");
         return false;
     }
 
     // 6. Create per-frame resources (semaphores, fences, encoders, buffers, bind groups)
     if (!createPerFrameResources(app)) {
-        fprintf(stderr, "Failed to create per-frame resources\n");
+        LOG_ERROR("Failed to create per-frame resources");
         return false;
     }
 
@@ -1593,6 +1668,7 @@ static bool init(ComputeApp* app)
     app->previousWidth = app->windowWidth;
     app->previousHeight = app->windowHeight;
     app->elapsedTime = 0.0f;
+    app->lastFrameTime = getCurrentTime();
 
     // Initialize FPS tracking
     app->fpsFrameCount = 0;
@@ -1600,7 +1676,7 @@ static bool init(ComputeApp* app)
     app->fpsFrameTimeMin = FLT_MAX;
     app->fpsFrameTimeMax = 0.0f;
 
-    printf("Application initialized successfully!\n");
+    LOG_INFO("Application initialized successfully!");
     return true;
 }
 
@@ -1632,6 +1708,7 @@ static void cleanup(ComputeApp* app)
 
 static void update(ComputeApp* app, float deltaTime)
 {
+    updateFPS(app, deltaTime);
     app->elapsedTime += deltaTime;
 }
 
@@ -1654,19 +1731,19 @@ static void render(ComputeApp* app)
         &imageIndex);
 
     if (result != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to acquire swapchain image\n");
+        LOG_ERROR("Failed to acquire swapchain image");
         return;
     }
-    
+
     // Validate framebuffer array and image index
     if (!app->framebuffers || imageIndex >= app->swapchainInfo.imageCount) {
-        fprintf(stderr, "Invalid framebuffer state: framebuffers=%p, imageIndex=%u, swapchain images=%u\n",
-                (void*)app->framebuffers, imageIndex, app->swapchainInfo.imageCount);
+        LOG_ERROR("Invalid framebuffer state: framebuffers=%p, imageIndex=%u, swapchain images=%u",
+            (void*)app->framebuffers, imageIndex, app->swapchainInfo.imageCount);
         return;
     }
-    
+
     if (!app->framebuffers[imageIndex]) {
-        fprintf(stderr, "Framebuffer at index %u is NULL\n", imageIndex);
+        LOG_ERROR("Framebuffer at index %u is NULL", imageIndex);
         return;
     }
 
@@ -1701,15 +1778,16 @@ static void render(ComputeApp* app)
         .baseArrayLayer = 0,
         .arrayLayerCount = 1
     };
-    GfxPipelineBarrierDescriptor readToWriteBarrierDesc = {};
-    readToWriteBarrierDesc.sType = GFX_STRUCTURE_TYPE_PIPELINE_BARRIER_DESCRIPTOR;
-    readToWriteBarrierDesc.pNext = NULL;
-    readToWriteBarrierDesc.memoryBarriers = NULL;
-    readToWriteBarrierDesc.memoryBarrierCount = 0;
-    readToWriteBarrierDesc.bufferBarriers = NULL;
-    readToWriteBarrierDesc.bufferBarrierCount = 0;
-    readToWriteBarrierDesc.textureBarriers = &readToWriteBarrier;
-    readToWriteBarrierDesc.textureBarrierCount = 1;
+    GfxPipelineBarrierDescriptor readToWriteBarrierDesc = {
+        .sType = GFX_STRUCTURE_TYPE_PIPELINE_BARRIER_DESCRIPTOR,
+        .pNext = NULL,
+        .memoryBarriers = NULL,
+        .memoryBarrierCount = 0,
+        .bufferBarriers = NULL,
+        .bufferBarrierCount = 0,
+        .textureBarriers = &readToWriteBarrier,
+        .textureBarrierCount = 1
+    };
 
     gfxCommandEncoderPipelineBarrier(encoder, &readToWriteBarrierDesc);
 
@@ -1719,7 +1797,7 @@ static void render(ComputeApp* app)
     };
     GfxComputePassEncoder computePass = NULL;
     if (gfxCommandEncoderBeginComputePass(encoder, &computePassDesc, &computePass) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to begin compute pass\n");
+        LOG_ERROR("Failed to begin compute pass");
         return;
     }
 
@@ -1733,7 +1811,7 @@ static void render(ComputeApp* app)
     gfxComputePassEncoderDispatch(computePass, workGroupsX, workGroupsY, 1);
 
     if (gfxComputePassEncoderEnd(computePass) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to end compute pass\n");
+        LOG_ERROR("Failed to end compute pass");
         return;
     }
 
@@ -1751,15 +1829,16 @@ static void render(ComputeApp* app)
         .baseArrayLayer = 0,
         .arrayLayerCount = 1
     };
-    GfxPipelineBarrierDescriptor computeToReadBarrierDesc = {};
-    computeToReadBarrierDesc.sType = GFX_STRUCTURE_TYPE_PIPELINE_BARRIER_DESCRIPTOR;
-    computeToReadBarrierDesc.pNext = NULL;
-    computeToReadBarrierDesc.memoryBarriers = NULL;
-    computeToReadBarrierDesc.memoryBarrierCount = 0;
-    computeToReadBarrierDesc.bufferBarriers = NULL;
-    computeToReadBarrierDesc.bufferBarrierCount = 0;
-    computeToReadBarrierDesc.textureBarriers = &computeToReadBarrier;
-    computeToReadBarrierDesc.textureBarrierCount = 1;
+    GfxPipelineBarrierDescriptor computeToReadBarrierDesc = {
+        .sType = GFX_STRUCTURE_TYPE_PIPELINE_BARRIER_DESCRIPTOR,
+        .pNext = NULL,
+        .memoryBarriers = NULL,
+        .memoryBarrierCount = 0,
+        .bufferBarriers = NULL,
+        .bufferBarrierCount = 0,
+        .textureBarriers = &computeToReadBarrier,
+        .textureBarrierCount = 1
+    };
 
     gfxCommandEncoderPipelineBarrier(encoder, &computeToReadBarrierDesc);
 
@@ -1778,7 +1857,7 @@ static void render(ComputeApp* app)
 
     GfxRenderPassEncoder renderPass = NULL;
     if (gfxCommandEncoderBeginRenderPass(encoder, &renderPassBeginDesc, &renderPass) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to begin render pass\n");
+        LOG_ERROR("Failed to begin render pass");
         return;
     }
 
@@ -1806,46 +1885,116 @@ static void render(ComputeApp* app)
     gfxRenderPassEncoderDraw(renderPass, 6, 1, 0, 0);
 
     if (gfxRenderPassEncoderEnd(renderPass) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to end render pass\n");
+        LOG_ERROR("Failed to end render pass");
         return;
     }
 
     if (gfxCommandEncoderEnd(encoder) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to end command encoder\n");
+        LOG_ERROR("Failed to end command encoder");
         return;
     }
 
     // Submit
-    GfxSubmitDescriptor submitDescriptor = {};
-    submitDescriptor.sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR;
-    submitDescriptor.pNext = NULL;
-    submitDescriptor.commandEncoderCount = 1;
-    submitDescriptor.commandEncoders = &encoder;
-    submitDescriptor.waitSemaphoreCount = 1;
-    submitDescriptor.waitSemaphores = &frame->imageAvailableSemaphore;
-    submitDescriptor.signalSemaphoreCount = 1;
-    submitDescriptor.signalSemaphores = &app->renderFinishedSemaphores[imageIndex];
-    submitDescriptor.signalFence = frame->inFlightFence;
+    GfxSubmitDescriptor submitDescriptor = {
+        .sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR,
+        .pNext = NULL,
+        .commandEncoderCount = 1,
+        .commandEncoders = &encoder,
+        .waitSemaphoreCount = 1,
+        .waitSemaphores = &frame->imageAvailableSemaphore,
+        .signalSemaphoreCount = 1,
+        .signalSemaphores = &app->renderFinishedSemaphores[imageIndex],
+        .signalFence = frame->inFlightFence
+    };
 
     if (gfxQueueSubmit(app->queue, &submitDescriptor) != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to submit command buffer\n");
+        LOG_ERROR("Failed to submit command buffer");
         return;
     }
 
     // Present
-    GfxPresentDescriptor presentDescriptor = {};
-    presentDescriptor.sType = GFX_STRUCTURE_TYPE_PRESENT_DESCRIPTOR;
-    presentDescriptor.pNext = NULL;
-    presentDescriptor.waitSemaphoreCount = 1;
-    presentDescriptor.waitSemaphores = &app->renderFinishedSemaphores[imageIndex];
+    GfxPresentDescriptor presentDescriptor = {
+        .sType = GFX_STRUCTURE_TYPE_PRESENT_DESCRIPTOR,
+        .pNext = NULL,
+        .waitSemaphoreCount = 1,
+        .waitSemaphores = &app->renderFinishedSemaphores[imageIndex]
+    };
 
     result = gfxSwapchainPresent(app->swapchain, &presentDescriptor);
     if (result != GFX_RESULT_SUCCESS) {
-        fprintf(stderr, "Failed to present swapchain image\n");
+        LOG_ERROR("Failed to present swapchain image");
         return;
     }
 
     app->currentFrame = (app->currentFrame + 1) % app->swapchainInfo.imageCount;
+}
+
+// Handle window resize by recreating size-dependent resources
+static bool handleResize(ComputeApp* app, uint32_t width, uint32_t height)
+{
+    LOG_INFO("Resizing to %ux%u", width, height);
+
+    app->windowWidth = width;
+    app->windowHeight = height;
+
+    // Wait for all in-flight frames to complete
+    gfxDeviceWaitIdle(app->device);
+
+    // Destroy per-frame resources first (they depend on swapchain image count)
+    destroyPerFrameResources(app);
+
+    // Recreate size-dependent resources (including swapchain)
+    destroySizeDependentResources(app);
+    if (!createSizeDependentResources(app, width, height)) {
+        LOG_ERROR("Failed to recreate size-dependent resources after resize");
+        return false;
+    }
+
+    // Recreate per-frame resources with new swapchain image count
+    if (!createPerFrameResources(app)) {
+        LOG_ERROR("Failed to recreate per-frame resources after resize");
+        return false;
+    }
+
+    // Reset frame index to prevent out-of-bounds access
+    app->currentFrame = 0;
+
+    app->previousWidth = app->windowWidth;
+    app->previousHeight = app->windowHeight;
+
+    LOG_INFO("Successfully recreated resources for new size");
+    return true;
+}
+
+// Track FPS and log statistics every second
+static void updateFPS(ComputeApp* app, float deltaTime)
+{
+    app->fpsFrameCount++;
+    app->fpsTimeAccumulator += deltaTime;
+
+    if (deltaTime < app->fpsFrameTimeMin) {
+        app->fpsFrameTimeMin = deltaTime;
+    }
+    if (deltaTime > app->fpsFrameTimeMax) {
+        app->fpsFrameTimeMax = deltaTime;
+    }
+
+    // Log FPS every second
+    if (app->fpsTimeAccumulator >= 1.0f) {
+        float avgFPS = (float)app->fpsFrameCount / app->fpsTimeAccumulator;
+        float avgFrameTime = (app->fpsTimeAccumulator / (float)app->fpsFrameCount) * 1000.0f;
+        float minFPS = 1.0f / app->fpsFrameTimeMax;
+        float maxFPS = 1.0f / app->fpsFrameTimeMin;
+        LOG_INFO("FPS - Avg: %.1f, Min: %.1f, Max: %.1f | Frame Time - Avg: %.2f ms, Min: %.2f ms, Max: %.2f ms",
+            avgFPS, minFPS, maxFPS,
+            avgFrameTime, app->fpsFrameTimeMin * 1000.0f, app->fpsFrameTimeMax * 1000.0f);
+
+        // Reset for next second
+        app->fpsFrameCount = 0;
+        app->fpsTimeAccumulator = 0.0f;
+        app->fpsFrameTimeMin = FLT_MAX;
+        app->fpsFrameTimeMax = 0.0f;
+    }
 }
 
 #ifdef __ANDROID__
@@ -1857,14 +2006,14 @@ static void render(ComputeApp* app)
 static void handleAppCommand(struct android_app* state, int32_t cmd)
 {
     ComputeApp* app = (ComputeApp*)state->userData;
-    
+
     switch (cmd) {
     case APP_CMD_INIT_WINDOW:
         if (state->window != NULL) {
             app->windowWidth = ANativeWindow_getWidth(state->window);
             app->windowHeight = ANativeWindow_getHeight(state->window);
             LOG_INFO("Window initialized: %dx%d", app->windowWidth, app->windowHeight);
-            
+
             if (!app->instance) {
                 // First time init
                 if (init(app)) {
@@ -1876,50 +2025,43 @@ static void handleAppCommand(struct android_app* state, int32_t cmd)
             }
         }
         break;
-        
+
     case APP_CMD_TERM_WINDOW:
         LOG_INFO("Window terminating");
         app->animating = false;
         cleanup(app);
         break;
-        
+
     case APP_CMD_GAINED_FOCUS:
         LOG_INFO("Gained focus");
         if (app->instance) {
             app->animating = true;
         }
         break;
-        
+
     case APP_CMD_LOST_FOCUS:
         LOG_INFO("Lost focus");
         app->animating = false;
         break;
-        
+
     case APP_CMD_PAUSE:
         LOG_INFO("Paused");
         app->animating = false;
         break;
-        
+
     case APP_CMD_RESUME:
         LOG_INFO("Resumed");
         if (app->instance) {
             app->animating = true;
         }
         break;
-        
+
     case APP_CMD_WINDOW_RESIZED:
         if (state->window != NULL && app->instance) {
-            app->windowWidth = ANativeWindow_getWidth(state->window);
-            app->windowHeight = ANativeWindow_getHeight(state->window);
-            LOG_INFO("Window resized: %dx%d", app->windowWidth, app->windowHeight);
-            
-            // Recreate swapchain with new dimensions
-            gfxDeviceWaitIdle(app->device);
-            destroySizeDependentResources(app);
-            if (!createSizeDependentResources(app, app->windowWidth, app->windowHeight)) {
-                LOG_ERROR("Failed to recreate size-dependent resources after resize");
-            } else {
-                LOG_INFO("Swapchain recreated for new size");
+            uint32_t newWidth = ANativeWindow_getWidth(state->window);
+            uint32_t newHeight = ANativeWindow_getHeight(state->window);
+            if (!handleResize(app, newWidth, newHeight)) {
+                LOG_ERROR("Failed to handle window resize");
             }
         }
         break;
@@ -1936,36 +2078,31 @@ static int32_t handleInput(struct android_app* state, AInputEvent* event)
 // Returns false if loop should exit
 static bool mainLoopIteration(ComputeApp* app, struct android_app* state)
 {
-    static float lastTime = 0.0f;
-    
     int events;
     struct android_poll_source* source;
-    
+
     // Poll all events
     while (ALooper_pollOnce(app->animating ? 0 : -1, NULL, &events, (void**)&source) >= 0) {
         if (source != NULL) {
             source->process(state, source);
         }
-        
+
         if (state->destroyRequested != 0) {
             LOG_INFO("Destroy requested");
             cleanup(app);
             return false;
         }
     }
-    
+
     if (app->animating && app->instance) {
         float currentTime = getCurrentTime();
-        if (lastTime == 0.0f) {
-            lastTime = currentTime;
-        }
-        float deltaTime = currentTime - lastTime;
-        lastTime = currentTime;
-        
+        float deltaTime = currentTime - app->lastFrameTime;
+        app->lastFrameTime = currentTime;
+
         update(app, deltaTime);
         render(app);
     }
-    
+
     return true;
 }
 
@@ -1976,17 +2113,104 @@ void android_main(struct android_app* state)
     app.settings.backend = GFX_BACKEND_VULKAN;
     app.settings.vsync = true;
     app.animating = false;
-    
+
     state->userData = &app;
     state->onAppCmd = handleAppCommand;
     state->onInputEvent = handleInput;
-    
+
     LOG_INFO("=== GFX Compute Example (Android) ===");
-    
+
     // Main loop
     while (mainLoopIteration(&app, state)) {
         // Loop continues until mainLoopIteration returns false
     }
+}
+
+#elif TARGET_OS_IOS
+// ============================================================================
+// iOS Platform Implementation
+// ============================================================================
+
+// C bridge functions called from Objective-C ViewController
+
+void* computeAppCreate(void* metalLayer, int width, int height)
+{
+    if (!metalLayer) {
+        LOG_ERROR("Metal layer is NULL");
+        return NULL;
+    }
+
+    LOG_INFO("Creating compute app with size %dx%d", width, height);
+
+    ComputeApp* app = (ComputeApp*)calloc(1, sizeof(ComputeApp));
+    if (!app) {
+        LOG_ERROR("Failed to allocate compute app");
+        return NULL;
+    }
+
+    app->metalLayer = metalLayer;
+
+    // Set up app settings
+    app->settings.backend = GFX_BACKEND_VULKAN; // iOS uses Metal backend
+    app->settings.vsync = true;
+    app->windowWidth = width;
+    app->windowHeight = height;
+
+    LOG_INFO("=== GFX Compute Example (iOS) ===");
+
+    // Initialize the compute app
+    if (!init(app)) {
+        LOG_ERROR("Failed to initialize compute app");
+        free(app);
+        return NULL;
+    }
+
+    LOG_INFO("Compute app created successfully");
+    return app;
+}
+
+void computeAppDestroy(void* appPtr)
+{
+    if (!appPtr) {
+        return;
+    }
+
+    ComputeApp* app = (ComputeApp*)appPtr;
+    cleanup(app);
+    free(app);
+    LOG_INFO("Compute app destroyed");
+}
+
+void computeAppResize(void* appPtr, int width, int height)
+{
+    if (!appPtr) {
+        return;
+    }
+
+    ComputeApp* app = (ComputeApp*)appPtr;
+    if (!handleResize(app, (uint32_t)width, (uint32_t)height)) {
+        LOG_ERROR("Failed to handle resize");
+    }
+}
+
+void computeAppUpdate(void* appPtr, float deltaTime)
+{
+    if (!appPtr) {
+        return;
+    }
+
+    ComputeApp* app = (ComputeApp*)appPtr;
+    update(app, deltaTime);
+}
+
+void computeAppRender(void* appPtr)
+{
+    if (!appPtr) {
+        return;
+    }
+
+    ComputeApp* app = (ComputeApp*)appPtr;
+    render(app);
 }
 
 #else
@@ -2005,56 +2229,16 @@ static bool mainLoopIteration(ComputeApp* app)
 
     // Handle framebuffer resize
     if (app->previousWidth != app->windowWidth || app->previousHeight != app->windowHeight) {
-        // Wait for all in-flight frames to complete
-        gfxDeviceWaitIdle(app->device);
-
-        // Recreate only size-dependent resources (including swapchain)
-        destroySizeDependentResources(app);
-        if (!createSizeDependentResources(app, app->windowWidth, app->windowHeight)) {
-            fprintf(stderr, "Failed to recreate size-dependent resources after resize\n");
+        if (!handleResize(app, app->windowWidth, app->windowHeight)) {
             return false;
         }
-
-        app->previousWidth = app->windowWidth;
-        app->previousHeight = app->windowHeight;
-
-        printf("Window resized: %dx%d\n", app->windowWidth, app->windowHeight);
         return true; // Skip rendering this frame
     }
 
     // Calculate delta time
     float currentTime = getCurrentTime();
-    float deltaTime = currentTime - app->elapsedTime;
-
-    // Track FPS
-    if (deltaTime > 0.0f) {
-        app->fpsFrameCount++;
-        app->fpsTimeAccumulator += deltaTime;
-
-        if (deltaTime < app->fpsFrameTimeMin) {
-            app->fpsFrameTimeMin = deltaTime;
-        }
-        if (deltaTime > app->fpsFrameTimeMax) {
-            app->fpsFrameTimeMax = deltaTime;
-        }
-
-        // Log FPS every second
-        if (app->fpsTimeAccumulator >= 1.0f) {
-            float avgFPS = (float)app->fpsFrameCount / app->fpsTimeAccumulator;
-            float avgFrameTime = (app->fpsTimeAccumulator / (float)app->fpsFrameCount) * 1000.0f;
-            float minFPS = 1.0f / app->fpsFrameTimeMax;
-            float maxFPS = 1.0f / app->fpsFrameTimeMin;
-            printf("FPS - Avg: %.1f, Min: %.1f, Max: %.1f | Frame Time - Avg: %.2f ms, Min: %.2f ms, Max: %.2f ms\n",
-                avgFPS, minFPS, maxFPS,
-                avgFrameTime, app->fpsFrameTimeMin * 1000.0f, app->fpsFrameTimeMax * 1000.0f);
-
-            // Reset for next second
-            app->fpsFrameCount = 0;
-            app->fpsTimeAccumulator = 0.0f;
-            app->fpsFrameTimeMin = FLT_MAX;
-            app->fpsFrameTimeMax = 0.0f;
-        }
-    }
+    float deltaTime = currentTime - app->lastFrameTime;
+    app->lastFrameTime = currentTime;
 
     update(app, deltaTime);
     render(app);
@@ -2073,6 +2257,46 @@ static void emscriptenMainLoop(void* userData)
 }
 #endif
 
+static bool parseBackend(const char* backendStr, GfxBackend* outBackend)
+{
+    if (strcmp(backendStr, "vulkan") == 0) {
+        *outBackend = GFX_BACKEND_VULKAN;
+        return true;
+    } else if (strcmp(backendStr, "webgpu") == 0) {
+        *outBackend = GFX_BACKEND_WEBGPU;
+        return true;
+    } else {
+        LOG_ERROR("Unknown backend: %s", backendStr);
+        LOG_ERROR("Valid values: vulkan, webgpu");
+        return false;
+    }
+}
+
+static bool parseVsync(const char* vsyncStr, bool* outVsync)
+{
+    int vsync = atoi(vsyncStr);
+    if (vsync == 0) {
+        *outVsync = false;
+        return true;
+    } else if (vsync == 1) {
+        *outVsync = true;
+        return true;
+    } else {
+        LOG_ERROR("Invalid vsync value: %s", vsyncStr);
+        LOG_ERROR("Valid values: 0 (off), 1 (on)");
+        return false;
+    }
+}
+
+static void printHelp(const char* programName)
+{
+    LOG_INFO("Usage: %s [options]", programName);
+    LOG_INFO("Options:");
+    LOG_INFO("  --backend [vulkan|webgpu]   Select graphics backend");
+    LOG_INFO("  --vsync [0|1]               VSync: 0=off, 1=on");
+    LOG_INFO("  --help                      Show this help message");
+}
+
 static bool parseArguments(int argc, char** argv, Settings* settings)
 {
 #if defined(__EMSCRIPTEN__)
@@ -2085,35 +2309,19 @@ static bool parseArguments(int argc, char** argv, Settings* settings)
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--backend") == 0 && i + 1 < argc) {
             i++;
-            if (strcmp(argv[i], "vulkan") == 0) {
-                settings->backend = GFX_BACKEND_VULKAN;
-            } else if (strcmp(argv[i], "webgpu") == 0) {
-                settings->backend = GFX_BACKEND_WEBGPU;
-            } else {
-                fprintf(stderr, "Unknown backend: %s\n", argv[i]);
+            if (!parseBackend(argv[i], &settings->backend)) {
                 return false;
             }
         } else if (strcmp(argv[i], "--vsync") == 0 && i + 1 < argc) {
             i++;
-            int vsync = atoi(argv[i]);
-            if (vsync == 0) {
-                settings->vsync = false;
-            } else if (vsync == 1) {
-                settings->vsync = true;
-            } else {
-                fprintf(stderr, "Invalid vsync value: %s\n", argv[i]);
-                fprintf(stderr, "Valid values: 0 (off), 1 (on)\n");
+            if (!parseVsync(argv[i], &settings->vsync)) {
                 return false;
             }
         } else if (strcmp(argv[i], "--help") == 0) {
-            printf("Usage: %s [options]\n", argv[0]);
-            printf("Options:\n");
-            printf("  --backend [vulkan|webgpu]   Select graphics backend\n");
-            printf("  --vsync [0|1]               VSync: 0=off, 1=on\n");
-            printf("  --help                      Show this help message\n");
+            printHelp(argv[0]);
             return false;
         } else {
-            fprintf(stderr, "Unknown argument: %s\n", argv[i]);
+            LOG_ERROR("Unknown argument: %s", argv[i]);
             return false;
         }
     }
@@ -2123,12 +2331,14 @@ static bool parseArguments(int argc, char** argv, Settings* settings)
 
 int main(int argc, char** argv)
 {
-    printf("=== Compute & Postprocess Example (C) ===\n\n");
+    LOG_INFO("=== Compute & Postprocess Example (C) ===");
+    LOG_INFO("");
 
     ComputeApp app = { 0 }; // Initialize all members to NULL/0
 
     // Parse command line arguments
     if (!parseArguments(argc, argv, &app.settings)) {
+        printHelp(argv[0]);
         return 0;
     }
 
@@ -2138,7 +2348,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    printf("Press ESC to exit\n\n");
+    LOG_INFO("Press ESC to exit");
+    LOG_INFO("");
 
     // Run main loop (platform-specific)
 #if defined(__EMSCRIPTEN__)
@@ -2151,14 +2362,13 @@ int main(int argc, char** argv)
         // Loop continues until mainLoopIteration returns false
     }
 
-    printf("\nCleaning up resources...\n");
+    LOG_INFO("");
+    LOG_INFO("Cleaning up resources...");
     cleanup(&app);
-    printf("Example completed successfully!\n");
+    LOG_INFO("Example completed successfully!");
 #endif
 
     return 0;
 }
 
-#endif // __ANDROID__
-
-
+#endif // __ANDROID__ / TARGET_OS_IOS

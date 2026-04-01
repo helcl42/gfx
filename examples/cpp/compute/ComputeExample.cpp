@@ -32,10 +32,26 @@
 #endif
 
 // Desktop logging macros
-#define LOG_INFO(...) do { printf("[INFO] " __VA_ARGS__); printf("\n"); } while(0)
-#define LOG_ERROR(...) do { fprintf(stderr, "[ERROR] " __VA_ARGS__); fprintf(stderr, "\n"); } while(0)
-#define LOG_WARN(...) do { printf("[WARN] " __VA_ARGS__); printf("\n"); } while(0)
-#define LOG_DEBUG(...) do { printf("[DEBUG] " __VA_ARGS__); printf("\n"); } while(0)
+#define LOG_INFO(...)                  \
+    do {                               \
+        printf("[INFO] " __VA_ARGS__); \
+        printf("\n");                  \
+    } while (0)
+#define LOG_ERROR(...)                           \
+    do {                                         \
+        fprintf(stderr, "[ERROR] " __VA_ARGS__); \
+        fprintf(stderr, "\n");                   \
+    } while (0)
+#define LOG_WARN(...)                           \
+    do {                                        \
+        fprintf(stderr, "[WARN] " __VA_ARGS__); \
+        fprintf(stderr, "\n");                  \
+    } while (0)
+#define LOG_DEBUG(...)                  \
+    do {                                \
+        printf("[DEBUG] " __VA_ARGS__); \
+        printf("\n");                   \
+    } while (0)
 #endif // __ANDROID__
 
 #ifdef Success
@@ -50,7 +66,6 @@
 #include <cfloat>
 #include <cmath>
 #include <fstream>
-#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -103,6 +118,17 @@ struct Settings {
     bool vsync;
 };
 
+// Per-frame resources
+struct PerFrameResources {
+    std::shared_ptr<gfx::Semaphore> imageAvailableSemaphore;
+    std::shared_ptr<gfx::Fence> inFlightFence;
+    std::shared_ptr<gfx::CommandEncoder> commandEncoder;
+    std::shared_ptr<gfx::BindGroup> computeBindGroup;
+    std::shared_ptr<gfx::Buffer> computeUniformBuffer;
+    std::shared_ptr<gfx::BindGroup> renderBindGroup;
+    std::shared_ptr<gfx::Buffer> renderUniformBuffer;
+};
+
 class ComputeApp {
 public:
     explicit ComputeApp(const Settings& settings);
@@ -116,7 +142,7 @@ public:
     // Android-specific setters/getters for android_main
     void setAndroidApp(struct android_app* app) { androidApp = app; }
     void setAnimating(bool value) { animating = value; }
-    
+
     // Android callbacks (public because they're assigned to android_app function pointers)
     static void handleAppCommand(struct android_app* state, int32_t cmd);
     static int32_t handleInput(struct android_app* state, AInputEvent* event);
@@ -162,6 +188,8 @@ private:
     void destroyRenderResources();
 
     void update(float deltaTime);
+    void updateFPS(float deltaTime);
+    bool handleResize(uint32_t width, uint32_t height);
     void render();
     float getCurrentTime();
     bool mainLoopIteration();
@@ -204,8 +232,6 @@ private:
     std::shared_ptr<gfx::Shader> computeShader;
     std::shared_ptr<gfx::ComputePipeline> computePipeline;
     std::shared_ptr<gfx::BindGroupLayout> computeBindGroupLayout;
-    std::vector<std::shared_ptr<gfx::BindGroup>> computeBindGroups; // Dynamic
-    std::vector<std::shared_ptr<gfx::Buffer>> computeUniformBuffers; // Dynamic
 
     // Render resources (fullscreen quad)
     std::shared_ptr<gfx::Shader> vertexShader;
@@ -213,8 +239,6 @@ private:
     std::shared_ptr<gfx::RenderPipeline> renderPipeline;
     std::shared_ptr<gfx::BindGroupLayout> renderBindGroupLayout;
     std::shared_ptr<gfx::Sampler> sampler;
-    std::vector<std::shared_ptr<gfx::BindGroup>> renderBindGroups; // Dynamic
-    std::vector<std::shared_ptr<gfx::Buffer>> renderUniformBuffers; // Dynamic
     std::shared_ptr<gfx::RenderPass> renderPass;
     std::vector<std::shared_ptr<gfx::Framebuffer>> framebuffers;
 
@@ -223,14 +247,14 @@ private:
     uint32_t previousWidth = WINDOW_WIDTH;
     uint32_t previousHeight = WINDOW_HEIGHT;
 
-    // Per-frame synchronization (dynamic)
-    std::vector<std::shared_ptr<gfx::Semaphore>> imageAvailableSemaphores;
+    // Per-frame resources
+    std::vector<PerFrameResources> frameResources;
     std::vector<std::shared_ptr<gfx::Semaphore>> renderFinishedSemaphores;
-    std::vector<std::shared_ptr<gfx::Fence>> inFlightFences;
-    std::vector<std::shared_ptr<gfx::CommandEncoder>> commandEncoders;
-
     size_t currentFrame = 0;
+
+    // State
     float elapsedTime = 0.0f;
+    float lastFrameTime = 0.0f;
 
     // FPS tracking
     uint32_t fpsFrameCount = 0;
@@ -270,8 +294,8 @@ bool ComputeApp::init()
         return false;
     }
 
-    std::cout << "Application initialized successfully!" << std::endl;
-    std::cout << "Press ESC to exit" << std::endl;
+    LOG_INFO("Application initialized successfully!");
+    LOG_INFO("Press ESC to exit");
 
     return true;
 }
@@ -313,7 +337,7 @@ bool ComputeApp::createWindow(uint32_t width, uint32_t height)
         LOG_ERROR("Android app or window is null");
         return false;
     }
-    
+
     windowWidth = static_cast<uint32_t>(ANativeWindow_getWidth(androidApp->window));
     windowHeight = static_cast<uint32_t>(ANativeWindow_getHeight(androidApp->window));
     LOG_INFO("Android window size: %ux%u", windowWidth, windowHeight);
@@ -322,7 +346,7 @@ bool ComputeApp::createWindow(uint32_t width, uint32_t height)
     glfwSetErrorCallback(errorCallback);
 
     if (!glfwInit()) {
-        std::cerr << "Failed to initialize GLFW" << std::endl;
+        LOG_ERROR("Failed to initialize GLFW");
         return false;
     }
 
@@ -333,7 +357,7 @@ bool ComputeApp::createWindow(uint32_t width, uint32_t height)
     std::string windowTitle = std::string("Compute & Postprocess Example (C++) - ") + backendName;
     window = glfwCreateWindow(windowWidth, windowHeight, windowTitle.c_str(), nullptr, nullptr);
     if (!window) {
-        std::cerr << "Failed to create GLFW window" << std::endl;
+        LOG_ERROR("Failed to create GLFW window");
         glfwTerminate();
         return false;
     }
@@ -366,67 +390,70 @@ bool ComputeApp::createGraphics()
 
     auto result = gfx::loadBackend(settings.backend);
     if (!gfx::isSuccess(result)) {
-        std::cerr << "Failed to load graphics backend: " << static_cast<int32_t>(result) << std::endl;
+        LOG_ERROR("Failed to load graphics backend: %d", static_cast<int32_t>(result));
         return false;
     }
 
     try {
-        gfx::InstanceDescriptor instanceDesc{};
-        instanceDesc.applicationName = "Compute & Postprocess Example (C++)";
-        instanceDesc.applicationVersion = 1;
-        instanceDesc.backend = settings.backend;
-        instanceDesc.enabledExtensions = { gfx::INSTANCE_EXTENSION_SURFACE, gfx::INSTANCE_EXTENSION_DEBUG };
+        gfx::InstanceDescriptor instanceDesc{
+            .backend = settings.backend,
+            .applicationName = "Compute & Postprocess Example (C++)",
+            .applicationVersion = 1,
+            .enabledExtensions = { gfx::INSTANCE_EXTENSION_SURFACE, gfx::INSTANCE_EXTENSION_DEBUG }
+        };
 
         instance = gfx::createInstance(instanceDesc);
         if (!instance) {
-            std::cerr << "Failed to create graphics instance" << std::endl;
+            LOG_ERROR("Failed to create graphics instance");
             return false;
         }
 
         // Get adapter
-        gfx::AdapterDescriptor adapterDesc{};
-        adapterDesc.preference = gfx::AdapterPreference::HighPerformance;
+        gfx::AdapterDescriptor adapterDesc{
+            .preference = gfx::AdapterPreference::HighPerformance
+        };
 
         adapter = instance->requestAdapter(adapterDesc);
         if (!adapter) {
-            std::cerr << "Failed to get graphics adapter" << std::endl;
+            LOG_ERROR("Failed to get graphics adapter");
             return false;
         }
 
         // Query and store adapter info
         adapterInfo = adapter->getInfo();
-        std::cout << "Using adapter: " << adapterInfo.name << std::endl;
-        std::cout << "Backend: " << (adapterInfo.backend == gfx::Backend::Vulkan ? "Vulkan" : "WebGPU") << std::endl;
-        std::cout << "  Vendor ID: 0x" << std::hex << adapterInfo.vendorID << std::dec
-                  << ", Device ID: 0x" << std::hex << adapterInfo.deviceID << std::dec << std::endl;
+        LOG_INFO("Using adapter: %s", adapterInfo.name.c_str());
+        LOG_INFO("Backend: %s", (adapterInfo.backend == gfx::Backend::Vulkan ? "Vulkan" : "WebGPU"));
+        LOG_INFO("  Vendor ID: 0x%04X, Device ID: 0x%04X", adapterInfo.vendorID, adapterInfo.deviceID);
 
         // Create device
-        gfx::DeviceDescriptor deviceDesc{};
-        deviceDesc.label = "Main Device";
-        deviceDesc.enabledExtensions = { gfx::DEVICE_EXTENSION_SWAPCHAIN };
+        gfx::DeviceDescriptor deviceDesc{
+            .label = "Main Device",
+            .enabledExtensions = { gfx::DEVICE_EXTENSION_SWAPCHAIN }
+        };
 
         device = adapter->createDevice(deviceDesc);
         if (!device) {
-            std::cerr << "Failed to create device" << std::endl;
+            LOG_ERROR("Failed to create device");
             return false;
         }
 
         queue = device->getQueue();
 
         // Create surface using native platform handles
-        gfx::SurfaceDescriptor surfaceDesc{};
-        surfaceDesc.label = "Main Surface";
-        surfaceDesc.windowHandle = getPlatformWindowHandle();
+        gfx::SurfaceDescriptor surfaceDesc{
+            .label = "Main Surface",
+            .windowHandle = getPlatformWindowHandle()
+        };
 
         surface = device->createSurface(surfaceDesc);
         if (!surface) {
-            std::cerr << "Failed to create surface" << std::endl;
+            LOG_ERROR("Failed to create surface");
             return false;
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to initialize graphics: " << e.what() << std::endl;
+        LOG_ERROR("Failed to initialize graphics: %s", e.what());
         return false;
     }
 }
@@ -444,57 +471,143 @@ void ComputeApp::destroyGraphics()
 bool ComputeApp::createPerFrameResources()
 {
     try {
-        gfx::SemaphoreDescriptor semaphoreDesc{};
-        semaphoreDesc.type = gfx::SemaphoreType::Binary;
+        frameResources.resize(swapchainInfo.imageCount);
 
-        gfx::FenceDescriptor fenceDesc{};
-        fenceDesc.signaled = true;
+        gfx::SemaphoreDescriptor semaphoreDesc{
+            .type = gfx::SemaphoreType::Binary
+        };
 
-        imageAvailableSemaphores.resize(swapchainInfo.imageCount);
-        inFlightFences.resize(swapchainInfo.imageCount);
-        commandEncoders.resize(swapchainInfo.imageCount);
+        gfx::FenceDescriptor fenceDesc{
+            .signaled = true
+        };
+
+        // Create compute uniform buffer descriptor
+        gfx::BufferDescriptor computeUniformBufferDesc{
+            .label = "Compute Uniform Buffer",
+            .size = sizeof(ComputeUniformData),
+            .usage = gfx::BufferUsage::Uniform | gfx::BufferUsage::CopyDst
+        };
+
+        // Create render uniform buffer descriptor
+        gfx::BufferDescriptor renderUniformBufferDesc{
+            .label = "Render Uniform Buffer",
+            .size = sizeof(RenderUniformData),
+            .usage = gfx::BufferUsage::Uniform | gfx::BufferUsage::CopyDst
+        };
 
         for (size_t i = 0; i < swapchainInfo.imageCount; ++i) {
-            imageAvailableSemaphores[i] = device->createSemaphore(semaphoreDesc);
-            if (!imageAvailableSemaphores[i]) {
-                std::cerr << "Failed to create image available semaphore " << i << std::endl;
+            auto& frame = frameResources[i];
+
+            // Create semaphore
+            frame.imageAvailableSemaphore = device->createSemaphore(semaphoreDesc);
+            if (!frame.imageAvailableSemaphore) {
+                LOG_ERROR("Failed to create image available semaphore %zu", i);
                 return false;
             }
 
-            inFlightFences[i] = device->createFence(fenceDesc);
-            if (!inFlightFences[i]) {
-                std::cerr << "Failed to create fence " << i << std::endl;
+            // Create fence
+            frame.inFlightFence = device->createFence(fenceDesc);
+            if (!frame.inFlightFence) {
+                LOG_ERROR("Failed to create fence %zu", i);
                 return false;
             }
 
-            commandEncoders[i] = device->createCommandEncoder({ .label = "Command Encoder " + std::to_string(i) });
-            if (!commandEncoders[i]) {
-                std::cerr << "Failed to create command encoder " << i << std::endl;
+            // Create command encoder
+            frame.commandEncoder = device->createCommandEncoder({ .label = "Command Encoder " + std::to_string(i) });
+            if (!frame.commandEncoder) {
+                LOG_ERROR("Failed to create command encoder %zu", i);
+                return false;
+            }
+
+            // Create compute uniform buffer
+            frame.computeUniformBuffer = device->createBuffer(computeUniformBufferDesc);
+            if (!frame.computeUniformBuffer) {
+                LOG_ERROR("Failed to create compute uniform buffer %zu", i);
+                return false;
+            }
+
+            // Create compute bind group
+            gfx::BindGroupEntry textureEntry{};
+            textureEntry.binding = 0;
+            textureEntry.resource = computeTextureView;
+
+            gfx::BindGroupEntry computeBufferEntry{};
+            computeBufferEntry.binding = 1;
+            computeBufferEntry.resource = frame.computeUniformBuffer;
+            computeBufferEntry.offset = 0;
+            computeBufferEntry.size = sizeof(ComputeUniformData);
+
+            gfx::BindGroupDescriptor computeBindGroupDesc{
+                .label = "Compute Bind Group " + std::to_string(i),
+                .layout = computeBindGroupLayout,
+                .entries = { textureEntry, computeBufferEntry }
+            };
+
+            frame.computeBindGroup = device->createBindGroup(computeBindGroupDesc);
+            if (!frame.computeBindGroup) {
+                LOG_ERROR("Failed to create compute bind group %zu", i);
+                return false;
+            }
+
+            // Create render uniform buffer
+            frame.renderUniformBuffer = device->createBuffer(renderUniformBufferDesc);
+            if (!frame.renderUniformBuffer) {
+                LOG_ERROR("Failed to create render uniform buffer %zu", i);
+                return false;
+            }
+
+            // Create render bind group
+            gfx::BindGroupEntry samplerBindEntry{};
+            samplerBindEntry.binding = 0;
+            samplerBindEntry.resource = sampler;
+
+            gfx::BindGroupEntry textureBindEntry{};
+            textureBindEntry.binding = 1;
+            textureBindEntry.resource = computeTextureView;
+
+            gfx::BindGroupEntry renderBufferEntry{};
+            renderBufferEntry.binding = 2;
+            renderBufferEntry.resource = frame.renderUniformBuffer;
+            renderBufferEntry.offset = 0;
+            renderBufferEntry.size = sizeof(RenderUniformData);
+
+            gfx::BindGroupDescriptor renderBindGroupDesc{
+                .label = "Render Bind Group " + std::to_string(i),
+                .layout = renderBindGroupLayout,
+                .entries = { samplerBindEntry, textureBindEntry, renderBufferEntry }
+            };
+
+            frame.renderBindGroup = device->createBindGroup(renderBindGroupDesc);
+            if (!frame.renderBindGroup) {
+                LOG_ERROR("Failed to create render bind group %zu", i);
                 return false;
             }
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create sync objects: " << e.what() << std::endl;
+        LOG_ERROR("Failed to create per-frame resources: %s", e.what());
         return false;
     }
 }
 
 void ComputeApp::destroyPerFrameResources()
 {
-    for (size_t i = 0; i < commandEncoders.size(); ++i) {
-        commandEncoders[i].reset();
+    if (device) {
+        device->waitIdle();
     }
-    for (size_t i = 0; i < inFlightFences.size(); ++i) {
-        inFlightFences[i].reset();
+
+    for (auto& frame : frameResources) {
+        frame.renderBindGroup.reset();
+        frame.renderUniformBuffer.reset();
+        frame.computeBindGroup.reset();
+        frame.computeUniformBuffer.reset();
+        frame.commandEncoder.reset();
+        frame.inFlightFence.reset();
+        frame.imageAvailableSemaphore.reset();
     }
-    for (size_t i = 0; i < imageAvailableSemaphores.size(); ++i) {
-        imageAvailableSemaphores[i].reset();
-    }
-    commandEncoders.clear();
-    inFlightFences.clear();
-    imageAvailableSemaphores.clear();
+
+    frameResources.clear();
 }
 
 bool ComputeApp::createSizeDependentResources(uint32_t width, uint32_t height)
@@ -526,22 +639,22 @@ bool ComputeApp::createSwapchain(uint32_t width, uint32_t height)
     try {
         // Query surface capabilities
         auto surfaceInfo = surface->getInfo();
-        std::cout << "Surface Info:" << std::endl;
-        std::cout << "  Image Count: min " << surfaceInfo.minImageCount << ", max " << surfaceInfo.maxImageCount << std::endl;
+        LOG_INFO("Surface Info:");
+        LOG_INFO("  Image Count: min %u, max %u", surfaceInfo.minImageCount, surfaceInfo.maxImageCount);
 
-        gfx::SwapchainDescriptor swapchainDesc{};
-        swapchainDesc.label = "Main Swapchain";
-        swapchainDesc.surface = surface;
-        swapchainDesc.extent.width = width;
-        swapchainDesc.extent.height = height;
-        swapchainDesc.format = COLOR_FORMAT;
-        swapchainDesc.usage = gfx::TextureUsage::RenderAttachment;
-        swapchainDesc.presentMode = settings.vsync ? gfx::PresentMode::Fifo : gfx::PresentMode::Immediate;
-        swapchainDesc.imageCount = static_cast<uint32_t>(surfaceInfo.minImageCount);
+        gfx::SwapchainDescriptor swapchainDesc{
+            .label = "Main Swapchain",
+            .surface = surface,
+            .extent = { width, height },
+            .format = COLOR_FORMAT,
+            .usage = gfx::TextureUsage::RenderAttachment,
+            .presentMode = settings.vsync ? gfx::PresentMode::Fifo : gfx::PresentMode::Immediate,
+            .imageCount = static_cast<uint32_t>(surfaceInfo.minImageCount)
+        };
 
         swapchain = device->createSwapchain(swapchainDesc);
         if (!swapchain) {
-            std::cerr << "Failed to create swapchain" << std::endl;
+            LOG_ERROR("Failed to create swapchain");
             return false;
         }
 
@@ -549,21 +662,22 @@ bool ComputeApp::createSwapchain(uint32_t width, uint32_t height)
         swapchainInfo = swapchain->getInfo();
         renderFinishedSemaphores.resize(swapchainInfo.imageCount);
 
-        gfx::SemaphoreDescriptor semaphoreDesc{};
-        semaphoreDesc.type = gfx::SemaphoreType::Binary;
+        gfx::SemaphoreDescriptor semaphoreDesc{
+            .type = gfx::SemaphoreType::Binary
+        };
 
         for (uint32_t i = 0; i < swapchainInfo.imageCount; ++i) {
             semaphoreDesc.label = "Render Finished Semaphore Image " + std::to_string(i);
             renderFinishedSemaphores[i] = device->createSemaphore(semaphoreDesc);
             if (!renderFinishedSemaphores[i]) {
-                std::cerr << "Failed to create render finished semaphore " << i << std::endl;
+                LOG_ERROR("Failed to create render finished semaphore %u", i);
                 return false;
             }
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Swapchain creation error: " << e.what() << std::endl;
+        LOG_ERROR("Swapchain creation error: %s", e.what());
         return false;
     }
 }
@@ -584,8 +698,9 @@ bool ComputeApp::createRenderPass()
     try {
         auto swapchainInfo = swapchain->getInfo();
 
-        gfx::RenderPassCreateDescriptor renderPassDesc{};
-        renderPassDesc.label = "Main Render Pass";
+        gfx::RenderPassCreateDescriptor renderPassDesc{
+            .label = "Main Render Pass"
+        };
 
         gfx::RenderPassColorAttachment colorAttachment{};
         colorAttachment.target.format = swapchainInfo.format;
@@ -598,13 +713,13 @@ bool ComputeApp::createRenderPass()
 
         renderPass = device->createRenderPass(renderPassDesc);
         if (!renderPass) {
-            std::cerr << "Failed to create render pass" << std::endl;
+            LOG_ERROR("Failed to create render pass");
             return false;
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Render pass creation error: " << e.what() << std::endl;
+        LOG_ERROR("Render pass creation error: %s", e.what());
         return false;
     }
 }
@@ -621,23 +736,23 @@ bool ComputeApp::createFramebuffers()
         framebuffers.resize(swapchainInfo.imageCount);
 
         for (uint32_t i = 0; i < swapchainInfo.imageCount; ++i) {
-            gfx::FramebufferDescriptor framebufferDesc{};
-            framebufferDesc.label = "Framebuffer " + std::to_string(i);
-            framebufferDesc.renderPass = renderPass;
-            framebufferDesc.extent.width = swapchainInfo.extent.width;
-            framebufferDesc.extent.height = swapchainInfo.extent.height;
-            framebufferDesc.colorAttachments.push_back({ swapchain->getTextureView(i) });
+            gfx::FramebufferDescriptor framebufferDesc{
+                .label = "Framebuffer " + std::to_string(i),
+                .renderPass = renderPass,
+                .colorAttachments = { { swapchain->getTextureView(i) } },
+                .extent = { swapchainInfo.extent.width, swapchainInfo.extent.height }
+            };
 
             framebuffers[i] = device->createFramebuffer(framebufferDesc);
             if (!framebuffers[i]) {
-                std::cerr << "Failed to create framebuffer " << i << std::endl;
+                LOG_ERROR("Failed to create framebuffer %u", i);
                 return false;
             }
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Framebuffer creation error: " << e.what() << std::endl;
+        LOG_ERROR("Framebuffer creation error: %s", e.what());
         return false;
     }
 }
@@ -651,37 +766,39 @@ bool ComputeApp::createComputeTexture()
 {
     try {
         // Create compute output texture (storage image)
-        gfx::TextureDescriptor textureDesc{};
-        textureDesc.type = gfx::TextureType::Texture2D;
-        textureDesc.size = { COMPUTE_TEXTURE_WIDTH, COMPUTE_TEXTURE_HEIGHT, 1 };
-        textureDesc.format = gfx::Format::R8G8B8A8Unorm;
-        textureDesc.usage = gfx::TextureUsage::StorageBinding | gfx::TextureUsage::TextureBinding;
-        textureDesc.mipLevelCount = 1;
-        textureDesc.sampleCount = gfx::SampleCount::Count1;
+        gfx::TextureDescriptor textureDesc{
+            .type = gfx::TextureType::Texture2D,
+            .size = { COMPUTE_TEXTURE_WIDTH, COMPUTE_TEXTURE_HEIGHT, 1 },
+            .mipLevelCount = 1,
+            .sampleCount = gfx::SampleCount::Count1,
+            .format = gfx::Format::R8G8B8A8Unorm,
+            .usage = gfx::TextureUsage::StorageBinding | gfx::TextureUsage::TextureBinding
+        };
 
         computeTexture = device->createTexture(textureDesc);
         if (!computeTexture) {
-            std::cerr << "Failed to create compute texture" << std::endl;
+            LOG_ERROR("Failed to create compute texture");
             return false;
         }
 
-        gfx::TextureViewDescriptor viewDesc{};
-        viewDesc.format = gfx::Format::R8G8B8A8Unorm;
-        viewDesc.viewType = gfx::TextureViewType::View2D;
-        viewDesc.baseMipLevel = 0;
-        viewDesc.mipLevelCount = 1;
-        viewDesc.baseArrayLayer = 0;
-        viewDesc.arrayLayerCount = 1;
+        gfx::TextureViewDescriptor viewDesc{
+            .viewType = gfx::TextureViewType::View2D,
+            .format = gfx::Format::R8G8B8A8Unorm,
+            .baseMipLevel = 0,
+            .mipLevelCount = 1,
+            .baseArrayLayer = 0,
+            .arrayLayerCount = 1
+        };
 
         computeTextureView = computeTexture->createView(viewDesc);
         if (!computeTextureView) {
-            std::cerr << "Failed to create compute texture view" << std::endl;
+            LOG_ERROR("Failed to create compute texture view");
             return false;
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create compute texture: " << e.what() << std::endl;
+        LOG_ERROR("Failed to create compute texture: %s", e.what());
         return false;
     }
 }
@@ -695,44 +812,68 @@ void ComputeApp::destroyComputeTexture()
 bool ComputeApp::createComputeShaders()
 {
     try {
-        // Load shader - try SPIR-V first, then WGSL
+        // Try shader formats in order of preference
+        struct ShaderFormat {
+            gfx::ShaderSourceType format;
+            const char* shaderPath;
+        };
+
+        const ShaderFormat shaderFormats[] = {
+            { gfx::ShaderSourceType::SPIRV, "shaders/generate.comp.spv" },
+            { gfx::ShaderSourceType::WGSL, "shaders/generate.comp.wgsl" }
+        };
+
         gfx::ShaderSourceType shaderSourceType;
         std::vector<uint8_t> shaderCode;
+        bool shaderLoaded = false;
 
-        if (device->supportsShaderFormat(gfx::ShaderSourceType::SPIRV)) {
-            shaderSourceType = gfx::ShaderSourceType::SPIRV;
-            std::cout << "Loading SPIR-V compute shader..." << std::endl;
-            shaderCode = loadBinaryFile("shaders/generate.comp.spv");
-        } else if (device->supportsShaderFormat(gfx::ShaderSourceType::WGSL)) {
-            shaderSourceType = gfx::ShaderSourceType::WGSL;
-            std::cout << "Loading WGSL compute shader..." << std::endl;
-            auto wgsl = loadTextFile("shaders/generate.comp.wgsl");
-            shaderCode.assign(wgsl.begin(), wgsl.end());
-        } else {
-            std::cerr << "Error: No supported shader format found" << std::endl;
+        for (const auto& format : shaderFormats) {
+            if (!device->supportsShaderFormat(format.format)) {
+                continue;
+            }
+
+            LOG_INFO("Loading compute shader: %s", format.shaderPath);
+
+            if (format.format == gfx::ShaderSourceType::SPIRV) {
+                shaderCode = loadBinaryFile(format.shaderPath);
+            } else {
+                auto wgsl = loadTextFile(format.shaderPath);
+                shaderCode.assign(wgsl.begin(), wgsl.end());
+            }
+
+            if (!shaderCode.empty()) {
+                shaderSourceType = format.format;
+                LOG_INFO("Successfully loaded compute shader (%zu bytes)", shaderCode.size());
+                shaderLoaded = true;
+                break;
+            }
+
+            // Failed to load this format, clear and try next
+            LOG_ERROR("Failed to load compute shader for format");
+            shaderCode.clear();
+        }
+
+        if (!shaderLoaded) {
+            LOG_ERROR("Error: No supported shader format found or failed to load shader");
             return false;
         }
 
-        if (shaderCode.empty()) {
-            std::cerr << "Failed to load compute shader" << std::endl;
-            return false;
-        }
-
-        gfx::ShaderDescriptor shaderDesc{};
-        shaderDesc.label = "Compute Shader";
-        shaderDesc.sourceType = shaderSourceType;
-        shaderDesc.code = shaderCode;
-        shaderDesc.entryPoint = "main";
+        gfx::ShaderDescriptor shaderDesc{
+            .label = "Compute Shader",
+            .sourceType = shaderSourceType,
+            .code = shaderCode,
+            .entryPoint = "main"
+        };
 
         computeShader = device->createShader(shaderDesc);
         if (!computeShader) {
-            std::cerr << "Failed to create compute shader" << std::endl;
+            LOG_ERROR("Failed to create compute shader");
             return false;
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create compute shaders: " << e.what() << std::endl;
+        LOG_ERROR("Failed to create compute shaders: %s", e.what());
         return false;
     }
 }
@@ -765,20 +906,20 @@ bool ComputeApp::createComputeBindGroupLayout()
             }
         };
 
-        gfx::BindGroupLayoutDescriptor computeLayoutDesc{};
-        computeLayoutDesc.label = "Compute Bind Group Layout";
-        computeLayoutDesc.entries.push_back(storageTextureEntry);
-        computeLayoutDesc.entries.push_back(uniformBufferEntry);
+        gfx::BindGroupLayoutDescriptor computeLayoutDesc{
+            .label = "Compute Bind Group Layout",
+            .entries = { storageTextureEntry, uniformBufferEntry }
+        };
 
         computeBindGroupLayout = device->createBindGroupLayout(computeLayoutDesc);
         if (!computeBindGroupLayout) {
-            std::cerr << "Failed to create compute bind group layout" << std::endl;
+            LOG_ERROR("Failed to create compute bind group layout");
             return false;
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create compute bind group layout: " << e.what() << std::endl;
+        LOG_ERROR("Failed to create compute bind group layout: %s", e.what());
         return false;
     }
 }
@@ -792,62 +933,29 @@ bool ComputeApp::createComputePipeline()
 {
     try {
         // Create compute uniform buffers (one per frame in flight)
-        gfx::BufferDescriptor computeUniformBufferDesc{};
-        computeUniformBufferDesc.label = "Compute Uniform Buffer";
-        computeUniformBufferDesc.size = sizeof(ComputeUniformData);
-        computeUniformBufferDesc.usage = gfx::BufferUsage::Uniform | gfx::BufferUsage::CopyDst;
-
-        computeUniformBuffers.resize(swapchainInfo.imageCount);
-        for (size_t i = 0; i < swapchainInfo.imageCount; ++i) {
-            computeUniformBuffers[i] = device->createBuffer(computeUniformBufferDesc);
-            if (!computeUniformBuffers[i]) {
-                std::cerr << "Failed to create compute uniform buffer " << i << std::endl;
-                return false;
-            }
-        }
-
-        // Create compute bind groups (one per frame in flight)
-        computeBindGroups.resize(swapchainInfo.imageCount);
-        for (size_t i = 0; i < swapchainInfo.imageCount; ++i) {
-            gfx::BindGroupEntry textureEntry{};
-            textureEntry.binding = 0;
-            textureEntry.resource = computeTextureView;
-
-            gfx::BindGroupEntry bufferEntry{};
-            bufferEntry.binding = 1;
-            bufferEntry.resource = computeUniformBuffers[i];
-            bufferEntry.offset = 0;
-            bufferEntry.size = sizeof(ComputeUniformData);
-
-            gfx::BindGroupDescriptor computeBindGroupDesc{};
-            computeBindGroupDesc.label = "Compute Bind Group " + std::to_string(i);
-            computeBindGroupDesc.layout = computeBindGroupLayout;
-            computeBindGroupDesc.entries.push_back(textureEntry);
-            computeBindGroupDesc.entries.push_back(bufferEntry);
-
-            computeBindGroups[i] = device->createBindGroup(computeBindGroupDesc);
-            if (!computeBindGroups[i]) {
-                std::cerr << "Failed to create compute bind group " << i << std::endl;
-                return false;
-            }
-        }
+        gfx::BufferDescriptor computeUniformBufferDesc{
+            .label = "Compute Uniform Buffer",
+            .size = sizeof(ComputeUniformData),
+            .usage = gfx::BufferUsage::Uniform | gfx::BufferUsage::CopyDst
+        };
 
         // Create compute pipeline
-        gfx::ComputePipelineDescriptor computePipelineDesc{};
-        computePipelineDesc.label = "Compute Pipeline";
-        computePipelineDesc.compute = computeShader;
-        computePipelineDesc.entryPoint = "main";
-        computePipelineDesc.bindGroupLayouts.push_back(computeBindGroupLayout);
+        gfx::ComputePipelineDescriptor computePipelineDesc{
+            .label = "Compute Pipeline",
+            .compute = computeShader,
+            .entryPoint = "main",
+            .bindGroupLayouts = { computeBindGroupLayout }
+        };
 
         computePipeline = device->createComputePipeline(computePipelineDesc);
         if (!computePipeline) {
-            std::cerr << "Failed to create compute pipeline" << std::endl;
+            LOG_ERROR("Failed to create compute pipeline");
             return false;
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create compute pipeline: " << e.what() << std::endl;
+        LOG_ERROR("Failed to create compute pipeline: %s", e.what());
         return false;
     }
 }
@@ -855,25 +963,18 @@ bool ComputeApp::createComputePipeline()
 void ComputeApp::destroyComputePipeline()
 {
     computePipeline.reset();
-    for (size_t i = 0; i < computeBindGroups.size(); ++i) {
-        computeBindGroups[i].reset();
-    }
-    for (size_t i = 0; i < computeUniformBuffers.size(); ++i) {
-        computeUniformBuffers[i].reset();
-    }
-    computeBindGroups.clear();
-    computeUniformBuffers.clear();
 }
 
 bool ComputeApp::transitionComputeTexture()
 {
     try {
         // Transition compute texture from Undefined to ShaderReadOnly layout
-        gfx::CommandEncoderDescriptor initEncoderDesc{};
-        initEncoderDesc.label = "Init Texture Transition";
+        gfx::CommandEncoderDescriptor initEncoderDesc{
+            .label = "Init Texture Transition"
+        };
         auto initEncoder = device->createCommandEncoder(initEncoderDesc);
         if (!initEncoder) {
-            std::cerr << "Failed to create command encoder for texture transition" << std::endl;
+            LOG_ERROR("Failed to create command encoder for texture transition");
             return false;
         }
 
@@ -892,33 +993,36 @@ bool ComputeApp::transitionComputeTexture()
         initBarrier.baseArrayLayer = 0;
         initBarrier.arrayLayerCount = 1;
 
-        gfx::PipelineBarrierDescriptor barrierDesc{};
-        barrierDesc.textureBarriers.push_back(initBarrier);
+        gfx::PipelineBarrierDescriptor barrierDesc{
+            .textureBarriers = { initBarrier }
+        };
         initEncoder->pipelineBarrier(barrierDesc);
         initEncoder->end();
 
-        gfx::FenceDescriptor initFenceDesc{};
-        initFenceDesc.signaled = false;
+        gfx::FenceDescriptor initFenceDesc{
+            .signaled = false
+        };
         auto initFence = device->createFence(initFenceDesc);
         if (!initFence) {
-            std::cerr << "Failed to create fence for texture transition" << std::endl;
+            LOG_ERROR("Failed to create fence for texture transition");
             return false;
         }
 
-        gfx::SubmitDescriptor submitDescriptor{};
-        submitDescriptor.commandEncoders.push_back(initEncoder);
-        submitDescriptor.signalFence = initFence;
+        gfx::SubmitDescriptor submitDescriptor{
+            .commandEncoders = { initEncoder },
+            .signalFence = initFence
+        };
 
         queue->submit(submitDescriptor);
         auto waitResult = initFence->wait(gfx::TimeoutInfinite);
         if (!gfx::isSuccess(waitResult)) {
-            std::cerr << "Failed to wait for texture transition fence" << std::endl;
+            LOG_ERROR("Failed to wait for texture transition fence");
             return false;
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to transition compute texture: " << e.what() << std::endl;
+        LOG_ERROR("Failed to transition compute texture: %s", e.what());
         return false;
     }
 }
@@ -945,7 +1049,7 @@ bool ComputeApp::createComputeResources()
         return false;
     }
 
-    std::cout << "Compute resources created successfully" << std::endl;
+    LOG_INFO("Compute resources created successfully");
     return true;
 }
 
@@ -961,21 +1065,22 @@ bool ComputeApp::createSampler()
 {
     try {
         // Create sampler
-        gfx::SamplerDescriptor samplerDesc{};
-        samplerDesc.magFilter = gfx::FilterMode::Linear;
-        samplerDesc.minFilter = gfx::FilterMode::Linear;
-        samplerDesc.addressModeU = gfx::AddressMode::ClampToEdge;
-        samplerDesc.addressModeV = gfx::AddressMode::ClampToEdge;
+        gfx::SamplerDescriptor samplerDesc{
+            .addressModeU = gfx::AddressMode::ClampToEdge,
+            .addressModeV = gfx::AddressMode::ClampToEdge,
+            .magFilter = gfx::FilterMode::Linear,
+            .minFilter = gfx::FilterMode::Linear
+        };
 
         sampler = device->createSampler(samplerDesc);
         if (!sampler) {
-            std::cerr << "Failed to create sampler" << std::endl;
+            LOG_ERROR("Failed to create sampler");
             return false;
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create sampler: " << e.what() << std::endl;
+        LOG_ERROR("Failed to create sampler: %s", e.what());
         return false;
     }
 }
@@ -988,59 +1093,87 @@ void ComputeApp::destroySampler()
 bool ComputeApp::createRenderShaders()
 {
     try {
-        // Load shaders - try SPIR-V first, then WGSL
+        // Try shader formats in order of preference
+        struct ShaderFormat {
+            gfx::ShaderSourceType format;
+            const char* vertexPath;
+            const char* fragmentPath;
+        };
+
+        const ShaderFormat shaderFormats[] = {
+            { gfx::ShaderSourceType::SPIRV, "shaders/fullscreen.vert.spv", "shaders/postprocess.frag.spv" },
+            { gfx::ShaderSourceType::WGSL, "shaders/fullscreen.vert.wgsl", "shaders/postprocess.frag.wgsl" }
+        };
+
         gfx::ShaderSourceType shaderSourceType;
         std::vector<uint8_t> vertexShaderCode, fragmentShaderCode;
+        bool shadersLoaded = false;
 
-        if (device->supportsShaderFormat(gfx::ShaderSourceType::SPIRV)) {
-            shaderSourceType = gfx::ShaderSourceType::SPIRV;
-            std::cout << "Loading SPIR-V shaders..." << std::endl;
-            vertexShaderCode = loadBinaryFile("shaders/fullscreen.vert.spv");
-            fragmentShaderCode = loadBinaryFile("shaders/postprocess.frag.spv");
-        } else if (device->supportsShaderFormat(gfx::ShaderSourceType::WGSL)) {
-            shaderSourceType = gfx::ShaderSourceType::WGSL;
-            std::cout << "Loading WGSL shaders..." << std::endl;
-            auto vertexWgsl = loadTextFile("shaders/fullscreen.vert.wgsl");
-            auto fragmentWgsl = loadTextFile("shaders/postprocess.frag.wgsl");
-            vertexShaderCode.assign(vertexWgsl.begin(), vertexWgsl.end());
-            fragmentShaderCode.assign(fragmentWgsl.begin(), fragmentWgsl.end());
-        } else {
-            std::cerr << "Error: No supported shader format found" << std::endl;
+        for (const auto& format : shaderFormats) {
+            if (!device->supportsShaderFormat(format.format)) {
+                continue;
+            }
+
+            LOG_INFO("Loading shaders: %s, %s", format.vertexPath, format.fragmentPath);
+
+            if (format.format == gfx::ShaderSourceType::SPIRV) {
+                vertexShaderCode = loadBinaryFile(format.vertexPath);
+                fragmentShaderCode = loadBinaryFile(format.fragmentPath);
+            } else {
+                auto vertexWgsl = loadTextFile(format.vertexPath);
+                auto fragmentWgsl = loadTextFile(format.fragmentPath);
+                vertexShaderCode.assign(vertexWgsl.begin(), vertexWgsl.end());
+                fragmentShaderCode.assign(fragmentWgsl.begin(), fragmentWgsl.end());
+            }
+
+            if (!vertexShaderCode.empty() && !fragmentShaderCode.empty()) {
+                shaderSourceType = format.format;
+                LOG_INFO("Successfully loaded shaders (vertex: %zu bytes, fragment: %zu bytes)",
+                    vertexShaderCode.size(), fragmentShaderCode.size());
+                shadersLoaded = true;
+                break;
+            }
+
+            // Failed to load this format, clear and try next
+            LOG_ERROR("Failed to load shaders for format");
+            vertexShaderCode.clear();
+            fragmentShaderCode.clear();
+        }
+
+        if (!shadersLoaded) {
+            LOG_ERROR("Error: No supported shader format found or failed to load shaders");
             return false;
         }
 
-        if (vertexShaderCode.empty() || fragmentShaderCode.empty()) {
-            std::cerr << "Failed to load shaders" << std::endl;
-            return false;
-        }
-
-        gfx::ShaderDescriptor vertexShaderDesc{};
-        vertexShaderDesc.label = "Vertex Shader";
-        vertexShaderDesc.sourceType = shaderSourceType;
-        vertexShaderDesc.code = vertexShaderCode;
-        vertexShaderDesc.entryPoint = "main";
+        gfx::ShaderDescriptor vertexShaderDesc{
+            .label = "Vertex Shader",
+            .sourceType = shaderSourceType,
+            .code = vertexShaderCode,
+            .entryPoint = "main"
+        };
 
         vertexShader = device->createShader(vertexShaderDesc);
         if (!vertexShader) {
-            std::cerr << "Failed to create vertex shader" << std::endl;
+            LOG_ERROR("Failed to create vertex shader");
             return false;
         }
 
-        gfx::ShaderDescriptor fragmentShaderDesc{};
-        fragmentShaderDesc.label = "Fragment Shader";
-        fragmentShaderDesc.sourceType = shaderSourceType;
-        fragmentShaderDesc.code = fragmentShaderCode;
-        fragmentShaderDesc.entryPoint = "main";
+        gfx::ShaderDescriptor fragmentShaderDesc{
+            .label = "Fragment Shader",
+            .sourceType = shaderSourceType,
+            .code = fragmentShaderCode,
+            .entryPoint = "main"
+        };
 
         fragmentShader = device->createShader(fragmentShaderDesc);
         if (!fragmentShader) {
-            std::cerr << "Failed to create fragment shader" << std::endl;
+            LOG_ERROR("Failed to create fragment shader");
             return false;
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create render shaders: " << e.what() << std::endl;
+        LOG_ERROR("Failed to create render shaders: %s", e.what());
         return false;
     }
 }
@@ -1081,21 +1214,20 @@ bool ComputeApp::createRenderBindGroupLayout()
             }
         };
 
-        gfx::BindGroupLayoutDescriptor renderLayoutDesc{};
-        renderLayoutDesc.label = "Render Bind Group Layout";
-        renderLayoutDesc.entries.push_back(samplerEntry);
-        renderLayoutDesc.entries.push_back(textureEntry);
-        renderLayoutDesc.entries.push_back(uniformBufferEntry);
+        gfx::BindGroupLayoutDescriptor renderLayoutDesc{
+            .label = "Render Bind Group Layout",
+            .entries = { samplerEntry, textureEntry, uniformBufferEntry }
+        };
 
         renderBindGroupLayout = device->createBindGroupLayout(renderLayoutDesc);
         if (!renderBindGroupLayout) {
-            std::cerr << "Failed to create render bind group layout" << std::endl;
+            LOG_ERROR("Failed to create render bind group layout");
             return false;
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create render bind group layout: " << e.what() << std::endl;
+        LOG_ERROR("Failed to create render bind group layout: %s", e.what());
         return false;
     }
 }
@@ -1109,50 +1241,11 @@ bool ComputeApp::createRenderPipeline()
 {
     try {
         // Create render uniform buffers (one per frame in flight)
-        gfx::BufferDescriptor renderUniformBufferDesc{};
-        renderUniformBufferDesc.label = "Render Uniform Buffer";
-        renderUniformBufferDesc.size = sizeof(RenderUniformData);
-        renderUniformBufferDesc.usage = gfx::BufferUsage::Uniform | gfx::BufferUsage::CopyDst;
-
-        renderUniformBuffers.resize(swapchainInfo.imageCount);
-        for (size_t i = 0; i < swapchainInfo.imageCount; ++i) {
-            renderUniformBuffers[i] = device->createBuffer(renderUniformBufferDesc);
-            if (!renderUniformBuffers[i]) {
-                std::cerr << "Failed to create render uniform buffer " << i << std::endl;
-                return false;
-            }
-        }
-
-        // Create render bind groups (one per frame in flight)
-        renderBindGroups.resize(swapchainInfo.imageCount);
-        for (size_t i = 0; i < swapchainInfo.imageCount; ++i) {
-            gfx::BindGroupEntry samplerBindEntry{};
-            samplerBindEntry.binding = 0;
-            samplerBindEntry.resource = sampler;
-
-            gfx::BindGroupEntry textureBindEntry{};
-            textureBindEntry.binding = 1;
-            textureBindEntry.resource = computeTextureView;
-
-            gfx::BindGroupEntry bufferBindEntry{};
-            bufferBindEntry.binding = 2;
-            bufferBindEntry.resource = renderUniformBuffers[i];
-            bufferBindEntry.offset = 0;
-            bufferBindEntry.size = sizeof(RenderUniformData);
-
-            gfx::BindGroupDescriptor renderBindGroupDesc{};
-            renderBindGroupDesc.label = "Render Bind Group " + std::to_string(i);
-            renderBindGroupDesc.layout = renderBindGroupLayout;
-            renderBindGroupDesc.entries.push_back(samplerBindEntry);
-            renderBindGroupDesc.entries.push_back(textureBindEntry);
-            renderBindGroupDesc.entries.push_back(bufferBindEntry);
-
-            renderBindGroups[i] = device->createBindGroup(renderBindGroupDesc);
-            if (!renderBindGroups[i]) {
-                std::cerr << "Failed to create render bind group " << i << std::endl;
-                return false;
-            }
-        }
+        gfx::BufferDescriptor renderUniformBufferDesc{
+            .label = "Render Uniform Buffer",
+            .size = sizeof(RenderUniformData),
+            .usage = gfx::BufferUsage::Uniform | gfx::BufferUsage::CopyDst
+        };
 
         // Create render pipeline
         gfx::VertexState vertexState{};
@@ -1175,24 +1268,25 @@ bool ComputeApp::createRenderPipeline()
         primitiveState.cullMode = gfx::CullMode::None;
         primitiveState.polygonMode = gfx::PolygonMode::Fill;
 
-        gfx::RenderPipelineDescriptor pipelineDesc{};
-        pipelineDesc.label = "Render Pipeline";
-        pipelineDesc.vertex = vertexState;
-        pipelineDesc.fragment = fragmentState;
-        pipelineDesc.primitive = primitiveState;
-        pipelineDesc.sampleCount = gfx::SampleCount::Count1;
-        pipelineDesc.bindGroupLayouts.push_back(renderBindGroupLayout);
-        pipelineDesc.renderPass = renderPass;
+        gfx::RenderPipelineDescriptor pipelineDesc{
+            .label = "Render Pipeline",
+            .renderPass = renderPass,
+            .vertex = vertexState,
+            .fragment = fragmentState,
+            .primitive = primitiveState,
+            .sampleCount = gfx::SampleCount::Count1,
+            .bindGroupLayouts = { renderBindGroupLayout }
+        };
 
         renderPipeline = device->createRenderPipeline(pipelineDesc);
         if (!renderPipeline) {
-            std::cerr << "Failed to create render pipeline" << std::endl;
+            LOG_ERROR("Failed to create render pipeline");
             return false;
         }
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create render pipeline: " << e.what() << std::endl;
+        LOG_ERROR("Failed to create render pipeline: %s", e.what());
         return false;
     }
 }
@@ -1200,14 +1294,6 @@ bool ComputeApp::createRenderPipeline()
 void ComputeApp::destroyRenderPipeline()
 {
     renderPipeline.reset();
-    for (size_t i = 0; i < renderBindGroups.size(); ++i) {
-        renderBindGroups[i].reset();
-    }
-    for (size_t i = 0; i < renderUniformBuffers.size(); ++i) {
-        renderUniformBuffers[i].reset();
-    }
-    renderBindGroups.clear();
-    renderUniformBuffers.clear();
 }
 
 bool ComputeApp::createRenderResources()
@@ -1228,7 +1314,7 @@ bool ComputeApp::createRenderResources()
         return false;
     }
 
-    std::cout << "Render resources created successfully" << std::endl;
+    LOG_INFO("Render resources created successfully");
     return true;
 }
 
@@ -1243,45 +1329,112 @@ void ComputeApp::destroyRenderResources()
 void ComputeApp::update(float deltaTime)
 {
     elapsedTime += deltaTime;
+    updateFPS(deltaTime);
+}
+
+void ComputeApp::updateFPS(float deltaTime)
+{
+    fpsFrameCount++;
+    fpsTimeAccumulator += deltaTime;
+
+    if (deltaTime < fpsFrameTimeMin) {
+        fpsFrameTimeMin = deltaTime;
+    }
+    if (deltaTime > fpsFrameTimeMax) {
+        fpsFrameTimeMax = deltaTime;
+    }
+
+    // Log FPS every second
+    if (fpsTimeAccumulator >= 1.0f) {
+        float avgFPS = static_cast<float>(fpsFrameCount) / fpsTimeAccumulator;
+        float avgFrameTime = (fpsTimeAccumulator / static_cast<float>(fpsFrameCount)) * 1000.0f;
+        float minFPS = 1.0f / fpsFrameTimeMax;
+        float maxFPS = 1.0f / fpsFrameTimeMin;
+        LOG_INFO("FPS - Avg: %.1f, Min: %.1f, Max: %.1f | Frame Time - Avg: %.2f ms, Min: %.2f ms, Max: %.2f ms",
+            avgFPS, minFPS, maxFPS, avgFrameTime, fpsFrameTimeMin * 1000.0f, fpsFrameTimeMax * 1000.0f);
+
+        // Reset for next second
+        fpsFrameCount = 0;
+        fpsTimeAccumulator = 0.0f;
+        fpsFrameTimeMin = FLT_MAX;
+        fpsFrameTimeMax = 0.0f;
+    }
+}
+
+bool ComputeApp::handleResize(uint32_t width, uint32_t height)
+{
+    LOG_INFO("Resizing to %ux%u", width, height);
+
+    windowWidth = width;
+    windowHeight = height;
+
+    // Wait for all in-flight frames to complete
+    device->waitIdle();
+
+    // Destroy per-frame resources first (they depend on swapchain image count)
+    destroyPerFrameResources();
+
+    // Recreate size-dependent resources (including swapchain)
+    destroySizeDependentResources();
+    if (!createSizeDependentResources(windowWidth, windowHeight)) {
+        LOG_ERROR("Failed to recreate size-dependent resources after resize");
+        return false;
+    }
+
+    // Recreate per-frame resources with new swapchain image count
+    if (!createPerFrameResources()) {
+        LOG_ERROR("Failed to recreate per-frame resources after resize");
+        return false;
+    }
+
+    // Reset frame index to prevent out-of-bounds access
+    currentFrame = 0;
+
+    previousWidth = windowWidth;
+    previousHeight = windowHeight;
+
+    LOG_INFO("Successfully recreated resources for new size");
+    return true;
 }
 
 void ComputeApp::render()
 {
     try {
         size_t frameIndex = currentFrame;
+        auto& frame = frameResources[frameIndex];
 
         // Wait for previous frame
-        auto waitResult = inFlightFences[frameIndex]->wait(gfx::TimeoutInfinite);
+        auto waitResult = frame.inFlightFence->wait(gfx::TimeoutInfinite);
         if (!gfx::isSuccess(waitResult)) {
             throw std::runtime_error("Failed to wait for frame fence");
         }
-        inFlightFences[frameIndex]->reset();
+        frame.inFlightFence->reset();
 
         // Acquire swapchain image
         uint32_t imageIndex = 0;
         auto result = swapchain->acquireNextImage(
             UINT64_MAX,
-            imageAvailableSemaphores[frameIndex],
+            frame.imageAvailableSemaphore,
             nullptr,
             &imageIndex);
 
         if (result != gfx::Result::Success) {
-            std::cerr << "Failed to acquire swapchain image" << std::endl;
+            LOG_ERROR("Failed to acquire swapchain image");
             return;
         }
 
         // Update compute uniforms for current frame
         ComputeUniformData computeUniforms{ .time = elapsedTime };
-        queue->writeBuffer(computeUniformBuffers[frameIndex], 0, &computeUniforms, sizeof(computeUniforms));
+        queue->writeBuffer(frame.computeUniformBuffer, 0, &computeUniforms, sizeof(computeUniforms));
 
         // Update render uniforms for current frame
         RenderUniformData renderUniforms{
             .postProcessStrength = 0.5f + 0.5f * std::sin(elapsedTime * 0.5f)
         };
-        queue->writeBuffer(renderUniformBuffers[frameIndex], 0, &renderUniforms, sizeof(renderUniforms));
+        queue->writeBuffer(frame.renderUniformBuffer, 0, &renderUniforms, sizeof(renderUniforms));
 
         // Begin command encoder
-        auto encoder = commandEncoders[frameIndex];
+        auto encoder = frame.commandEncoder;
         encoder->begin();
 
         // Transition compute texture to GENERAL layout for compute shader write
@@ -1306,7 +1459,7 @@ void ComputeApp::render()
             computePassDesc.label = "Generate Pattern";
             auto computePass = encoder->beginComputePass(computePassDesc);
             computePass->setPipeline(computePipeline);
-            computePass->setBindGroup(0, computeBindGroups[frameIndex]);
+            computePass->setBindGroup(0, frame.computeBindGroup);
 
             uint32_t workGroupsX = (COMPUTE_TEXTURE_WIDTH + 15) / 16;
             uint32_t workGroupsY = (COMPUTE_TEXTURE_HEIGHT + 15) / 16;
@@ -1332,15 +1485,16 @@ void ComputeApp::render()
         // Render pass: Post-process and display
         gfx::Color clearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
 
-        gfx::RenderPassBeginDescriptor renderPassBeginDesc{};
-        renderPassBeginDesc.framebuffer = framebuffers[imageIndex];
-        renderPassBeginDesc.colorClearValues = { clearColor };
+        gfx::RenderPassBeginDescriptor renderPassBeginDesc{
+            .framebuffer = framebuffers[imageIndex],
+            .colorClearValues = { clearColor }
+        };
 
         {
             auto renderPassEncoder = encoder->beginRenderPass(renderPassBeginDesc);
 
             renderPassEncoder->setPipeline(renderPipeline);
-            renderPassEncoder->setBindGroup(0, renderBindGroups[frameIndex]);
+            renderPassEncoder->setBindGroup(0, frame.renderBindGroup);
 
             // Set viewport and scissor to match the actual swapchain extent
             auto swapchainInfo = swapchain->getInfo();
@@ -1354,11 +1508,12 @@ void ComputeApp::render()
         encoder->end();
 
         // Submit
-        gfx::SubmitDescriptor submitDescriptor{};
-        submitDescriptor.commandEncoders = { encoder };
-        submitDescriptor.waitSemaphores = { imageAvailableSemaphores[frameIndex] };
-        submitDescriptor.signalSemaphores = { renderFinishedSemaphores[imageIndex] };
-        submitDescriptor.signalFence = inFlightFences[frameIndex];
+        gfx::SubmitDescriptor submitDescriptor{
+            .commandEncoders = { encoder },
+            .waitSemaphores = { frame.imageAvailableSemaphore },
+            .signalSemaphores = { renderFinishedSemaphores[imageIndex] },
+            .signalFence = frame.inFlightFence
+        };
 
         auto submitResult = queue->submit(submitDescriptor);
         if (!gfx::isSuccess(submitResult)) {
@@ -1366,14 +1521,15 @@ void ComputeApp::render()
         }
 
         // Present
-        gfx::PresentDescriptor presentDescriptor{};
-        presentDescriptor.waitSemaphores = { renderFinishedSemaphores[imageIndex] };
+        gfx::PresentDescriptor presentDescriptor{
+            .waitSemaphores = { renderFinishedSemaphores[imageIndex] }
+        };
 
         result = swapchain->present(presentDescriptor);
 
         currentFrame = (currentFrame + 1) % swapchainInfo.imageCount;
     } catch (const std::exception& e) {
-        std::cerr << "Render error: " << e.what() << std::endl;
+        LOG_ERROR("Render error: %s", e.what());
     }
 }
 
@@ -1401,15 +1557,15 @@ gfx::PlatformWindowHandle ComputeApp::getPlatformWindowHandle()
     handle = gfx::PlatformWindowHandle::fromEmscripten("#canvas");
 #elif defined(_WIN32)
     handle = gfx::PlatformWindowHandle::fromWin32(GetModuleHandle(nullptr), glfwGetWin32Window(window));
-    std::cout << "Extracted Win32 handle: HWND=" << handle.handle.win32.hwnd << ", HINSTANCE=" << handle.handle.win32.hinstance << std::endl;
+    LOG_DEBUG("Extracted Win32 handle: HWND=%p, HINSTANCE=%p", handle.handle.win32.hwnd, handle.handle.win32.hinstance);
 #elif defined(__linux__)
     // handle = gfx::PlatformWindowHandle::fromXlib(glfwGetX11Display(), glfwGetX11Window(window));
-    // std::cout << "Extracted X11 handle: Window=" << handle.handle.xlib.window << ", Display=" << handle.handle.xlib.display << std::endl;
+    // LOG_DEBUG("Extracted Wayland handle: Window=%lld, Display=%p", handle.handle.xlib.window, handle.handle.xlib.display);
     handle = gfx::PlatformWindowHandle::fromWayland(glfwGetWaylandDisplay(), glfwGetWaylandWindow(window));
-    std::cout << "Extracted Wayland handle: Surface=" << handle.handle.wayland.surface << ", Display=" << handle.handle.wayland.display << std::endl;
+    LOG_DEBUG("Extracted Wayland handle: Surface=%p, Display=%p", handle.handle.wayland.surface, handle.handle.wayland.display);
 #elif defined(__APPLE__)
     handle = gfx::PlatformWindowHandle::fromMetal(glfwGetCocoaWindow(window));
-    std::cout << "Extracted Metal handle: Layer=" << handle.handle.metal.layer << std::endl;
+    LOG_DEBUG("Extracted Metal handle: Layer=%p", handle.handle.metal.layer);
 #endif
     return handle;
 }
@@ -1417,7 +1573,7 @@ gfx::PlatformWindowHandle ComputeApp::getPlatformWindowHandle()
 #ifndef __ANDROID__
 void ComputeApp::errorCallback(int error, const char* description)
 {
-    std::cerr << "GLFW Error " << error << ": " << description << std::endl;
+    LOG_ERROR("GLFW Error %d: %s", error, description);
 }
 
 void ComputeApp::framebufferResizeCallback(GLFWwindow* window, int width, int height)
@@ -1447,30 +1603,30 @@ std::vector<uint8_t> ComputeApp::loadBinaryFile(const char* filepath)
         LOG_ERROR("AssetManager not available for file: %s", filepath);
         return {};
     }
-    
+
     AAssetManager* assetManager = androidApp->activity->assetManager;
     AAsset* asset = AAssetManager_open(assetManager, filepath, AASSET_MODE_BUFFER);
     if (!asset) {
         LOG_ERROR("Failed to open asset: %s", filepath);
         return {};
     }
-    
+
     size_t size = AAsset_getLength(asset);
     std::vector<uint8_t> buffer(size);
-    
+
     int bytesRead = AAsset_read(asset, buffer.data(), size);
     AAsset_close(asset);
-    
+
     if (bytesRead < 0 || static_cast<size_t>(bytesRead) != size) {
         LOG_ERROR("Failed to read complete asset: %s", filepath);
         return {};
     }
-    
+
     return buffer;
 #else
     std::ifstream file(filepath, std::ios::binary | std::ios::ate);
     if (!file) {
-        std::cerr << "Failed to open file: " << filepath << std::endl;
+        LOG_ERROR("Failed to open file: %s", filepath);
         return {};
     }
 
@@ -1481,7 +1637,7 @@ std::vector<uint8_t> ComputeApp::loadBinaryFile(const char* filepath)
     file.read(reinterpret_cast<char*>(buffer.data()), fileSize);
 
     if (!file) {
-        std::cerr << "Failed to read complete file: " << filepath << std::endl;
+        LOG_ERROR("Failed to read complete file: %s", filepath);
         return {};
     }
 
@@ -1496,30 +1652,30 @@ std::string ComputeApp::loadTextFile(const char* filepath)
         LOG_ERROR("AssetManager not available for file: %s", filepath);
         return {};
     }
-    
+
     AAssetManager* assetManager = androidApp->activity->assetManager;
     AAsset* asset = AAssetManager_open(assetManager, filepath, AASSET_MODE_BUFFER);
     if (!asset) {
         LOG_ERROR("Failed to open asset: %s", filepath);
         return {};
     }
-    
+
     size_t size = AAsset_getLength(asset);
     std::string buffer(size, '\0');
-    
+
     int bytesRead = AAsset_read(asset, buffer.data(), size);
     AAsset_close(asset);
-    
+
     if (bytesRead < 0 || static_cast<size_t>(bytesRead) != size) {
         LOG_ERROR("Failed to read complete asset: %s", filepath);
         return {};
     }
-    
+
     return buffer;
 #else
     std::FILE* file = std::fopen(filepath, "r");
     if (!file) {
-        std::cerr << "Failed to open file: " << filepath << std::endl;
+        LOG_ERROR("Failed to open file: %s", filepath);
         return {};
     }
 
@@ -1528,7 +1684,7 @@ std::string ComputeApp::loadTextFile(const char* filepath)
     std::fseek(file, 0, SEEK_SET);
 
     if (fileSize <= 0) {
-        std::cerr << "Invalid file size for: " << filepath << std::endl;
+        LOG_ERROR("Invalid file size for: %s", filepath);
         std::fclose(file);
         return {};
     }
@@ -1538,7 +1694,7 @@ std::string ComputeApp::loadTextFile(const char* filepath)
     std::fclose(file);
 
     if (bytesRead != static_cast<size_t>(fileSize)) {
-        std::cerr << "Failed to read complete file: " << filepath << std::endl;
+        LOG_ERROR("Failed to read complete file: %s", filepath);
         return {};
     }
 
@@ -1554,28 +1710,28 @@ std::string ComputeApp::loadTextFile(const char* filepath)
 bool ComputeApp::mainLoopIteration()
 {
     static int frameCount = 0;
-    
+
     int events;
     struct android_poll_source* source;
-    
+
     // Poll all events
     while (ALooper_pollOnce(animating ? 0 : -1, nullptr, &events, reinterpret_cast<void**>(&source)) >= 0) {
         if (source != nullptr) {
             source->process(androidApp, source);
         }
-        
+
         if (androidApp->destroyRequested != 0) {
             LOG_INFO("Destroy requested");
             cleanup();
             return false;
         }
     }
-    
+
     if (animating && instance) {
         if (frameCount == 0) {
             LOG_INFO("Starting render loop - first frame");
         }
-        
+
         float currentTime = getCurrentTime();
         static float lastTime = 0.0f;
         if (lastTime == 0.0f) {
@@ -1583,10 +1739,10 @@ bool ComputeApp::mainLoopIteration()
         }
         float deltaTime = currentTime - lastTime;
         lastTime = currentTime;
-        
+
         update(deltaTime);
         render();
-        
+
         frameCount++;
         if (frameCount % 60 == 0) {
             LOG_DEBUG("Rendered %d frames", frameCount);
@@ -1595,74 +1751,69 @@ bool ComputeApp::mainLoopIteration()
         // Only log once when not rendering
         static bool logged = false;
         if (!logged) {
-            LOG_WARN("Not rendering: animating=%d, instance=%p", 
-                    animating, instance.get());
+            LOG_WARN("Not rendering: animating=%d, instance=%p",
+                animating, instance.get());
             logged = true;
         }
     }
-    
+
     return true;
 }
 
 void ComputeApp::handleAppCommand(struct android_app* state, int32_t cmd)
 {
     auto* app = static_cast<ComputeApp*>(state->userData);
-    
+
     switch (cmd) {
     case APP_CMD_INIT_WINDOW:
         if (state->window != nullptr) {
             app->windowWidth = static_cast<uint32_t>(ANativeWindow_getWidth(state->window));
             app->windowHeight = static_cast<uint32_t>(ANativeWindow_getHeight(state->window));
             LOG_INFO("Window initialized: %ux%u", app->windowWidth, app->windowHeight);
-            
+
             if (!app->instance) {
                 if (!app->createWindow(app->windowWidth, app->windowHeight)) {
                     LOG_ERROR("Failed to create window");
                     return;
                 }
-                
+
                 if (!app->createGraphics()) {
                     LOG_ERROR("Failed to create graphics");
                     return;
                 }
-                
+
                 if (!app->createSizeDependentResources(app->windowWidth, app->windowHeight)) {
                     LOG_ERROR("Failed to create size-dependent resources");
                     return;
                 }
-                
+
                 if (!app->createComputeResources()) {
                     LOG_ERROR("Failed to create compute resources");
                     return;
                 }
-                
+
                 if (!app->createRenderResources()) {
                     LOG_ERROR("Failed to create render resources");
                     return;
                 }
-                
-                if (!app->createPerFrameResources()) {
-                    LOG_ERROR("Failed to create per-frame resources");
-                    return;
-                }
-                
+
                 LOG_INFO("Application initialized successfully");
             }
-            
+
             app->animating = true;
         }
         break;
-        
+
     case APP_CMD_TERM_WINDOW:
         LOG_INFO("Window terminated");
         app->animating = false;
         break;
-        
+
     case APP_CMD_GAINED_FOCUS:
         LOG_INFO("Gained focus");
         app->animating = true;
         break;
-        
+
     case APP_CMD_LOST_FOCUS:
         LOG_INFO("Lost focus");
         app->animating = false;
@@ -1682,17 +1833,17 @@ void android_main(struct android_app* state)
     Settings settings;
     settings.backend = gfx::Backend::Vulkan;
     settings.vsync = true;
-    
+
     ComputeApp app(settings);
     app.setAndroidApp(state);
     app.setAnimating(false);
-    
+
     state->userData = &app;
     state->onAppCmd = ComputeApp::handleAppCommand;
     state->onInputEvent = ComputeApp::handleInput;
-    
+
     LOG_INFO("=== GFX Compute Example (Android C++) ===");
-    
+
     app.run();
 }
 
@@ -1711,56 +1862,16 @@ bool ComputeApp::mainLoopIteration()
 
     // Handle framebuffer resize
     if (previousWidth != windowWidth || previousHeight != windowHeight) {
-        // Wait for all in-flight frames to complete
-        device->waitIdle();
-
-        // Recreate only size-dependent resources (including swapchain)
-        destroySizeDependentResources();
-        if (!createSizeDependentResources(windowWidth, windowHeight)) {
-            std::cerr << "Failed to recreate size-dependent resources after resize" << std::endl;
+        if (!handleResize(windowWidth, windowHeight)) {
             return false;
         }
-
-        previousWidth = windowWidth;
-        previousHeight = windowHeight;
-        auto swapchainInfo = swapchain->getInfo();
-        std::cout << "Window resized: " << swapchainInfo.extent.width << "x" << swapchainInfo.extent.height << std::endl;
         return true; // Skip rendering this frame
     }
 
     // Calculate delta time
     float currentTime = getCurrentTime();
-    float deltaTime = currentTime - elapsedTime;
-
-    // Track FPS
-    if (deltaTime > 0.0f) {
-        fpsFrameCount++;
-        fpsTimeAccumulator += deltaTime;
-
-        if (deltaTime < fpsFrameTimeMin) {
-            fpsFrameTimeMin = deltaTime;
-        }
-        if (deltaTime > fpsFrameTimeMax) {
-            fpsFrameTimeMax = deltaTime;
-        }
-
-        // Log FPS every second
-        if (fpsTimeAccumulator >= 1.0f) {
-            float avgFPS = static_cast<float>(fpsFrameCount) / fpsTimeAccumulator;
-            float avgFrameTime = (fpsTimeAccumulator / static_cast<float>(fpsFrameCount)) * 1000.0f;
-            float minFPS = 1.0f / fpsFrameTimeMax;
-            float maxFPS = 1.0f / fpsFrameTimeMin;
-            std::cout << "FPS - Avg: " << avgFPS << ", Min: " << minFPS << ", Max: " << maxFPS
-                      << " | Frame Time - Avg: " << avgFrameTime << " ms, Min: " << (fpsFrameTimeMin * 1000.0f)
-                      << " ms, Max: " << (fpsFrameTimeMax * 1000.0f) << " ms" << std::endl;
-
-            // Reset for next second
-            fpsFrameCount = 0;
-            fpsTimeAccumulator = 0.0f;
-            fpsFrameTimeMin = FLT_MAX;
-            fpsFrameTimeMax = 0.0f;
-        }
-    }
+    float deltaTime = currentTime - lastFrameTime;
+    lastFrameTime = currentTime;
 
     update(deltaTime);
     render();
@@ -1779,6 +1890,46 @@ void ComputeApp::emscriptenMainLoop(void* userData)
 }
 #endif
 
+static bool parseBackend(const char* backendStr, gfx::Backend& outBackend)
+{
+    if (std::strcmp(backendStr, "vulkan") == 0) {
+        outBackend = gfx::Backend::Vulkan;
+        return true;
+    } else if (std::strcmp(backendStr, "webgpu") == 0) {
+        outBackend = gfx::Backend::WebGPU;
+        return true;
+    } else {
+        LOG_ERROR("Unknown backend: %s", backendStr);
+        LOG_ERROR("Valid values: vulkan, webgpu");
+        return false;
+    }
+}
+
+static bool parseVsync(const char* vsyncStr, bool& outVsync)
+{
+    int vsync = std::atoi(vsyncStr);
+    if (vsync == 0) {
+        outVsync = false;
+        return true;
+    } else if (vsync == 1) {
+        outVsync = true;
+        return true;
+    } else {
+        LOG_ERROR("Invalid vsync value: %s", vsyncStr);
+        LOG_ERROR("Valid values: 0 (off), 1 (on)");
+        return false;
+    }
+}
+
+static void printHelp(const char* programName)
+{
+    LOG_INFO("Usage: %s [options]", programName);
+    LOG_INFO("Options:");
+    LOG_INFO("  --backend [vulkan|webgpu]   Select graphics backend");
+    LOG_INFO("  --vsync [0|1]               VSync: 0=off, 1=on");
+    LOG_INFO("  --help                      Show this help message");
+}
+
 static bool parseArguments(int argc, char** argv, Settings& settings)
 {
 #if defined(__EMSCRIPTEN__)
@@ -1791,35 +1942,19 @@ static bool parseArguments(int argc, char** argv, Settings& settings)
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--backend") == 0 && i + 1 < argc) {
             i++;
-            if (std::strcmp(argv[i], "vulkan") == 0) {
-                settings.backend = gfx::Backend::Vulkan;
-            } else if (std::strcmp(argv[i], "webgpu") == 0) {
-                settings.backend = gfx::Backend::WebGPU;
-            } else {
-                std::cerr << "Unknown backend: " << argv[i] << std::endl;
+            if (!parseBackend(argv[i], settings.backend)) {
                 return false;
             }
         } else if (std::strcmp(argv[i], "--vsync") == 0 && i + 1 < argc) {
             i++;
-            int vsync = std::atoi(argv[i]);
-            if (vsync == 0) {
-                settings.vsync = false;
-            } else if (vsync == 1) {
-                settings.vsync = true;
-            } else {
-                std::cerr << "Invalid vsync value: " << argv[i] << std::endl;
-                std::cerr << "Valid values: 0 (off), 1 (on)" << std::endl;
+            if (!parseVsync(argv[i], settings.vsync)) {
                 return false;
             }
         } else if (std::strcmp(argv[i], "--help") == 0) {
-            std::cout << "Usage: " << argv[0] << " [options]" << std::endl;
-            std::cout << "Options:" << std::endl;
-            std::cout << "  --backend [vulkan|webgpu]   Select graphics backend" << std::endl;
-            std::cout << "  --vsync [0|1]               VSync: 0=off, 1=on" << std::endl;
-            std::cout << "  --help                      Show this help message" << std::endl;
+            printHelp(argv[0]);
             return false;
         } else {
-            std::cerr << "Unknown argument: " << argv[i] << std::endl;
+            LOG_ERROR("Unknown argument: %s", argv[i]);
             return false;
         }
     }
@@ -1829,10 +1964,11 @@ static bool parseArguments(int argc, char** argv, Settings& settings)
 
 int main(int argc, char** argv)
 {
-    std::cout << "=== Compute & Postprocess Example (C++) ===" << std::endl;
+    LOG_INFO("=== Compute & Postprocess Example (C++) ===");
 
     Settings settings;
     if (!parseArguments(argc, argv, settings)) {
+        printHelp(argv[0]);
         return 0;
     }
 
@@ -1846,7 +1982,7 @@ int main(int argc, char** argv)
     app.run();
     app.cleanup();
 
-    std::cout << "Application terminated successfully" << std::endl;
+    LOG_INFO("Application terminated successfully");
     return 0;
 }
 
