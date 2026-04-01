@@ -1,5 +1,7 @@
 #include "util/Utils.h"
 
+#include <cstdio>
+
 #ifdef GFX_HAS_COCOA
 #include <objc/message.h>
 #include <objc/runtime.h>
@@ -117,35 +119,62 @@ void* getMetalLayerFromCocoaWindow(void* cocoaWindow)
     auto setWantsLayer = (void (*)(id, SEL, bool))objc_msgSend;
     setWantsLayer(nsView, sel_getUid("setWantsLayer:"), true);
 
-    // 3. Create a CAMetalLayer explicitly
-    // Note: Simply calling [nsView layer] after setWantsLayer:YES creates an NSViewBackingLayer,
-    // which is NOT a CAMetalLayer. MoltenVK requires a proper CAMetalLayer.
+    // 3. Get the existing layer (GLFW already creates a CAMetalLayer for Vulkan windows)
+    // [nsView layer]
+    auto getLayer = (id (*)(id, SEL))objc_msgSend;
+    id existingLayer = getLayer(nsView, sel_getUid("layer"));
+
+    // If an existing layer exists and it's a CAMetalLayer, use it
+    if (existingLayer) {
+        // Check if it's a CAMetalLayer
+        Class caMetalLayerClass = objc_getClass("CAMetalLayer");
+        if (!caMetalLayerClass) {
+            return nullptr;
+        }
+
+        auto isKindOfClass = (bool (*)(id, SEL, Class))objc_msgSend;
+        bool isMetalLayer = isKindOfClass(existingLayer, sel_getUid("isKindOfClass:"), caMetalLayerClass);
+
+        if (isMetalLayer) {
+            // Get the backing scale factor and set contentsScale for retina support
+            auto getBackingScaleFactor = (double (*)(id, SEL))objc_msgSend;
+            double scaleFactor = getBackingScaleFactor(nsWindow, sel_getUid("backingScaleFactor"));
+
+            // [existingLayer setContentsScale:scaleFactor]
+            auto setContentsScale = (void (*)(id, SEL, double))objc_msgSend;
+            setContentsScale(existingLayer, sel_getUid("setContentsScale:"), scaleFactor);
+
+            return (void*)existingLayer;
+        }
+    }
+
+    // If no existing CAMetalLayer, create a new one
     Class caMetalLayerClass = objc_getClass("CAMetalLayer");
     if (!caMetalLayerClass) {
         return nullptr;
     }
-    
+
     // Create new CAMetalLayer: [CAMetalLayer layer]
     auto layerMethod = (id (*)(id, SEL))objc_msgSend;
     id metalLayer = layerMethod((id)caMetalLayerClass, sel_getUid("layer"));
-    
+
     if (!metalLayer) {
         return nullptr;
     }
-    
+
     // 4. Set this as the view's layer: [nsView setLayer:metalLayer]
     auto setLayer = (void (*)(id, SEL, id))objc_msgSend;
     setLayer(nsView, sel_getUid("setLayer:"), metalLayer);
-    
+
     // 5. Get the backing scale factor and set contentsScale for retina support
     // [nsWindow backingScaleFactor]
     auto getBackingScaleFactor = (double (*)(id, SEL))objc_msgSend;
     double scaleFactor = getBackingScaleFactor(nsWindow, sel_getUid("backingScaleFactor"));
-    
+
     // [metalLayer setContentsScale:scaleFactor]
     auto setContentsScale = (void (*)(id, SEL, double))objc_msgSend;
     setContentsScale(metalLayer, sel_getUid("setContentsScale:"), scaleFactor);
-    
+
     return (void*)metalLayer;
 #else
     (void)cocoaWindow;
