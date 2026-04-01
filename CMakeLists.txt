@@ -447,6 +447,13 @@ if(BUILD_VULKAN_BACKEND)
             "-framework IOSurface"
             "-framework CoreGraphics"
         )
+    # For macOS desktop, link Cocoa and QuartzCore for Metal layer creation
+    elseif(APPLE)
+        target_link_libraries(gfx PUBLIC
+            "-framework Metal"
+            "-framework Cocoa"
+            "-framework QuartzCore"
+        )
     endif()
     
     # Use Dawn's bundled Vulkan headers if WebGPU backend is enabled to avoid version conflicts

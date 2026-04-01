@@ -17,8 +17,8 @@ FetchContent_MakeAvailable(stb)
 add_library(stb_image INTERFACE)
 target_include_directories(stb_image INTERFACE ${stb_SOURCE_DIR})
 
-# GLFW dependency for examples (not needed for Web or Android)
-if(NOT BUILD_FOR_WEB AND NOT ANDROID)
+# GLFW dependency for examples (not needed for Web, Android, or iOS)
+if(NOT BUILD_FOR_WEB AND NOT ANDROID AND NOT IOS)
     find_package(glfw3 3.3 QUIET)
     
     if(NOT glfw3_FOUND)
