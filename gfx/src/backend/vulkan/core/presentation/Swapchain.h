@@ -21,7 +21,6 @@ public:
     Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo& createInfo);
     ~Swapchain();
 
-    VkSwapchainKHR handle() const;
     uint32_t getImageCount() const;
     Texture* getTexture(uint32_t index) const;
     Texture* getCurrentTexture() const;

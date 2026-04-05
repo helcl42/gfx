@@ -14,11 +14,11 @@ namespace gfx::backend::webgpu::core {
 
 Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo& createInfo)
     : m_device(device)
-    , m_surface(surface->handle())
+    , m_surface(surface)
     , m_info(createSwapchainInfo(createInfo))
 {
     // Get surface capabilities
-    const WGPUSurfaceCapabilities& capabilities = surface->getCapabilities(device->getAdapter()->handle());
+    const WGPUSurfaceCapabilities& capabilities = m_surface->getCapabilities(m_device->getAdapter()->handle());
 
     // Choose format
     WGPUTextureFormat selectedFormat = WGPUTextureFormat_Undefined;
@@ -76,7 +76,7 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
     config.presentMode = m_info.presentMode;
     config.alphaMode = WGPUCompositeAlphaMode_Auto;
 
-    wgpuSurfaceConfigure(m_surface, &config);
+    wgpuSurfaceConfigure(m_surface->handle(), &config);
 }
 
 Swapchain::~Swapchain()
@@ -91,16 +91,6 @@ Swapchain::~Swapchain()
 }
 
 // Accessors
-WGPUSurface Swapchain::handle() const
-{
-    return m_surface;
-}
-
-WGPUDevice Swapchain::device() const
-{
-    return m_device->handle();
-}
-
 uint32_t Swapchain::getWidth() const
 {
     return m_info.width;
@@ -142,7 +132,7 @@ WGPUSurfaceGetCurrentTextureStatus Swapchain::acquireNextImage()
     }
 
     WGPUSurfaceTexture surfaceTexture = WGPU_SURFACE_TEXTURE_INIT;
-    wgpuSurfaceGetCurrentTexture(m_surface, &surfaceTexture);
+    wgpuSurfaceGetCurrentTexture(m_surface->handle(), &surfaceTexture);
 
     if (surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal || surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal) {
         if (m_currentTexture) {
@@ -178,7 +168,7 @@ WGPUTextureView Swapchain::getCurrentNativeTextureView() const
 void Swapchain::present()
 {
 #ifndef GFX_HAS_EMSCRIPTEN
-    wgpuSurfacePresent(m_surface);
+    wgpuSurfacePresent(m_surface->handle());
 #endif
     if (m_currentTexture) {
         wgpuTextureRelease(m_currentTexture);

@@ -21,8 +21,6 @@ public:
     ~Swapchain();
 
     // Accessors
-    WGPUSurface handle() const;
-    WGPUDevice device() const;
     uint32_t getWidth() const;
     uint32_t getHeight() const;
     WGPUTextureFormat getFormat() const;
@@ -41,7 +39,7 @@ private:
 
 private:
     Device* m_device = nullptr; // Non-owning
-    WGPUSurface m_surface = nullptr; // Non-owning
+    Surface* m_surface = nullptr; // Non-owning
     SwapchainInfo m_info{};
     WGPUTexture m_currentTexture = nullptr; // Current frame texture from surface
     WGPUTextureView m_currentRawView = nullptr; // Current frame raw view handle

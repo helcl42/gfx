@@ -15,23 +15,18 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
     : m_device(device)
     , m_surface(surface)
 {
-    uint32_t queueFamily = device->getAdapter()->getGraphicsQueueFamily();
+    Adapter* adapter = m_device->getAdapter();
 
     // Check if queue family supports presentation
-    VkBool32 presentSupport = VK_FALSE;
-    vkGetPhysicalDeviceSurfaceSupportKHR(device->getAdapter()->handle(), queueFamily, surface->handle(), &presentSupport);
-    if (presentSupport != VK_TRUE) {
+    if (!adapter->supportsPresentation(adapter->getGraphicsQueueFamily(), m_surface->handle())) {
         throw std::runtime_error("Selected queue family does not support presentation");
     }
 
     // Query and choose format
-    uint32_t formatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(m_device->getAdapter()->handle(), m_surface->handle(), &formatCount, nullptr);
-    if (formatCount == 0) {
+    std::vector<VkSurfaceFormatKHR> formats = m_surface->getSupportedFormats(adapter);
+    if (formats.empty()) {
         throw std::runtime_error("No surface formats available for swapchain");
     }
-    std::vector<VkSurfaceFormatKHR> formats(formatCount);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(m_device->getAdapter()->handle(), m_surface->handle(), &formatCount, formats.data());
 
     VkSurfaceFormatKHR selectedFormat = formats[0];
     for (const auto& availableFormat : formats) {
@@ -43,13 +38,10 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
     m_info.format = selectedFormat.format;
 
     // Query and choose present mode
-    uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(m_device->getAdapter()->handle(), m_surface->handle(), &presentModeCount, nullptr);
-    if (presentModeCount == 0) {
+    std::vector<VkPresentModeKHR> presentModes = m_surface->getSupportedPresentModes(adapter);
+    if (presentModes.empty()) {
         throw std::runtime_error("No present modes available for swapchain");
     }
-    std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(m_device->getAdapter()->handle(), m_surface->handle(), &presentModeCount, presentModes.data());
 
     m_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
     for (const auto& availableMode : presentModes) {
@@ -60,8 +52,7 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
     }
 
     // Query surface capabilities
-    VkSurfaceCapabilitiesKHR capabilities;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_device->getAdapter()->handle(), m_surface->handle(), &capabilities);
+    VkSurfaceCapabilitiesKHR capabilities = m_surface->getCapabilities(adapter);
 
     // Determine actual swapchain extent and store directly in m_info
     // If currentExtent is defined, we MUST use it. Otherwise, we can choose within min/max bounds.
@@ -153,11 +144,6 @@ Swapchain::~Swapchain()
     if (m_swapchain != VK_NULL_HANDLE) {
         vkDestroySwapchainKHR(m_device->handle(), m_swapchain, nullptr);
     }
-}
-
-VkSwapchainKHR Swapchain::handle() const
-{
-    return m_swapchain;
 }
 
 uint32_t Swapchain::getImageCount() const
