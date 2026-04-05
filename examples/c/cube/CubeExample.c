@@ -2010,13 +2010,13 @@ static void* loadTextFile(CubeApp* app, const char* filepath, size_t* outSize)
 // ============================================================================
 
 // Matrix math utility functions
-void matrixIdentity(Mat4* matrix)
+static void matrixIdentity(Mat4* matrix)
 {
     memset(matrix->m, 0, 16 * sizeof(float));
     matrix->m[0] = matrix->m[5] = matrix->m[10] = matrix->m[15] = 1.0f;
 }
 
-void matrixMultiply(Mat4* result, const Mat4* a, const Mat4* b)
+static void matrixMultiply(Mat4* result, const Mat4* a, const Mat4* b)
 {
     float temp[16];
     for (int i = 0; i < 4; ++i) {
@@ -2030,7 +2030,7 @@ void matrixMultiply(Mat4* result, const Mat4* a, const Mat4* b)
     memcpy(result->m, temp, sizeof(float) * 16);
 }
 
-void matrixRotateX(Mat4* matrix, float angle)
+static void matrixRotateX(Mat4* matrix, float angle)
 {
     float c = cosf(angle);
     float s = sinf(angle);
@@ -2042,7 +2042,7 @@ void matrixRotateX(Mat4* matrix, float angle)
     matrix->m[10] = c;
 }
 
-void matrixRotateY(Mat4* matrix, float angle)
+static void matrixRotateY(Mat4* matrix, float angle)
 {
     float c = cosf(angle);
     float s = sinf(angle);
@@ -2054,7 +2054,7 @@ void matrixRotateY(Mat4* matrix, float angle)
     matrix->m[10] = c;
 }
 
-void matrixRotateZ(Mat4* matrix, float angle)
+static void matrixRotateZ(Mat4* matrix, float angle)
 {
     float c = cosf(angle);
     float s = sinf(angle);
@@ -2066,7 +2066,7 @@ void matrixRotateZ(Mat4* matrix, float angle)
     matrix->m[5] = c;
 }
 
-void matrixPerspective(Mat4* matrix, float fov, float aspect, float nearPlane, float farPlane, GfxBackend backend)
+static void matrixPerspective(Mat4* matrix, float fov, float aspect, float nearPlane, float farPlane, GfxBackend backend)
 {
     memset(matrix->m, 0, 16 * sizeof(float));
 
@@ -2083,7 +2083,7 @@ void matrixPerspective(Mat4* matrix, float fov, float aspect, float nearPlane, f
     matrix->m[14] = (2.0f * farPlane * nearPlane) / (nearPlane - farPlane);
 }
 
-void matrixLookAt(Mat4* matrix, const Vec3* eye, const Vec3* center, const Vec3* up)
+static void matrixLookAt(Mat4* matrix, const Vec3* eye, const Vec3* center, const Vec3* up)
 {
     // Calculate forward vector
     Vec3 forward = { center->x - eye->x, center->y - eye->y, center->z - eye->z };
@@ -2137,7 +2137,7 @@ void matrixLookAt(Mat4* matrix, const Vec3* eye, const Vec3* center, const Vec3*
 }
 
 // Normalize a 3D vector in place. Returns false if vector is too small to normalize.
-bool vectorNormalize(Vec3* v)
+static bool vectorNormalize(Vec3* v)
 {
     const float epsilon = 1e-6f;
     float len = sqrtf(v->x * v->x + v->y * v->y + v->z * v->z);
