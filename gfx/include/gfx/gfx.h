@@ -198,13 +198,13 @@
 //   → Lifetime requirement: Valid only during the function call
 //
 // Output Strings (Library-Owned):
-//   GfxAdapterInfo info;
-//   gfxAdapterGetInfo(adapter, &info);
+//   GfxBufferInfo info;
+//   gfxBufferGetInfo(buffer, &info);
 //   printf("%s", info.name); // OK
-//   → info.name is owned by the ADAPTER object
-//   → Remains valid until gfxAdapterDestroy() is called
+//   → info.name is owned by the BUFFER object
+//   → Remains valid until gfxBufferDestroy() is called
 //   → Application MUST NOT free these strings
-//   → Application MUST copy if needed after adapter destruction
+//   → Application MUST copy if needed after buffer destruction
 //
 // ARRAYS IN DESCRIPTORS:
 //
@@ -284,7 +284,7 @@
 // | Object Type        | Owned By      | Freed By                    | Dependencies      |
 // |--------------------|---------------|-----------------------------|--------------------|
 // | GfxInstance        | Application   | gfxInstanceDestroy()        | None              |
-// | GfxAdapter         | Instance      | gfxAdapterDestroy()         | Instance          |
+// | GfxAdapter         | Instance      | gfxInstanceDestroy()        | Instance          |
 // | GfxDevice          | Adapter       | gfxDeviceDestroy()          | Adapter           |
 // | GfxBuffer          | Device        | gfxBufferDestroy()          | Device            |
 // | GfxTexture         | Device        | gfxTextureDestroy()         | Device            |
