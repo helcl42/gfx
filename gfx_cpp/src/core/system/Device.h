@@ -17,8 +17,6 @@ public:
     std::shared_ptr<Queue> getQueue() override;
     std::shared_ptr<Queue> getQueueByIndex(uint32_t queueFamilyIndex, uint32_t queueIndex) override;
 
-    std::shared_ptr<Surface> createSurface(const SurfaceDescriptor& descriptor) override;
-
     std::shared_ptr<Swapchain> createSwapchain(const SwapchainDescriptor& descriptor) override;
 
     std::shared_ptr<Buffer> createBuffer(const BufferDescriptor& descriptor) override;

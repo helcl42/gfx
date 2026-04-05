@@ -2,12 +2,18 @@
 
 namespace gfx::backend::vulkan {
 
-// Instance functions
+// Global functions
+GfxResult Backend::enumerateInstanceExtensions(uint32_t* extensionCount, const char** extensionNames) const
+{    
+    return m_systemComponent.enumerateInstanceExtensions(extensionCount, extensionNames);
+}
+
 GfxResult Backend::createInstance(const GfxInstanceDescriptor* descriptor, GfxInstance* outInstance) const
 {
     return m_systemComponent.createInstance(descriptor, outInstance);
 }
 
+// Instance functions
 GfxResult Backend::instanceDestroy(GfxInstance instance) const
 {
     return m_systemComponent.instanceDestroy(instance);
@@ -23,9 +29,9 @@ GfxResult Backend::instanceEnumerateAdapters(GfxInstance instance, uint32_t* ada
     return m_systemComponent.instanceEnumerateAdapters(instance, adapterCount, adapters);
 }
 
-GfxResult Backend::enumerateInstanceExtensions(uint32_t* extensionCount, const char** extensionNames) const
+GfxResult Backend::instanceCreateSurface(GfxInstance instance, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const
 {
-    return m_systemComponent.enumerateInstanceExtensions(extensionCount, extensionNames);
+    return m_presentationComponent.instanceCreateSurface(instance, descriptor, outSurface);
 }
 
 // Adapter functions
@@ -112,28 +118,24 @@ GfxResult Backend::queueWaitIdle(GfxQueue queue) const
 }
 
 // Surface functions
-GfxResult Backend::deviceCreateSurface(GfxDevice device, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const
-{
-    return m_presentationComponent.deviceCreateSurface(device, descriptor, outSurface);
-}
 GfxResult Backend::surfaceDestroy(GfxSurface surface) const
 {
     return m_presentationComponent.surfaceDestroy(surface);
 }
 
-GfxResult Backend::surfaceGetInfo(GfxSurface surface, GfxSurfaceInfo* outInfo) const
+GfxResult Backend::surfaceGetInfo(GfxSurface surface, GfxAdapter adapter, GfxSurfaceInfo* outInfo) const
 {
-    return m_presentationComponent.surfaceGetInfo(surface, outInfo);
+    return m_presentationComponent.surfaceGetInfo(surface, adapter, outInfo);
 }
 
-GfxResult Backend::surfaceEnumerateSupportedFormats(GfxSurface surface, uint32_t* formatCount, GfxFormat* formats) const
+GfxResult Backend::surfaceEnumerateSupportedFormats(GfxSurface surface, GfxAdapter adapter, uint32_t* formatCount, GfxFormat* formats) const
 {
-    return m_presentationComponent.surfaceEnumerateSupportedFormats(surface, formatCount, formats);
+    return m_presentationComponent.surfaceEnumerateSupportedFormats(surface, adapter, formatCount, formats);
 }
 
-GfxResult Backend::surfaceEnumerateSupportedPresentModes(GfxSurface surface, uint32_t* presentModeCount, GfxPresentMode* presentModes) const
+GfxResult Backend::surfaceEnumerateSupportedPresentModes(GfxSurface surface, GfxAdapter adapter, uint32_t* presentModeCount, GfxPresentMode* presentModes) const
 {
-    return m_presentationComponent.surfaceEnumerateSupportedPresentModes(surface, presentModeCount, presentModes);
+    return m_presentationComponent.surfaceEnumerateSupportedPresentModes(surface, adapter, presentModeCount, presentModes);
 }
 
 // Swapchain functions

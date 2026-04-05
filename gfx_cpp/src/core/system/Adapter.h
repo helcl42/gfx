@@ -25,6 +25,8 @@ public:
 
     std::vector<std::string> enumerateExtensions() const override;
 
+    GfxAdapter getHandle() const;
+
 private:
     GfxAdapter m_handle;
 };

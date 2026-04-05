@@ -30,6 +30,27 @@
         return GFX_RESULT_SUCCESS;                                                                                                   \
     }
 
+// Macro to generate instance create functions
+#define INSTANCE_CREATE_FUNC(TypeName, funcName)                                                                                       \
+    GfxResult gfxInstanceCreate##funcName(GfxInstance instance, const Gfx##funcName##Descriptor* descriptor, Gfx##TypeName* out##TypeName) \
+    {                                                                                                                                \
+        if (!instance || !descriptor || !out##TypeName) {                                                                            \
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;                                                                                \
+        }                                                                                                                            \
+        auto backend = gfx::backend::BackendManager::instance().getBackend(instance);                                                \
+        if (!backend) {                                                                                                              \
+            return GFX_RESULT_ERROR_NOT_FOUND;                                                                                       \
+        }                                                                                                                            \
+        GfxBackend backendType = gfx::backend::BackendManager::instance().getBackendType(instance);                                  \
+        Gfx##TypeName native##TypeName = nullptr;                                                                                    \
+        GfxResult result = backend->instanceCreate##funcName(instance, descriptor, &native##TypeName);                               \
+        if (result != GFX_RESULT_SUCCESS) {                                                                                          \
+            return result;                                                                                                           \
+        }                                                                                                                            \
+        *out##TypeName = gfx::backend::BackendManager::instance().wrap(backendType, native##TypeName);                               \
+        return GFX_RESULT_SUCCESS;                                                                                                   \
+    }
+
 // Macro for destroy functions
 #define DESTROY_FUNC(TypeName, typeName)                                              \
     GfxResult gfx##TypeName##Destroy(Gfx##TypeName typeName)                          \
@@ -557,44 +578,44 @@ GfxResult gfxQueueWaitIdle(GfxQueue queue)
 // Surface Functions
 // ============================================================================
 
-DEVICE_CREATE_FUNC(Surface, Surface)
+INSTANCE_CREATE_FUNC(Surface, Surface)
 
 DESTROY_FUNC(Surface, surface)
 
-GfxResult gfxSurfaceGetInfo(GfxSurface surface, GfxSurfaceInfo* outInfo)
+GfxResult gfxSurfaceGetInfo(GfxSurface surface, GfxAdapter adapter, GfxSurfaceInfo* outInfo)
 {
-    if (!surface || !outInfo) {
+    if (!surface || !adapter || !outInfo) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     auto backend = gfx::backend::BackendManager::instance().getBackend(surface);
     if (!backend) {
         return GFX_RESULT_ERROR_NOT_FOUND;
     }
-    return backend->surfaceGetInfo(surface, outInfo);
+    return backend->surfaceGetInfo(surface, adapter, outInfo);
 }
 
-GfxResult gfxSurfaceEnumerateSupportedFormats(GfxSurface surface, uint32_t* formatCount, GfxFormat* formats)
+GfxResult gfxSurfaceEnumerateSupportedFormats(GfxSurface surface, GfxAdapter adapter, uint32_t* formatCount, GfxFormat* formats)
 {
-    if (!surface || !formatCount) {
+    if (!surface || !adapter || !formatCount) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     auto backend = gfx::backend::BackendManager::instance().getBackend(surface);
     if (!backend) {
         return GFX_RESULT_ERROR_NOT_FOUND;
     }
-    return backend->surfaceEnumerateSupportedFormats(surface, formatCount, formats);
+    return backend->surfaceEnumerateSupportedFormats(surface, adapter, formatCount, formats);
 }
 
-GfxResult gfxSurfaceEnumerateSupportedPresentModes(GfxSurface surface, uint32_t* presentModeCount, GfxPresentMode* presentModes)
+GfxResult gfxSurfaceEnumerateSupportedPresentModes(GfxSurface surface, GfxAdapter adapter, uint32_t* presentModeCount, GfxPresentMode* presentModes)
 {
-    if (!surface || !presentModeCount) {
+    if (!surface || !adapter || !presentModeCount) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     auto backend = gfx::backend::BackendManager::instance().getBackend(surface);
     if (!backend) {
         return GFX_RESULT_ERROR_NOT_FOUND;
     }
-    return backend->surfaceEnumerateSupportedPresentModes(surface, presentModeCount, presentModes);
+    return backend->surfaceEnumerateSupportedPresentModes(surface, adapter, presentModeCount, presentModes);
 }
 
 // ============================================================================

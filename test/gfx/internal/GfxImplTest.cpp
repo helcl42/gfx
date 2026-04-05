@@ -19,12 +19,15 @@ namespace gfx::backend::test {
 // Mock Backend Implementation
 class MockBackend : public IBackend {
 public:
-    // Instance functions
+    // Global functions
+    MOCK_METHOD(GfxResult, enumerateInstanceExtensions, (uint32_t*, const char**), (const, override));
     MOCK_METHOD(GfxResult, createInstance, (const GfxInstanceDescriptor*, GfxInstance*), (const, override));
+
+    // Instance functions
     MOCK_METHOD(GfxResult, instanceDestroy, (GfxInstance), (const, override));
     MOCK_METHOD(GfxResult, instanceRequestAdapter, (GfxInstance, const GfxAdapterDescriptor*, GfxAdapter*), (const, override));
     MOCK_METHOD(GfxResult, instanceEnumerateAdapters, (GfxInstance, uint32_t*, GfxAdapter*), (const, override));
-    MOCK_METHOD(GfxResult, enumerateInstanceExtensions, (uint32_t*, const char**), (const, override));
+    MOCK_METHOD(GfxResult, instanceCreateSurface, (GfxInstance, const GfxSurfaceDescriptor*, GfxSurface*), (const, override));
 
     // Adapter functions
     MOCK_METHOD(GfxResult, adapterCreateDevice, (GfxAdapter, const GfxDeviceDescriptor*, GfxDevice*), (const, override));
@@ -38,7 +41,6 @@ public:
     MOCK_METHOD(GfxResult, deviceDestroy, (GfxDevice), (const, override));
     MOCK_METHOD(GfxResult, deviceGetQueue, (GfxDevice, GfxQueue*), (const, override));
     MOCK_METHOD(GfxResult, deviceGetQueueByIndex, (GfxDevice, uint32_t, uint32_t, GfxQueue*), (const, override));
-    MOCK_METHOD(GfxResult, deviceCreateSurface, (GfxDevice, const GfxSurfaceDescriptor*, GfxSurface*), (const, override));
     MOCK_METHOD(GfxResult, deviceCreateSwapchain, (GfxDevice, const GfxSwapchainDescriptor*, GfxSwapchain*), (const, override));
     MOCK_METHOD(GfxResult, deviceCreateBuffer, (GfxDevice, const GfxBufferDescriptor*, GfxBuffer*), (const, override));
     MOCK_METHOD(GfxResult, deviceImportBuffer, (GfxDevice, const GfxBufferImportDescriptor*, GfxBuffer*), (const, override));
@@ -61,9 +63,9 @@ public:
 
     // Surface functions
     MOCK_METHOD(GfxResult, surfaceDestroy, (GfxSurface), (const, override));
-    MOCK_METHOD(GfxResult, surfaceGetInfo, (GfxSurface, GfxSurfaceInfo*), (const, override));
-    MOCK_METHOD(GfxResult, surfaceEnumerateSupportedFormats, (GfxSurface, uint32_t*, GfxFormat*), (const, override));
-    MOCK_METHOD(GfxResult, surfaceEnumerateSupportedPresentModes, (GfxSurface, uint32_t*, GfxPresentMode*), (const, override));
+    MOCK_METHOD(GfxResult, surfaceGetInfo, (GfxSurface, GfxAdapter, GfxSurfaceInfo*), (const, override));
+    MOCK_METHOD(GfxResult, surfaceEnumerateSupportedFormats, (GfxSurface, GfxAdapter, uint32_t*, GfxFormat*), (const, override));
+    MOCK_METHOD(GfxResult, surfaceEnumerateSupportedPresentModes, (GfxSurface, GfxAdapter, uint32_t*, GfxPresentMode*), (const, override));
 
     // Swapchain functions
     MOCK_METHOD(GfxResult, swapchainDestroy, (GfxSwapchain), (const, override));
@@ -897,25 +899,25 @@ TEST_F(GfxImplTest, DeviceGetQueueByIndex_NullOutQueue_ReturnsError)
 }
 
 // Surface Creation & Info
-TEST_F(GfxImplTest, DeviceCreateSurface_NullDevice_ReturnsError)
+TEST_F(GfxImplTest, InstanceCreateSurface_NullInstance_ReturnsError)
 {
     GfxSurfaceDescriptor desc = {};
     GfxSurface surface;
-    ASSERT_EQ(gfxDeviceCreateSurface(nullptr, &desc, &surface), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    ASSERT_EQ(gfxInstanceCreateSurface(nullptr, &desc, &surface), GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
-TEST_F(GfxImplTest, DeviceCreateSurface_NullDescriptor_ReturnsError)
+TEST_F(GfxImplTest, InstanceCreateSurface_NullDescriptor_ReturnsError)
 {
-    GfxDevice device = reinterpret_cast<GfxDevice>(0x1);
+    GfxInstance instance = reinterpret_cast<GfxInstance>(0x1);
     GfxSurface surface;
-    ASSERT_EQ(gfxDeviceCreateSurface(device, nullptr, &surface), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    ASSERT_EQ(gfxInstanceCreateSurface(instance, nullptr, &surface), GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
-TEST_F(GfxImplTest, DeviceCreateSurface_NullOutSurface_ReturnsError)
+TEST_F(GfxImplTest, InstanceCreateSurface_NullOutSurface_ReturnsError)
 {
-    GfxDevice device = reinterpret_cast<GfxDevice>(0x1);
+    GfxInstance instance = reinterpret_cast<GfxInstance>(0x1);
     GfxSurfaceDescriptor desc = {};
-    ASSERT_EQ(gfxDeviceCreateSurface(device, &desc, nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    ASSERT_EQ(gfxInstanceCreateSurface(instance, &desc, nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
 TEST_F(GfxImplTest, SurfaceDestroy_NullSurface_ReturnsError)
@@ -925,14 +927,16 @@ TEST_F(GfxImplTest, SurfaceDestroy_NullSurface_ReturnsError)
 
 TEST_F(GfxImplTest, SurfaceEnumerateSupportedFormats_NullSurface_ReturnsError)
 {
+    GfxAdapter adapter = reinterpret_cast<GfxAdapter>(0x1);
     uint32_t count;
-    ASSERT_EQ(gfxSurfaceEnumerateSupportedFormats(nullptr, &count, nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    ASSERT_EQ(gfxSurfaceEnumerateSupportedFormats(nullptr, adapter, &count, nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
 TEST_F(GfxImplTest, SurfaceEnumerateSupportedPresentModes_NullSurface_ReturnsError)
 {
+    GfxAdapter adapter = reinterpret_cast<GfxAdapter>(0x1);
     uint32_t count;
-    ASSERT_EQ(gfxSurfaceEnumerateSupportedPresentModes(nullptr, &count, nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    ASSERT_EQ(gfxSurfaceEnumerateSupportedPresentModes(nullptr, adapter, &count, nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
 // Buffer Import & Info

@@ -17,10 +17,10 @@ public:
 
     GfxSurface getHandle() const;
 
-    SurfaceInfo getInfo() const override;
+    SurfaceInfo getInfo(std::shared_ptr<Adapter> adapter) const override;
 
-    std::vector<Format> getSupportedFormats() const override;
-    std::vector<PresentMode> getSupportedPresentModes() const override;
+    std::vector<Format> getSupportedFormats(std::shared_ptr<Adapter> adapter) const override;
+    std::vector<PresentMode> getSupportedPresentModes(std::shared_ptr<Adapter> adapter) const override;
 
 private:
     GfxSurface m_handle;

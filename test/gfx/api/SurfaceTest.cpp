@@ -83,16 +83,16 @@ TEST_P(GfxSurfaceTest, CreateSurfaceInvalidArguments)
     desc.windowHandle.xlib.display = NULL; // Invalid display
     desc.windowHandle.xlib.window = 0; // Invalid window
 
-    // NULL device
-    GfxResult result = gfxDeviceCreateSurface(NULL, &desc, &surface);
+    // NULL instance
+    GfxResult result = gfxInstanceCreateSurface(NULL, &desc, &surface);
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 
     // NULL descriptor
-    result = gfxDeviceCreateSurface(device, NULL, &surface);
+    result = gfxInstanceCreateSurface(instance, NULL, &surface);
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 
     // NULL output pointer
-    result = gfxDeviceCreateSurface(device, &desc, NULL);
+    result = gfxInstanceCreateSurface(instance, &desc, NULL);
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
@@ -104,31 +104,41 @@ TEST_P(GfxSurfaceTest, DestroyNullSurface)
 
 TEST_P(GfxSurfaceTest, EnumerateSupportedFormatsInvalidArguments)
 {
-    // Create a dummy surface pointer (won't be valid, but testing argument validation)
+    // Create dummy pointers (won't be valid, but testing argument validation)
     GfxSurface dummySurface = (GfxSurface)0x1;
+    GfxAdapter dummyAdapter = (GfxAdapter)0x1;
     uint32_t formatCount = 0;
 
     // NULL surface
-    GfxResult result = gfxSurfaceEnumerateSupportedFormats(NULL, &formatCount, NULL);
+    GfxResult result = gfxSurfaceEnumerateSupportedFormats(NULL, dummyAdapter, &formatCount, NULL);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    // NULL adapter
+    result = gfxSurfaceEnumerateSupportedFormats(dummySurface, NULL, &formatCount, NULL);
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 
     // NULL count pointer
-    result = gfxSurfaceEnumerateSupportedFormats(dummySurface, NULL, NULL);
+    result = gfxSurfaceEnumerateSupportedFormats(dummySurface, dummyAdapter, NULL, NULL);
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
 TEST_P(GfxSurfaceTest, EnumerateSupportedPresentModesInvalidArguments)
 {
-    // Create a dummy surface pointer (won't be valid, but testing argument validation)
+    // Create dummy pointers (won't be valid, but testing argument validation)
     GfxSurface dummySurface = (GfxSurface)0x1;
+    GfxAdapter dummyAdapter = (GfxAdapter)0x1;
     uint32_t presentModeCount = 0;
 
     // NULL surface
-    GfxResult result = gfxSurfaceEnumerateSupportedPresentModes(NULL, &presentModeCount, NULL);
+    GfxResult result = gfxSurfaceEnumerateSupportedPresentModes(NULL, dummyAdapter, &presentModeCount, NULL);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    // NULL adapter
+    result = gfxSurfaceEnumerateSupportedPresentModes(dummySurface, NULL, &presentModeCount, NULL);
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 
     // NULL count pointer
-    result = gfxSurfaceEnumerateSupportedPresentModes(dummySurface, NULL, NULL);
+    result = gfxSurfaceEnumerateSupportedPresentModes(dummySurface, dummyAdapter, NULL, NULL);
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
@@ -153,20 +163,21 @@ TEST_P(GfxSurfaceTest, GetQueueFamilySurfaceSupportInvalidArguments)
 
 TEST_P(GfxSurfaceTest, GetSurfaceInfoInvalidArguments)
 {
-    // Create a dummy surface pointer (won't be valid, but testing argument validation)
+    // Create dummy pointers (won't be valid, but testing argument validation)
     GfxSurface dummySurface = (GfxSurface)0x1;
+    GfxAdapter dummyAdapter = (GfxAdapter)0x1;
     GfxSurfaceInfo info = {};
 
     // NULL surface
-    GfxResult result = gfxSurfaceGetInfo(NULL, &info);
+    GfxResult result = gfxSurfaceGetInfo(NULL, dummyAdapter, &info);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    // NULL adapter
+    result = gfxSurfaceGetInfo(dummySurface, NULL, &info);
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 
     // NULL output pointer
-    result = gfxSurfaceGetInfo(dummySurface, NULL);
-    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
-
-    // Both NULL
-    result = gfxSurfaceGetInfo(NULL, NULL);
+    result = gfxSurfaceGetInfo(dummySurface, dummyAdapter, NULL);
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 

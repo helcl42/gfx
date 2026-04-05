@@ -92,4 +92,9 @@ std::vector<std::string> AdapterImpl::enumerateExtensions() const
     return cStringArrayToCppStringVector(extensionNames.data(), count);
 }
 
+GfxAdapter AdapterImpl::getHandle() const
+{
+    return m_handle;
+}
+
 } // namespace gfx

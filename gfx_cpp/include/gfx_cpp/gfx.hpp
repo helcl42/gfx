@@ -1430,9 +1430,9 @@ class GFX_CPP_API Surface {
 public:
     virtual ~Surface() = default;
 
-    virtual SurfaceInfo getInfo() const = 0;
-    virtual std::vector<Format> getSupportedFormats() const = 0;
-    virtual std::vector<PresentMode> getSupportedPresentModes() const = 0;
+    virtual SurfaceInfo getInfo(std::shared_ptr<Adapter> adapter) const = 0;
+    virtual std::vector<Format> getSupportedFormats(std::shared_ptr<Adapter> adapter) const = 0;
+    virtual std::vector<PresentMode> getSupportedPresentModes(std::shared_ptr<Adapter> adapter) const = 0;
 };
 
 class GFX_CPP_API Swapchain {
@@ -1660,7 +1660,6 @@ public:
 
     virtual std::shared_ptr<Queue> getQueue() = 0;
     virtual std::shared_ptr<Queue> getQueueByIndex(uint32_t queueFamilyIndex, uint32_t queueIndex) = 0;
-    virtual std::shared_ptr<Surface> createSurface(const SurfaceDescriptor& descriptor) = 0;
     virtual std::shared_ptr<Swapchain> createSwapchain(const SwapchainDescriptor& descriptor) = 0;
     virtual std::shared_ptr<Buffer> createBuffer(const BufferDescriptor& descriptor) = 0;
     virtual std::shared_ptr<Buffer> importBuffer(const BufferImportDescriptor& descriptor) = 0;
@@ -1702,6 +1701,7 @@ public:
 
     virtual std::shared_ptr<Adapter> requestAdapter(const AdapterDescriptor& descriptor = {}) = 0;
     virtual std::vector<std::shared_ptr<Adapter>> enumerateAdapters() = 0;
+    virtual std::shared_ptr<Surface> createSurface(const SurfaceDescriptor& descriptor) = 0;
 };
 
 // ============================================================================

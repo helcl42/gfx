@@ -8,11 +8,11 @@ namespace gfx::backend::vulkan::component {
 class PresentationComponent {
 public:
     // Surface functions
-    GfxResult deviceCreateSurface(GfxDevice device, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const;
+    GfxResult instanceCreateSurface(GfxInstance instance, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const;
     GfxResult surfaceDestroy(GfxSurface surface) const;
-    GfxResult surfaceGetInfo(GfxSurface surface, GfxSurfaceInfo* outInfo) const;
-    GfxResult surfaceEnumerateSupportedFormats(GfxSurface surface, uint32_t* formatCount, GfxFormat* formats) const;
-    GfxResult surfaceEnumerateSupportedPresentModes(GfxSurface surface, uint32_t* presentModeCount, GfxPresentMode* presentModes) const;
+    GfxResult surfaceGetInfo(GfxSurface surface, GfxAdapter adapter, GfxSurfaceInfo* outInfo) const;
+    GfxResult surfaceEnumerateSupportedFormats(GfxSurface surface, GfxAdapter adapter, uint32_t* formatCount, GfxFormat* formats) const;
+    GfxResult surfaceEnumerateSupportedPresentModes(GfxSurface surface, GfxAdapter adapter, uint32_t* presentModeCount, GfxPresentMode* presentModes) const;
 
     // Swapchain functions
     GfxResult deviceCreateSwapchain(GfxDevice device, const GfxSwapchainDescriptor* descriptor, GfxSwapchain* outSwapchain) const;

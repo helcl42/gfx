@@ -60,19 +60,6 @@ std::shared_ptr<Queue> DeviceImpl::getQueueByIndex(uint32_t queueFamilyIndex, ui
     return std::make_shared<QueueImpl>(queueHandle);
 }
 
-std::shared_ptr<Surface> DeviceImpl::createSurface(const SurfaceDescriptor& descriptor)
-{
-    GfxSurfaceDescriptor cDesc;
-    convertSurfaceDescriptor(descriptor, cDesc);
-
-    GfxSurface surface = nullptr;
-    GfxResult result = gfxDeviceCreateSurface(m_handle, &cDesc, &surface);
-    if (result != GFX_RESULT_SUCCESS || !surface) {
-        throw std::runtime_error("Failed to create surface");
-    }
-    return std::make_shared<SurfaceImpl>(surface);
-}
-
 std::shared_ptr<Swapchain> DeviceImpl::createSwapchain(const SwapchainDescriptor& descriptor)
 {
     if (!descriptor.surface) {

@@ -13,20 +13,20 @@ public:
     Surface(const Surface&) = delete;
     Surface& operator=(const Surface&) = delete;
 
-    Surface(Adapter* adapter, const SurfaceCreateInfo& createInfo);
+    Surface(Instance* instance, const SurfaceCreateInfo& createInfo);
     ~Surface();
 
     VkInstance instance() const;
-    VkPhysicalDevice physicalDevice() const;
     VkSurfaceKHR handle() const;
+    Instance* getInstance() const;
 
-    std::vector<VkSurfaceFormatKHR> getSupportedFormats() const;
-    std::vector<VkPresentModeKHR> getSupportedPresentModes() const;
+    std::vector<VkSurfaceFormatKHR> getSupportedFormats(Adapter* adapter) const;
+    std::vector<VkPresentModeKHR> getSupportedPresentModes(Adapter* adapter) const;
 
-    VkSurfaceCapabilitiesKHR getCapabilities() const;
+    VkSurfaceCapabilitiesKHR getCapabilities(Adapter* adapter) const;
 
 private:
-    Adapter* m_adapter = nullptr;
+    Instance* m_instance = nullptr;
     VkSurfaceKHR m_surface = VK_NULL_HANDLE;
 };
 

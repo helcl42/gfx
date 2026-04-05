@@ -445,7 +445,7 @@ bool ComputeApp::createGraphics()
             .windowHandle = getPlatformWindowHandle()
         };
 
-        surface = device->createSurface(surfaceDesc);
+        surface = instance->createSurface(surfaceDesc);
         if (!surface) {
             LOG_ERROR("Failed to create surface");
             return false;
@@ -638,7 +638,7 @@ bool ComputeApp::createSwapchain(uint32_t width, uint32_t height)
 {
     try {
         // Query surface capabilities
-        auto surfaceInfo = surface->getInfo();
+        auto surfaceInfo = surface->getInfo(adapter);
         LOG_INFO("Surface Info:");
         LOG_INFO("  Image Count: min %u, max %u", surfaceInfo.minImageCount, surfaceInfo.maxImageCount);
 

@@ -126,8 +126,8 @@ namespace {
 
 } // namespace
 
-Surface::Surface(Adapter* adapter, const SurfaceCreateInfo& createInfo)
-    : m_adapter(adapter)
+Surface::Surface(Instance* instance, const SurfaceCreateInfo& createInfo)
+    : m_instance(instance)
 {
 #ifdef GFX_HEADLESS_BUILD
     (void)createInfo;
@@ -136,32 +136,32 @@ Surface::Surface(Adapter* adapter, const SurfaceCreateInfo& createInfo)
     switch (createInfo.windowHandle.platform) {
 #ifdef GFX_HAS_WIN32
     case PlatformWindowHandle::Platform::Win32:
-        m_surface = createSurfaceWin32(m_adapter->getInstance()->handle(), createInfo.windowHandle);
+        m_surface = createSurfaceWin32(m_instance->handle(), createInfo.windowHandle);
         break;
 #endif
 #ifdef GFX_HAS_ANDROID
     case PlatformWindowHandle::Platform::Android:
-        m_surface = createSurfaceAndroid(m_adapter->getInstance()->handle(), createInfo.windowHandle);
+        m_surface = createSurfaceAndroid(m_instance->handle(), createInfo.windowHandle);
         break;
 #endif
 #ifdef GFX_HAS_X11
     case PlatformWindowHandle::Platform::Xlib:
-        m_surface = createSurfaceXlib(m_adapter->getInstance()->handle(), createInfo.windowHandle);
+        m_surface = createSurfaceXlib(m_instance->handle(), createInfo.windowHandle);
         break;
 #endif
 #ifdef GFX_HAS_XCB
     case PlatformWindowHandle::Platform::Xcb:
-        m_surface = createSurfaceXCB(m_adapter->getInstance()->handle(), createInfo.windowHandle);
+        m_surface = createSurfaceXCB(m_instance->handle(), createInfo.windowHandle);
         break;
 #endif
 #ifdef GFX_HAS_WAYLAND
     case PlatformWindowHandle::Platform::Wayland:
-        m_surface = createSurfaceWayland(m_adapter->getInstance()->handle(), createInfo.windowHandle);
+        m_surface = createSurfaceWayland(m_instance->handle(), createInfo.windowHandle);
         break;
 #endif
 #if defined(GFX_HAS_COCOA) || defined(GFX_HAS_UIKIT)
     case PlatformWindowHandle::Platform::Metal:
-        m_surface = createSurfaceMetal(m_adapter->getInstance()->handle(), createInfo.windowHandle);
+        m_surface = createSurfaceMetal(m_instance->handle(), createInfo.windowHandle);
         break;
 #endif
     // Other platforms can be added here
@@ -174,18 +174,13 @@ Surface::Surface(Adapter* adapter, const SurfaceCreateInfo& createInfo)
 Surface::~Surface()
 {
     if (m_surface != VK_NULL_HANDLE) {
-        vkDestroySurfaceKHR(m_adapter->getInstance()->handle(), m_surface, nullptr);
+        vkDestroySurfaceKHR(m_instance->handle(), m_surface, nullptr);
     }
 }
 
 VkInstance Surface::instance() const
 {
-    return m_adapter->getInstance()->handle();
-}
-
-VkPhysicalDevice Surface::physicalDevice() const
-{
-    return m_adapter->handle();
+    return m_instance->handle();
 }
 
 VkSurfaceKHR Surface::handle() const
@@ -193,38 +188,43 @@ VkSurfaceKHR Surface::handle() const
     return m_surface;
 }
 
-std::vector<VkSurfaceFormatKHR> Surface::getSupportedFormats() const
+Instance* Surface::getInstance() const
+{
+    return m_instance;
+}
+
+std::vector<VkSurfaceFormatKHR> Surface::getSupportedFormats(Adapter* adapter) const
 {
     uint32_t formatCount = 0;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(m_adapter->handle(), m_surface, &formatCount, nullptr);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(adapter->handle(), m_surface, &formatCount, nullptr);
 
     if (formatCount == 0) {
         return {};
     }
 
     std::vector<VkSurfaceFormatKHR> formats(formatCount);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(m_adapter->handle(), m_surface, &formatCount, formats.data());
+    vkGetPhysicalDeviceSurfaceFormatsKHR(adapter->handle(), m_surface, &formatCount, formats.data());
     return formats;
 }
 
-std::vector<VkPresentModeKHR> Surface::getSupportedPresentModes() const
+std::vector<VkPresentModeKHR> Surface::getSupportedPresentModes(Adapter* adapter) const
 {
     uint32_t modeCount = 0;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(m_adapter->handle(), m_surface, &modeCount, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(adapter->handle(), m_surface, &modeCount, nullptr);
 
     if (modeCount == 0) {
         return {};
     }
 
     std::vector<VkPresentModeKHR> presentModes(modeCount);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(m_adapter->handle(), m_surface, &modeCount, presentModes.data());
+    vkGetPhysicalDeviceSurfacePresentModesKHR(adapter->handle(), m_surface, &modeCount, presentModes.data());
     return presentModes;
 }
 
-VkSurfaceCapabilitiesKHR Surface::getCapabilities() const
+VkSurfaceCapabilitiesKHR Surface::getCapabilities(Adapter* adapter) const
 {
     VkSurfaceCapabilitiesKHR capabilities;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_adapter->handle(), m_surface, &capabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(adapter->handle(), m_surface, &capabilities);
     return capabilities;
 }
 

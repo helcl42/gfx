@@ -3,6 +3,7 @@
 #include "Adapter.h"
 
 #include "../../converter/Conversions.h"
+#include "../presentation/Surface.h"
 
 #include <stdexcept>
 
@@ -54,6 +55,19 @@ std::vector<std::shared_ptr<Adapter>> InstanceImpl::enumerateAdapters()
         resultVec.push_back(std::make_shared<AdapterImpl>(adapters[i]));
     }
     return resultVec;
+}
+
+std::shared_ptr<Surface> InstanceImpl::createSurface(const SurfaceDescriptor& descriptor)
+{
+    GfxSurfaceDescriptor cDesc;
+    convertSurfaceDescriptor(descriptor, cDesc);
+
+    GfxSurface surface = nullptr;
+    GfxResult result = gfxInstanceCreateSurface(m_handle, &cDesc, &surface);
+    if (result != GFX_RESULT_SUCCESS || !surface) {
+        throw std::runtime_error("Failed to create surface");
+    }
+    return std::make_shared<SurfaceImpl>(surface);
 }
 
 } // namespace gfx

@@ -16,11 +16,12 @@ namespace gfx::backend::test {
 class MinimalMockBackend : public IBackend {
 public:
     // Just provide stub implementations - Manager tests don't actually call these
+    GfxResult enumerateInstanceExtensions(uint32_t*, const char**) const override { return GFX_RESULT_SUCCESS; }
     GfxResult createInstance(const GfxInstanceDescriptor*, GfxInstance*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult instanceDestroy(GfxInstance) const override { return GFX_RESULT_SUCCESS; }
     GfxResult instanceRequestAdapter(GfxInstance, const GfxAdapterDescriptor*, GfxAdapter*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult instanceEnumerateAdapters(GfxInstance, uint32_t*, GfxAdapter*) const override { return GFX_RESULT_SUCCESS; }
-    GfxResult enumerateInstanceExtensions(uint32_t*, const char**) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult instanceCreateSurface(GfxInstance, const GfxSurfaceDescriptor*, GfxSurface*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult adapterCreateDevice(GfxAdapter, const GfxDeviceDescriptor*, GfxDevice*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult adapterGetInfo(GfxAdapter, GfxAdapterInfo*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult adapterGetLimits(GfxAdapter, GfxDeviceLimits*) const override { return GFX_RESULT_SUCCESS; }
@@ -30,7 +31,6 @@ public:
     GfxResult deviceDestroy(GfxDevice) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceGetQueue(GfxDevice, GfxQueue*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceGetQueueByIndex(GfxDevice, uint32_t, uint32_t, GfxQueue*) const override { return GFX_RESULT_SUCCESS; }
-    GfxResult deviceCreateSurface(GfxDevice, const GfxSurfaceDescriptor*, GfxSurface*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceCreateSwapchain(GfxDevice, const GfxSwapchainDescriptor*, GfxSwapchain*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceCreateBuffer(GfxDevice, const GfxBufferDescriptor*, GfxBuffer*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceImportBuffer(GfxDevice, const GfxBufferImportDescriptor*, GfxBuffer*) const override { return GFX_RESULT_SUCCESS; }
@@ -52,9 +52,9 @@ public:
     GfxResult deviceGetLimits(GfxDevice, GfxDeviceLimits*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceSupportsShaderFormat(GfxDevice, GfxShaderSourceType, bool*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult surfaceDestroy(GfxSurface) const override { return GFX_RESULT_SUCCESS; }
-    GfxResult surfaceGetInfo(GfxSurface, GfxSurfaceInfo*) const override { return GFX_RESULT_SUCCESS; }
-    GfxResult surfaceEnumerateSupportedFormats(GfxSurface, uint32_t*, GfxFormat*) const override { return GFX_RESULT_SUCCESS; }
-    GfxResult surfaceEnumerateSupportedPresentModes(GfxSurface, uint32_t*, GfxPresentMode*) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult surfaceGetInfo(GfxSurface, GfxAdapter, GfxSurfaceInfo*) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult surfaceEnumerateSupportedFormats(GfxSurface, GfxAdapter, uint32_t*, GfxFormat*) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult surfaceEnumerateSupportedPresentModes(GfxSurface, GfxAdapter, uint32_t*, GfxPresentMode*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult swapchainDestroy(GfxSwapchain) const override { return GFX_RESULT_SUCCESS; }
     GfxResult swapchainGetInfo(GfxSwapchain, GfxSwapchainInfo*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult swapchainAcquireNextImage(GfxSwapchain, uint64_t, GfxSemaphore, GfxFence, uint32_t*) const override { return GFX_RESULT_SUCCESS; }

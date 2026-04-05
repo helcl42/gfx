@@ -746,9 +746,9 @@ GfxResult validateDeviceGetQueueByIndex(GfxDevice device, GfxQueue* outQueue)
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult validateDeviceCreateSurface(GfxDevice device, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface)
+GfxResult validateInstanceCreateSurface(GfxInstance instance, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface)
 {
-    if (!device || !descriptor || !outSurface) {
+    if (!instance || !descriptor || !outSurface) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     return GFX_RESULT_SUCCESS;

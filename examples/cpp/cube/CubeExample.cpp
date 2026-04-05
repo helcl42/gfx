@@ -61,8 +61,8 @@
 #include <array>
 #include <cfloat>
 #include <cmath>
-#include <fstream>
 #include <cstring>
+#include <fstream>
 #include <memory>
 #include <vector>
 
@@ -482,7 +482,7 @@ bool CubeApp::createGraphics()
             .windowHandle = getPlatformWindowHandle()
         };
 
-        surface = device->createSurface(surfaceDesc);
+        surface = instance->createSurface(surfaceDesc);
         if (!surface) {
             LOG_ERROR("Failed to create surface");
             return false;
@@ -508,7 +508,7 @@ bool CubeApp::createSizeDependentResources(uint32_t width, uint32_t height)
 {
     try {
         // Query surface capabilities to determine frame count
-        auto surfaceInfo = surface->getInfo();
+        auto surfaceInfo = surface->getInfo(adapter);
         LOG_INFO("Surface Info:");
         LOG_INFO("  Image Count: min %u, max %u", surfaceInfo.minImageCount, surfaceInfo.maxImageCount);
         LOG_INFO("  Extent: min (%u, %u), max (%u, %u)",

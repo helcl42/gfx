@@ -18,24 +18,24 @@
 namespace gfx::backend::vulkan::component {
 
 // Surface functions
-GfxResult PresentationComponent::deviceCreateSurface(GfxDevice device, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const
+GfxResult PresentationComponent::instanceCreateSurface(GfxInstance instance, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const
 {
-    GfxResult validationResult = validator::validateDeviceCreateSurface(device, descriptor, outSurface);
+    GfxResult validationResult = validator::validateInstanceCreateSurface(instance, descriptor, outSurface);
     if (validationResult != GFX_RESULT_SUCCESS) {
         return validationResult;
     }
 
 #ifdef GFX_HEADLESS_BUILD
-    (void)device;
+    (void)instance;
     (void)descriptor;
     (void)outSurface;
     gfx::common::Logger::instance().logError("Surface creation is not available in headless builds");
     return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
 #else
     try {
-        auto* dev = converter::toNative<core::Device>(device);
+        auto* inst = converter::toNative<core::Instance>(instance);
         auto createInfo = converter::gfxDescriptorToSurfaceCreateInfo(descriptor);
-        auto* surface = new core::Surface(dev->getAdapter(), createInfo);
+        auto* surface = new core::Surface(inst, createInfo);
         *outSurface = converter::toGfx<GfxSurface>(surface);
         return GFX_RESULT_SUCCESS;
     } catch (const std::exception& e) {
@@ -56,7 +56,7 @@ GfxResult PresentationComponent::surfaceDestroy(GfxSurface surface) const
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult PresentationComponent::surfaceGetInfo(GfxSurface surface, GfxSurfaceInfo* outInfo) const
+GfxResult PresentationComponent::surfaceGetInfo(GfxSurface surface, GfxAdapter adapter, GfxSurfaceInfo* outInfo) const
 {
     GfxResult validationResult = validator::validateSurfaceGetInfo(surface, outInfo);
     if (validationResult != GFX_RESULT_SUCCESS) {
@@ -64,11 +64,12 @@ GfxResult PresentationComponent::surfaceGetInfo(GfxSurface surface, GfxSurfaceIn
     }
 
     auto* surf = converter::toNative<core::Surface>(surface);
-    *outInfo = converter::vkSurfaceCapabilitiesToGfxSurfaceInfo(surf->getCapabilities());
+    auto* adap = converter::toNative<core::Adapter>(adapter);
+    *outInfo = converter::vkSurfaceCapabilitiesToGfxSurfaceInfo(surf->getCapabilities(adap));
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult PresentationComponent::surfaceEnumerateSupportedFormats(GfxSurface surface, uint32_t* formatCount, GfxFormat* formats) const
+GfxResult PresentationComponent::surfaceEnumerateSupportedFormats(GfxSurface surface, GfxAdapter adapter, uint32_t* formatCount, GfxFormat* formats) const
 {
     GfxResult validationResult = validator::validateSurfaceEnumerateSupportedFormats(surface, formatCount);
     if (validationResult != GFX_RESULT_SUCCESS) {
@@ -76,7 +77,8 @@ GfxResult PresentationComponent::surfaceEnumerateSupportedFormats(GfxSurface sur
     }
 
     auto* surf = converter::toNative<core::Surface>(surface);
-    auto surfaceFormats = surf->getSupportedFormats();
+    auto* adap = converter::toNative<core::Adapter>(adapter);
+    auto surfaceFormats = surf->getSupportedFormats(adap);
     uint32_t count = static_cast<uint32_t>(surfaceFormats.size());
 
     // Convert to GfxFormat
@@ -91,7 +93,7 @@ GfxResult PresentationComponent::surfaceEnumerateSupportedFormats(GfxSurface sur
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult PresentationComponent::surfaceEnumerateSupportedPresentModes(GfxSurface surface, uint32_t* presentModeCount, GfxPresentMode* presentModes) const
+GfxResult PresentationComponent::surfaceEnumerateSupportedPresentModes(GfxSurface surface, GfxAdapter adapter, uint32_t* presentModeCount, GfxPresentMode* presentModes) const
 {
     GfxResult validationResult = validator::validateSurfaceEnumerateSupportedPresentModes(surface, presentModeCount);
     if (validationResult != GFX_RESULT_SUCCESS) {
@@ -99,7 +101,8 @@ GfxResult PresentationComponent::surfaceEnumerateSupportedPresentModes(GfxSurfac
     }
 
     auto* surf = converter::toNative<core::Surface>(surface);
-    auto vkPresentModes = surf->getSupportedPresentModes();
+    auto* adap = converter::toNative<core::Adapter>(adapter);
+    auto vkPresentModes = surf->getSupportedPresentModes(adap);
     uint32_t count = static_cast<uint32_t>(vkPresentModes.size());
 
     // Convert to GfxPresentMode

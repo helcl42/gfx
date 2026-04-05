@@ -20,24 +20,32 @@
 namespace gfx::backend::webgpu::component {
 
 // Surface functions
-GfxResult PresentationComponent::deviceCreateSurface(GfxDevice device, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const
+GfxResult PresentationComponent::instanceCreateSurface(GfxInstance instance, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const
 {
 #ifdef GFX_HEADLESS_BUILD
-    (void)device;
+    (void)instance;
     (void)descriptor;
     (void)outSurface;
     gfx::common::Logger::instance().logError("Surface creation is not available in headless builds");
     return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
 #else
-    GfxResult validationResult = validator::validateDeviceCreateSurface(device, descriptor, outSurface);
+    GfxResult validationResult = validator::validateInstanceCreateSurface(instance, descriptor, outSurface);
     if (validationResult != GFX_RESULT_SUCCESS) {
         return validationResult;
     }
 
     try {
-        auto* devicePtr = converter::toNative<core::Device>(device);
+        auto* inst = converter::toNative<core::Instance>(instance);
         auto createInfo = converter::gfxDescriptorToWebGPUSurfaceCreateInfo(descriptor);
-        auto* surface = new core::Surface(devicePtr->getAdapter()->getInstance()->handle(), devicePtr->getAdapter()->handle(), createInfo);
+
+        // Get the first available adapter to query capabilities
+        const auto& adapters = inst->getAdapters();
+        if (adapters.empty()) {
+            gfx::common::Logger::instance().logError("No adapters available for surface creation");
+            return GFX_RESULT_ERROR_NOT_FOUND;
+        }
+
+        auto* surface = new core::Surface(inst->handle(), createInfo);
         *outSurface = converter::toGfx<GfxSurface>(surface);
         return GFX_RESULT_SUCCESS;
     } catch (const std::exception& e) {
@@ -58,29 +66,32 @@ GfxResult PresentationComponent::surfaceDestroy(GfxSurface surface) const
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult PresentationComponent::surfaceGetInfo(GfxSurface surface, GfxSurfaceInfo* outInfo) const
+GfxResult PresentationComponent::surfaceGetInfo(GfxSurface surface, GfxAdapter adapter, GfxSurfaceInfo* outInfo) const
 {
     GfxResult validationResult = validator::validateSurfaceGetInfo(surface, outInfo);
     if (validationResult != GFX_RESULT_SUCCESS) {
         return validationResult;
     }
 
+    // Note: WebGPU Surface capabilities are currently cached at creation time
+    // TODO: Query capabilities for the specific adapter if different from cached adapter
+    (void)adapter; // Unused for now
     auto* surf = converter::toNative<core::Surface>(surface);
     *outInfo = converter::wgpuSurfaceInfoToGfxSurfaceInfo(surf->getInfo());
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult PresentationComponent::surfaceEnumerateSupportedFormats(GfxSurface surface, uint32_t* formatCount, GfxFormat* formats) const
+GfxResult PresentationComponent::surfaceEnumerateSupportedFormats(GfxSurface surface, GfxAdapter adapter, uint32_t* formatCount, GfxFormat* formats) const
 {
     GfxResult validationResult = validator::validateSurfaceEnumerateSupportedFormats(surface, formatCount);
     if (validationResult != GFX_RESULT_SUCCESS) {
         return validationResult;
     }
 
+    // Query capabilities for the specific adapter
     auto* surf = converter::toNative<core::Surface>(surface);
-
-    // Query surface capabilities
-    const WGPUSurfaceCapabilities& capabilities = surf->getCapabilities();
+    auto* adapterPtr = converter::toNative<core::Adapter>(adapter);
+    const WGPUSurfaceCapabilities& capabilities = surf->getCapabilities(adapterPtr->handle());
 
     uint32_t count = static_cast<uint32_t>(capabilities.formatCount);
 
@@ -101,17 +112,17 @@ GfxResult PresentationComponent::surfaceEnumerateSupportedFormats(GfxSurface sur
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult PresentationComponent::surfaceEnumerateSupportedPresentModes(GfxSurface surface, uint32_t* presentModeCount, GfxPresentMode* presentModes) const
+GfxResult PresentationComponent::surfaceEnumerateSupportedPresentModes(GfxSurface surface, GfxAdapter adapter, uint32_t* presentModeCount, GfxPresentMode* presentModes) const
 {
     GfxResult validationResult = validator::validateSurfaceEnumerateSupportedPresentModes(surface, presentModeCount);
     if (validationResult != GFX_RESULT_SUCCESS) {
         return validationResult;
     }
 
+    // Query capabilities for the specific adapter
     auto* surf = converter::toNative<core::Surface>(surface);
-
-    // Query surface capabilities
-    const WGPUSurfaceCapabilities& capabilities = surf->getCapabilities();
+    auto* adapterPtr = converter::toNative<core::Adapter>(adapter);
+    const WGPUSurfaceCapabilities& capabilities = surf->getCapabilities(adapterPtr->handle());
 
     uint32_t count = static_cast<uint32_t>(capabilities.presentModeCount);
 

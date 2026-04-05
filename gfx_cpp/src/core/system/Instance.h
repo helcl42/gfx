@@ -19,6 +19,8 @@ public:
 
     std::vector<std::shared_ptr<Adapter>> enumerateAdapters() override;
 
+    std::shared_ptr<Surface> createSurface(const SurfaceDescriptor& descriptor) override;
+
 private:
     GfxInstance m_handle;
 };

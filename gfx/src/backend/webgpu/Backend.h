@@ -18,13 +18,16 @@ namespace gfx::backend::webgpu {
 // WebGPU backend implementation
 class Backend : public IBackend {
 public:
-    // Instance functions
+    // Global functions
+    GfxResult enumerateInstanceExtensions(uint32_t* extensionCount, const char** extensionNames) const override;
     GfxResult createInstance(const GfxInstanceDescriptor* descriptor, GfxInstance* outInstance) const override;
+
+    // Instance functions
     GfxResult instanceDestroy(GfxInstance instance) const override;
     GfxResult instanceRequestAdapter(GfxInstance instance, const GfxAdapterDescriptor* descriptor, GfxAdapter* outAdapter) const override;
     GfxResult instanceEnumerateAdapters(GfxInstance instance, uint32_t* adapterCount, GfxAdapter* adapters) const override;
-    GfxResult enumerateInstanceExtensions(uint32_t* extensionCount, const char** extensionNames) const override;
-
+    GfxResult instanceCreateSurface(GfxInstance instance, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const override;
+    
     // Adapter functions
     GfxResult adapterCreateDevice(GfxAdapter adapter, const GfxDeviceDescriptor* descriptor, GfxDevice* outDevice) const override;
     GfxResult adapterGetInfo(GfxAdapter adapter, GfxAdapterInfo* outInfo) const override;
@@ -48,11 +51,10 @@ public:
     GfxResult queueWaitIdle(GfxQueue queue) const override;
 
     // Surface functions
-    GfxResult deviceCreateSurface(GfxDevice device, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const override;
     GfxResult surfaceDestroy(GfxSurface surface) const override;
-    GfxResult surfaceGetInfo(GfxSurface surface, GfxSurfaceInfo* outInfo) const override;
-    GfxResult surfaceEnumerateSupportedFormats(GfxSurface surface, uint32_t* formatCount, GfxFormat* formats) const override;
-    GfxResult surfaceEnumerateSupportedPresentModes(GfxSurface surface, uint32_t* presentModeCount, GfxPresentMode* presentModes) const override;
+    GfxResult surfaceGetInfo(GfxSurface surface, GfxAdapter adapter, GfxSurfaceInfo* outInfo) const override;
+    GfxResult surfaceEnumerateSupportedFormats(GfxSurface surface, GfxAdapter adapter, uint32_t* formatCount, GfxFormat* formats) const override;
+    GfxResult surfaceEnumerateSupportedPresentModes(GfxSurface surface, GfxAdapter adapter, uint32_t* presentModeCount, GfxPresentMode* presentModes) const override;
 
     // Swapchain functions
     GfxResult deviceCreateSwapchain(GfxDevice device, const GfxSwapchainDescriptor* descriptor, GfxSwapchain* outSwapchain) const override;

@@ -461,13 +461,13 @@ static bool createGraphics(CubeApp* app)
         .windowHandle = windowHandle
     };
 
-    if (gfxDeviceCreateSurface(app->device, &surfaceDesc, &app->surface) != GFX_RESULT_SUCCESS) {
+    if (gfxInstanceCreateSurface(app->instance, &surfaceDesc, &app->surface) != GFX_RESULT_SUCCESS) {
         LOG_ERROR("Failed to create surface");
         return false;
     }
 
     // Query surface capabilities and info
-    if (gfxSurfaceGetInfo(app->surface, &app->surfaceInfo) != GFX_RESULT_SUCCESS) {
+    if (gfxSurfaceGetInfo(app->surface, app->adapter, &app->surfaceInfo) != GFX_RESULT_SUCCESS) {
         LOG_ERROR("Failed to get surface info");
         return false;
     }

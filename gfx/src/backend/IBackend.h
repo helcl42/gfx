@@ -9,12 +9,15 @@ class IBackend {
 public:
     virtual ~IBackend() = default;
 
-    // Instance functions
+    // Global functions
+    virtual GfxResult enumerateInstanceExtensions(uint32_t* extensionCount, const char** extensionNames) const = 0;
     virtual GfxResult createInstance(const GfxInstanceDescriptor* descriptor, GfxInstance* outInstance) const = 0;
+
+    // Instance functions
     virtual GfxResult instanceDestroy(GfxInstance instance) const = 0;
     virtual GfxResult instanceRequestAdapter(GfxInstance instance, const GfxAdapterDescriptor* descriptor, GfxAdapter* outAdapter) const = 0;
     virtual GfxResult instanceEnumerateAdapters(GfxInstance instance, uint32_t* adapterCount, GfxAdapter* adapters) const = 0;
-    virtual GfxResult enumerateInstanceExtensions(uint32_t* extensionCount, const char** extensionNames) const = 0;
+    virtual GfxResult instanceCreateSurface(GfxInstance instance, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const = 0;
 
     // Adapter functions
     virtual GfxResult adapterCreateDevice(GfxAdapter adapter, const GfxDeviceDescriptor* descriptor, GfxDevice* outDevice) const = 0;
@@ -39,11 +42,10 @@ public:
     virtual GfxResult queueWaitIdle(GfxQueue queue) const = 0;
 
     // Surface functions
-    virtual GfxResult deviceCreateSurface(GfxDevice device, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const = 0;
     virtual GfxResult surfaceDestroy(GfxSurface surface) const = 0;
-    virtual GfxResult surfaceGetInfo(GfxSurface surface, GfxSurfaceInfo* outInfo) const = 0;
-    virtual GfxResult surfaceEnumerateSupportedFormats(GfxSurface surface, uint32_t* formatCount, GfxFormat* formats) const = 0;
-    virtual GfxResult surfaceEnumerateSupportedPresentModes(GfxSurface surface, uint32_t* presentModeCount, GfxPresentMode* presentModes) const = 0;
+    virtual GfxResult surfaceGetInfo(GfxSurface surface, GfxAdapter adapter, GfxSurfaceInfo* outInfo) const = 0;
+    virtual GfxResult surfaceEnumerateSupportedFormats(GfxSurface surface, GfxAdapter adapter, uint32_t* formatCount, GfxFormat* formats) const = 0;
+    virtual GfxResult surfaceEnumerateSupportedPresentModes(GfxSurface surface, GfxAdapter adapter, uint32_t* presentModeCount, GfxPresentMode* presentModes) const = 0;
 
     // Swapchain functions
     virtual GfxResult deviceCreateSwapchain(GfxDevice device, const GfxSwapchainDescriptor* descriptor, GfxSwapchain* outSwapchain) const = 0;

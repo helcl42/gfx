@@ -63,7 +63,7 @@ TEST_P(GfxCppSurfaceTest, CreateSurfaceInvalidArguments)
     // Creating with invalid window handles should throw or return null
     // The actual behavior depends on backend validation
     try {
-        surface = device->createSurface(desc);
+        surface = instance->createSurface(desc);
         // If it doesn't throw, it should at least return null or handle gracefully
         // Some backends might defer validation until surface is actually used
     } catch (const std::exception& e) {
@@ -133,7 +133,7 @@ TEST_P(GfxCppSurfaceTest, GetQueueFamilySurfaceSupportInvalidSurface)
     };
 
     try {
-        auto testSurface = device->createSurface(desc);
+        auto testSurface = instance->createSurface(desc);
 
         if (testSurface) {
             // If surface was created despite invalid handle, test queue support
@@ -166,11 +166,11 @@ TEST_P(GfxCppSurfaceTest, GetSurfaceInfoReturnsValidStruct)
     };
 
     try {
-        auto testSurface = device->createSurface(desc);
+        auto testSurface = instance->createSurface(desc);
 
         if (testSurface) {
             // Test that getInfo returns a struct with reasonable values
-            gfx::SurfaceInfo info = testSurface->getInfo();
+            gfx::SurfaceInfo info = testSurface->getInfo(adapter);
 
             // Verify struct has been populated (values should be non-negative)
             // We can't verify exact values without a real surface, but we can check the struct is valid

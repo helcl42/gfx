@@ -584,13 +584,13 @@ bool CubeApp::createGraphics()
         .windowHandle = windowHandle
     };
 
-    if (gfxDeviceCreateSurface(device, &surfaceDesc, &surface) != GFX_RESULT_SUCCESS) {
+    if (gfxInstanceCreateSurface(instance, &surfaceDesc, &surface) != GFX_RESULT_SUCCESS) {
         LOG_ERROR("Failed to create surface");
         return false;
     }
 
     // Query surface capabilities to determine frames in flight
-    if (gfxSurfaceGetInfo(surface, &surfaceInfo) != GFX_RESULT_SUCCESS) {
+    if (gfxSurfaceGetInfo(surface, adapter, &surfaceInfo) != GFX_RESULT_SUCCESS) {
         LOG_ERROR("Failed to get surface info");
         return false;
     }

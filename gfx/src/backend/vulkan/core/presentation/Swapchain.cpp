@@ -26,12 +26,12 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
 
     // Query and choose format
     uint32_t formatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(m_surface->physicalDevice(), m_surface->handle(), &formatCount, nullptr);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(m_device->getAdapter()->handle(), m_surface->handle(), &formatCount, nullptr);
     if (formatCount == 0) {
         throw std::runtime_error("No surface formats available for swapchain");
     }
     std::vector<VkSurfaceFormatKHR> formats(formatCount);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(m_surface->physicalDevice(), m_surface->handle(), &formatCount, formats.data());
+    vkGetPhysicalDeviceSurfaceFormatsKHR(m_device->getAdapter()->handle(), m_surface->handle(), &formatCount, formats.data());
 
     VkSurfaceFormatKHR selectedFormat = formats[0];
     for (const auto& availableFormat : formats) {
@@ -44,12 +44,12 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
 
     // Query and choose present mode
     uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(m_surface->physicalDevice(), m_surface->handle(), &presentModeCount, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(m_device->getAdapter()->handle(), m_surface->handle(), &presentModeCount, nullptr);
     if (presentModeCount == 0) {
         throw std::runtime_error("No present modes available for swapchain");
     }
     std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(m_surface->physicalDevice(), m_surface->handle(), &presentModeCount, presentModes.data());
+    vkGetPhysicalDeviceSurfacePresentModesKHR(m_device->getAdapter()->handle(), m_surface->handle(), &presentModeCount, presentModes.data());
 
     m_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
     for (const auto& availableMode : presentModes) {
@@ -61,7 +61,7 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
 
     // Query surface capabilities
     VkSurfaceCapabilitiesKHR capabilities;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_surface->physicalDevice(), m_surface->handle(), &capabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_device->getAdapter()->handle(), m_surface->handle(), &capabilities);
 
     // Determine actual swapchain extent and store directly in m_info
     // If currentExtent is defined, we MUST use it. Otherwise, we can choose within min/max bounds.

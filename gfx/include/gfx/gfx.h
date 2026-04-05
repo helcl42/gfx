@@ -1714,13 +1714,13 @@ GFX_API GfxResult gfxQueueWriteTexture(GfxQueue queue, GfxTexture texture, const
 GFX_API GfxResult gfxQueueWaitIdle(GfxQueue queue);
 
 // Surface functions
-GFX_API GfxResult gfxDeviceCreateSurface(GfxDevice device, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface);
+GFX_API GfxResult gfxInstanceCreateSurface(GfxInstance instance, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface);
 GFX_API GfxResult gfxSurfaceDestroy(GfxSurface surface);
-GFX_API GfxResult gfxSurfaceGetInfo(GfxSurface surface, GfxSurfaceInfo* outInfo);
+GFX_API GfxResult gfxSurfaceGetInfo(GfxSurface surface, GfxAdapter adapter, GfxSurfaceInfo* outInfo);
 // Vulkan-style enumeration: call with formats=NULL to get count, then call again with allocated array
-GFX_API GfxResult gfxSurfaceEnumerateSupportedFormats(GfxSurface surface, uint32_t* formatCount, GfxFormat* formats);
+GFX_API GfxResult gfxSurfaceEnumerateSupportedFormats(GfxSurface surface, GfxAdapter adapter, uint32_t* formatCount, GfxFormat* formats);
 // Vulkan-style enumeration: call with presentModes=NULL to get count, then call again with allocated array
-GFX_API GfxResult gfxSurfaceEnumerateSupportedPresentModes(GfxSurface surface, uint32_t* presentModeCount, GfxPresentMode* presentModes);
+GFX_API GfxResult gfxSurfaceEnumerateSupportedPresentModes(GfxSurface surface, GfxAdapter adapter, uint32_t* presentModeCount, GfxPresentMode* presentModes);
 
 // Swapchain functions
 GFX_API GfxResult gfxDeviceCreateSwapchain(GfxDevice device, const GfxSwapchainDescriptor* descriptor, GfxSwapchain* outSwapchain);

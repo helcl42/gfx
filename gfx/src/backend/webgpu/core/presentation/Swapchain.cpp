@@ -3,6 +3,7 @@
 #include "Surface.h"
 
 #include "../resource/TextureView.h"
+#include "../system/Adapter.h"
 #include "../system/Device.h"
 
 #include "common/Logger.h"
@@ -17,7 +18,7 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
     , m_info(createSwapchainInfo(createInfo))
 {
     // Get surface capabilities
-    const WGPUSurfaceCapabilities& capabilities = surface->getCapabilities();
+    const WGPUSurfaceCapabilities& capabilities = surface->getCapabilities(device->getAdapter()->handle());
 
     // Choose format
     WGPUTextureFormat selectedFormat = WGPUTextureFormat_Undefined;

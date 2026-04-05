@@ -396,7 +396,7 @@ static bool createGraphics(ComputeApp* app)
         .windowHandle = windowHandle
     };
 
-    if (gfxDeviceCreateSurface(app->device, &surfaceDesc, &app->surface) != GFX_RESULT_SUCCESS) {
+    if (gfxInstanceCreateSurface(app->instance, &surfaceDesc, &app->surface) != GFX_RESULT_SUCCESS) {
         LOG_ERROR("Failed to create surface");
         return false;
     }
@@ -704,7 +704,7 @@ static bool createSwapchain(ComputeApp* app, uint32_t width, uint32_t height)
 {
     // Query surface capabilities to determine frame count
     GfxSurfaceInfo surfaceInfo;
-    if (gfxSurfaceGetInfo(app->surface, &surfaceInfo) != GFX_RESULT_SUCCESS) {
+    if (gfxSurfaceGetInfo(app->surface, app->adapter, &surfaceInfo) != GFX_RESULT_SUCCESS) {
         LOG_ERROR("Failed to get surface info");
         return false;
     }
