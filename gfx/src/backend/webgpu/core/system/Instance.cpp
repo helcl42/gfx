@@ -107,6 +107,7 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
     }
 
     std::vector<WGPUAdapter> discoveredAdapters = discoverAdapters(m_instance);
+    m_adapters.reserve(discoveredAdapters.size());
     for (auto adapter : discoveredAdapters) {
         m_adapters.push_back(std::make_unique<Adapter>(adapter, this));
     }

@@ -13,7 +13,23 @@ Adapter::Adapter(VkPhysicalDevice physicalDevice, Instance* instance)
     : m_physicalDevice(physicalDevice)
     , m_instance(instance)
 {
-    initializeAdapterInfo();
+    vkGetPhysicalDeviceProperties(m_physicalDevice, &m_properties);
+    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_memoryProperties);
+    vkGetPhysicalDeviceFeatures(m_physicalDevice, &m_features);
+
+    // Find graphics queue family
+    auto queueFamilies = getQueueFamilyProperties();
+
+    for (uint32_t i = 0; i < static_cast<uint32_t>(queueFamilies.size()); ++i) {
+        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            m_graphicsQueueFamily = i;
+            break;
+        }
+    }
+
+    if (m_graphicsQueueFamily == UINT32_MAX) {
+        throw std::runtime_error("Failed to find graphics queue family for adapter");
+    }
 }
 
 VkPhysicalDevice Adapter::handle() const
@@ -74,27 +90,6 @@ bool Adapter::supportsPresentation(uint32_t queueFamilyIndex, VkSurfaceKHR surfa
     VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(m_physicalDevice, queueFamilyIndex, surface, &supported);
 
     return (result == VK_SUCCESS && supported == VK_TRUE);
-}
-
-void Adapter::initializeAdapterInfo()
-{
-    vkGetPhysicalDeviceProperties(m_physicalDevice, &m_properties);
-    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_memoryProperties);
-    vkGetPhysicalDeviceFeatures(m_physicalDevice, &m_features);
-
-    // Find graphics queue family
-    auto queueFamilies = getQueueFamilyProperties();
-
-    for (uint32_t i = 0; i < static_cast<uint32_t>(queueFamilies.size()); ++i) {
-        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            m_graphicsQueueFamily = i;
-            break;
-        }
-    }
-
-    if (m_graphicsQueueFamily == UINT32_MAX) {
-        throw std::runtime_error("Failed to find graphics queue family for adapter");
-    }
 }
 
 std::vector<const char*> Adapter::enumerateSupportedExtensions() const

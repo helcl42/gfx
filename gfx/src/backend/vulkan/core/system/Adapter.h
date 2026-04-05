@@ -28,8 +28,6 @@ public:
     std::vector<const char*> enumerateSupportedExtensions() const;
 
 private:
-    void initializeAdapterInfo();
-
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     Instance* m_instance = nullptr; // Non-owning
     VkPhysicalDeviceProperties m_properties{};
