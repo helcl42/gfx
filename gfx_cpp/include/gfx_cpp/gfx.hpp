@@ -307,7 +307,25 @@ enum class Format : int32_t {
     Depth32Float = 16,
     Stencil8 = 17,
     Depth24PlusStencil8 = 18,
-    Depth32FloatStencil8 = 19
+    Depth32FloatStencil8 = 19,
+    R8Sint = 20,
+    R8Uint = 21,
+    R8G8Sint = 22,
+    R8G8Uint = 23,
+    R8G8B8A8Sint = 24,
+    R8G8B8A8Uint = 25,
+    R16Sint = 26,
+    R16Uint = 27,
+    R16G16Sint = 28,
+    R16G16Uint = 29,
+    R16G16B16A16Sint = 30,
+    R16G16B16A16Uint = 31,
+    R32Sint = 32,
+    R32Uint = 33,
+    R32G32Sint = 34,
+    R32G32Uint = 35,
+    R32G32B32A32Sint = 36,
+    R32G32B32A32Uint = 37
 };
 
 enum class TextureType : int32_t {

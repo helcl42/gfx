@@ -30,27 +30,43 @@ uint32_t getFormatBytesPerPixel(GfxFormat format)
     switch (format) {
     // 1 byte
     case GFX_FORMAT_R8_UNORM:
+    case GFX_FORMAT_R8_SINT:
+    case GFX_FORMAT_R8_UINT:
     case GFX_FORMAT_STENCIL8:
         return 1;
     // 2 bytes
     case GFX_FORMAT_R8G8_UNORM:
+    case GFX_FORMAT_R8G8_SINT:
+    case GFX_FORMAT_R8G8_UINT:
     case GFX_FORMAT_R16_FLOAT:
+    case GFX_FORMAT_R16_SINT:
+    case GFX_FORMAT_R16_UINT:
     case GFX_FORMAT_DEPTH16_UNORM:
         return 2;
     // 4 bytes
     case GFX_FORMAT_R8G8B8A8_UNORM:
     case GFX_FORMAT_R8G8B8A8_UNORM_SRGB:
+    case GFX_FORMAT_R8G8B8A8_SINT:
+    case GFX_FORMAT_R8G8B8A8_UINT:
     case GFX_FORMAT_B8G8R8A8_UNORM:
     case GFX_FORMAT_B8G8R8A8_UNORM_SRGB:
     case GFX_FORMAT_R16G16_FLOAT:
+    case GFX_FORMAT_R16G16_SINT:
+    case GFX_FORMAT_R16G16_UINT:
     case GFX_FORMAT_R32_FLOAT:
+    case GFX_FORMAT_R32_SINT:
+    case GFX_FORMAT_R32_UINT:
     case GFX_FORMAT_DEPTH24_PLUS:
     case GFX_FORMAT_DEPTH32_FLOAT:
     case GFX_FORMAT_DEPTH24_PLUS_STENCIL8:
         return 4;
     // 8 bytes
     case GFX_FORMAT_R16G16B16A16_FLOAT:
+    case GFX_FORMAT_R16G16B16A16_SINT:
+    case GFX_FORMAT_R16G16B16A16_UINT:
     case GFX_FORMAT_R32G32_FLOAT:
+    case GFX_FORMAT_R32G32_SINT:
+    case GFX_FORMAT_R32G32_UINT:
     case GFX_FORMAT_DEPTH32_FLOAT_STENCIL8:
         return 8;
     // 12 bytes
@@ -58,6 +74,8 @@ uint32_t getFormatBytesPerPixel(GfxFormat format)
         return 12;
     // 16 bytes
     case GFX_FORMAT_R32G32B32A32_FLOAT:
+    case GFX_FORMAT_R32G32B32A32_SINT:
+    case GFX_FORMAT_R32G32B32A32_UINT:
         return 16;
     case GFX_FORMAT_UNDEFINED:
     default:

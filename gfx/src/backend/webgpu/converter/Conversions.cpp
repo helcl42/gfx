@@ -902,6 +902,42 @@ WGPUTextureFormat gfxFormatToWGPUFormat(GfxFormat format)
         return WGPUTextureFormat_Depth24PlusStencil8;
     case GFX_FORMAT_DEPTH32_FLOAT_STENCIL8:
         return WGPUTextureFormat_Depth32FloatStencil8;
+    case GFX_FORMAT_R8_SINT:
+        return WGPUTextureFormat_R8Sint;
+    case GFX_FORMAT_R8_UINT:
+        return WGPUTextureFormat_R8Uint;
+    case GFX_FORMAT_R8G8_SINT:
+        return WGPUTextureFormat_RG8Sint;
+    case GFX_FORMAT_R8G8_UINT:
+        return WGPUTextureFormat_RG8Uint;
+    case GFX_FORMAT_R8G8B8A8_SINT:
+        return WGPUTextureFormat_RGBA8Sint;
+    case GFX_FORMAT_R8G8B8A8_UINT:
+        return WGPUTextureFormat_RGBA8Uint;
+    case GFX_FORMAT_R16_SINT:
+        return WGPUTextureFormat_R16Sint;
+    case GFX_FORMAT_R16_UINT:
+        return WGPUTextureFormat_R16Uint;
+    case GFX_FORMAT_R16G16_SINT:
+        return WGPUTextureFormat_RG16Sint;
+    case GFX_FORMAT_R16G16_UINT:
+        return WGPUTextureFormat_RG16Uint;
+    case GFX_FORMAT_R16G16B16A16_SINT:
+        return WGPUTextureFormat_RGBA16Sint;
+    case GFX_FORMAT_R16G16B16A16_UINT:
+        return WGPUTextureFormat_RGBA16Uint;
+    case GFX_FORMAT_R32_SINT:
+        return WGPUTextureFormat_R32Sint;
+    case GFX_FORMAT_R32_UINT:
+        return WGPUTextureFormat_R32Uint;
+    case GFX_FORMAT_R32G32_SINT:
+        return WGPUTextureFormat_RG32Sint;
+    case GFX_FORMAT_R32G32_UINT:
+        return WGPUTextureFormat_RG32Uint;
+    case GFX_FORMAT_R32G32B32A32_SINT:
+        return WGPUTextureFormat_RGBA32Sint;
+    case GFX_FORMAT_R32G32B32A32_UINT:
+        return WGPUTextureFormat_RGBA32Uint;
     default:
         return WGPUTextureFormat_Undefined;
     }
@@ -946,6 +982,42 @@ GfxFormat wgpuFormatToGfxFormat(WGPUTextureFormat format)
         return GFX_FORMAT_DEPTH24_PLUS_STENCIL8;
     case WGPUTextureFormat_Depth32FloatStencil8:
         return GFX_FORMAT_DEPTH32_FLOAT_STENCIL8;
+    case WGPUTextureFormat_R8Sint:
+        return GFX_FORMAT_R8_SINT;
+    case WGPUTextureFormat_R8Uint:
+        return GFX_FORMAT_R8_UINT;
+    case WGPUTextureFormat_RG8Sint:
+        return GFX_FORMAT_R8G8_SINT;
+    case WGPUTextureFormat_RG8Uint:
+        return GFX_FORMAT_R8G8_UINT;
+    case WGPUTextureFormat_RGBA8Sint:
+        return GFX_FORMAT_R8G8B8A8_SINT;
+    case WGPUTextureFormat_RGBA8Uint:
+        return GFX_FORMAT_R8G8B8A8_UINT;
+    case WGPUTextureFormat_R16Sint:
+        return GFX_FORMAT_R16_SINT;
+    case WGPUTextureFormat_R16Uint:
+        return GFX_FORMAT_R16_UINT;
+    case WGPUTextureFormat_RG16Sint:
+        return GFX_FORMAT_R16G16_SINT;
+    case WGPUTextureFormat_RG16Uint:
+        return GFX_FORMAT_R16G16_UINT;
+    case WGPUTextureFormat_RGBA16Sint:
+        return GFX_FORMAT_R16G16B16A16_SINT;
+    case WGPUTextureFormat_RGBA16Uint:
+        return GFX_FORMAT_R16G16B16A16_UINT;
+    case WGPUTextureFormat_R32Sint:
+        return GFX_FORMAT_R32_SINT;
+    case WGPUTextureFormat_R32Uint:
+        return GFX_FORMAT_R32_UINT;
+    case WGPUTextureFormat_RG32Sint:
+        return GFX_FORMAT_R32G32_SINT;
+    case WGPUTextureFormat_RG32Uint:
+        return GFX_FORMAT_R32G32_UINT;
+    case WGPUTextureFormat_RGBA32Sint:
+        return GFX_FORMAT_R32G32B32A32_SINT;
+    case WGPUTextureFormat_RGBA32Uint:
+        return GFX_FORMAT_R32G32B32A32_UINT;
     default:
         return GFX_FORMAT_UNDEFINED;
     }
