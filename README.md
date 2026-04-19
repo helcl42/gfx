@@ -23,9 +23,9 @@ A graphics library providing a low-level Vulkan-like API that works "identically
 | Linux x64     | ✅     | ✅     | [![Linux Build](https://github.com/helcl42/GFX/actions/workflows/linux.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/linux.yml)       | X11/Wayland support          |
 | Windows x64   | ✅     | ✅     | [![Windows Build](https://github.com/helcl42/GFX/actions/workflows/windows.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/windows.yml)       |                              |
 | macOS         | ✅     | ✅     | [![macOS Build](https://github.com/helcl42/GFX/actions/workflows/macos.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/macos.yml)       | Vulkan via MoltenVK          |
-| iOS           | ✅     | ✅     | [![iOS Build](https://github.com/helcl42/GFX/actions/workflows/ios.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/ios.yml)       |                              |
-| Android       | ✅     | ✅     | [![Android Build](https://github.com/helcl42/GFX/actions/workflows/android.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/android.yml)        | Requires NDK r27+, API 26+   |
-| WebAssembly   | ❌     | ✅     | [![Web Build](https://github.com/helcl42/GFX/actions/workflows/web.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/web.yml)       | WebGPU only (via Emscripten) |
+| iOS           | ✅     |    | [![iOS Build](https://github.com/helcl42/GFX/actions/workflows/ios.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/ios.yml)       |                              |
+| Android       | ✅     |     | [![Android Build](https://github.com/helcl42/GFX/actions/workflows/android.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/android.yml)        | Requires NDK r27+, API 26+   |
+| WebAssembly   |     | ✅     | [![Web Build](https://github.com/helcl42/GFX/actions/workflows/web.yml/badge.svg)](https://github.com/helcl42/GFX/actions/workflows/web.yml)       | WebGPU only (via Emscripten) |
 
 ## Project Structure
 
