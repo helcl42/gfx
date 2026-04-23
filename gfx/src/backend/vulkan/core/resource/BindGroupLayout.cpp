@@ -14,7 +14,7 @@ BindGroupLayout::BindGroupLayout(Device* device, const BindGroupLayoutCreateInfo
     for (const auto& entry : createInfo.entries) {
         VkDescriptorSetLayoutBinding binding{};
         binding.binding = entry.binding;
-        binding.descriptorCount = 1;
+        binding.descriptorCount = entry.descriptorCount;
         binding.descriptorType = entry.descriptorType;
         binding.stageFlags = entry.stageFlags;
 

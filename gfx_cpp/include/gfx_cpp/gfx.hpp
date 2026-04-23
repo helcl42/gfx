@@ -1103,6 +1103,7 @@ struct ComputePipelineDescriptor {
 struct BindGroupLayoutEntry {
     uint32_t binding = 0;
     ShaderStage visibility = ShaderStage::None;
+    uint32_t count = 1; // Number of descriptors (for arrays)
 
     // Resource type (exactly one should be set)
     struct BufferBinding {

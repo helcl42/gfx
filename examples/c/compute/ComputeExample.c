@@ -976,6 +976,7 @@ static bool createComputeBindGroupLayout(ComputeApp* app)
             .binding = 0,
             .visibility = GFX_SHADER_STAGE_COMPUTE,
             .type = GFX_BINDING_TYPE_STORAGE_TEXTURE,
+            .count = 1,
             .storageTexture = {
                 .format = GFX_FORMAT_R8G8B8A8_UNORM,
                 .viewDimension = GFX_TEXTURE_VIEW_TYPE_2D,
@@ -986,6 +987,7 @@ static bool createComputeBindGroupLayout(ComputeApp* app)
             .binding = 1,
             .visibility = GFX_SHADER_STAGE_COMPUTE,
             .type = GFX_BINDING_TYPE_BUFFER,
+            .count = 1,
             .buffer = {
                 .hasDynamicOffset = false,
                 .minBindingSize = sizeof(ComputeUniformData),
@@ -1293,6 +1295,7 @@ static bool createRenderBindGroupLayout(ComputeApp* app)
             .binding = 0,
             .visibility = GFX_SHADER_STAGE_FRAGMENT,
             .type = GFX_BINDING_TYPE_SAMPLER,
+            .count = 1,
             .sampler = {
                 .comparison = false,
             },
@@ -1301,6 +1304,7 @@ static bool createRenderBindGroupLayout(ComputeApp* app)
             .binding = 1,
             .visibility = GFX_SHADER_STAGE_FRAGMENT,
             .type = GFX_BINDING_TYPE_TEXTURE,
+            .count = 1,
             .texture = {
                 .sampleType = GFX_TEXTURE_SAMPLE_TYPE_FLOAT,
                 .viewDimension = GFX_TEXTURE_VIEW_TYPE_2D,
@@ -1311,6 +1315,7 @@ static bool createRenderBindGroupLayout(ComputeApp* app)
             .binding = 2,
             .visibility = GFX_SHADER_STAGE_FRAGMENT,
             .type = GFX_BINDING_TYPE_BUFFER,
+            .count = 1,
             .buffer = {
                 .hasDynamicOffset = false,
                 .minBindingSize = sizeof(RenderUniformData),

@@ -1149,9 +1149,11 @@ bool CubeApp::createUniformBuffer()
         .binding = 0,
         .visibility = GFX_SHADER_STAGE_VERTEX,
         .type = GFX_BINDING_TYPE_BUFFER,
+        .count = 1,
         .buffer = {
             .hasDynamicOffset = false,
-            .minBindingSize = sizeof(UniformData) }
+            .minBindingSize = sizeof(UniformData),
+        },
     };
 
     GfxBindGroupLayoutDescriptor uniformLayoutDesc = {

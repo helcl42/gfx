@@ -1161,9 +1161,11 @@ static bool createBindGroup(CubeApp* app)
         .binding = 0,
         .visibility = GFX_SHADER_STAGE_VERTEX,
         .type = GFX_BINDING_TYPE_BUFFER,
+        .count = 1,
         .buffer = {
             .hasDynamicOffset = false,
-            .minBindingSize = sizeof(UniformData) }
+            .minBindingSize = sizeof(UniformData),
+        },
     };
 
     GfxBindGroupLayoutDescriptor uniformLayoutDesc = {
@@ -1183,15 +1185,25 @@ static bool createBindGroup(CubeApp* app)
 
     // Create texture bind group layout
     GfxBindGroupLayoutEntry textureLayoutEntries[] = {
-        { .binding = 0,
+        {
+            .binding = 0,
             .visibility = GFX_SHADER_STAGE_FRAGMENT,
             .type = GFX_BINDING_TYPE_TEXTURE,
+            .count = 1,
             .texture = {
                 .sampleType = GFX_TEXTURE_SAMPLE_TYPE_FLOAT,
-                .viewDimension = GFX_TEXTURE_VIEW_TYPE_2D } },
-        { .binding = 1, .visibility = GFX_SHADER_STAGE_FRAGMENT, .type = GFX_BINDING_TYPE_SAMPLER, .sampler = {
-                                                                                                       // No type field needed for sampler binding
-                                                                                                   } }
+                .viewDimension = GFX_TEXTURE_VIEW_TYPE_2D,
+            },
+        },
+        {
+            .binding = 1,
+            .visibility = GFX_SHADER_STAGE_FRAGMENT,
+            .type = GFX_BINDING_TYPE_SAMPLER,
+            .count = 1,
+            .sampler = {
+                // No type field needed for sampler binding
+            },
+        }
     };
 
     GfxBindGroupLayoutDescriptor textureLayoutDesc = {

@@ -17,6 +17,7 @@ BindGroupLayout::BindGroupLayout(Device* device, const BindGroupLayoutCreateInfo
         WGPUBindGroupLayoutEntry wgpuEntry = WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT;
         wgpuEntry.binding = entry.binding;
         wgpuEntry.visibility = entry.visibility;
+        wgpuEntry.bindingArraySize = entry.count;
 
         // Set binding type based on which field is used
         if (entry.bufferType != WGPUBufferBindingType_Undefined) {

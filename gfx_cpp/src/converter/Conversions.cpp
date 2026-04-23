@@ -920,6 +920,7 @@ void convertBindGroupLayoutDescriptor(const BindGroupLayoutDescriptor& descripto
         const auto& entry = descriptor.entries[i];
         outEntries[i].binding = entry.binding;
         outEntries[i].visibility = cppShaderStageToCShaderStage(entry.visibility);
+        outEntries[i].count = entry.count > 0 ? entry.count : 1;
 
         if (std::holds_alternative<BindGroupLayoutEntry::BufferBinding>(entry.resource)) {
             outEntries[i].type = GFX_BINDING_TYPE_BUFFER;

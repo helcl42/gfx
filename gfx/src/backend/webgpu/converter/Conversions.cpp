@@ -467,6 +467,7 @@ core::BindGroupLayoutCreateInfo gfxDescriptorToWebGPUBindGroupLayoutCreateInfo(c
 
         core::BindGroupLayoutEntry layoutEntry{};
         layoutEntry.binding = entry.binding;
+        layoutEntry.count = entry.count > 0 ? entry.count : 1;
 
         // Convert visibility flags (bitwise)
         layoutEntry.visibility = WGPUShaderStage_None;

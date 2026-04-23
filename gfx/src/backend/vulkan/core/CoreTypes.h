@@ -213,6 +213,7 @@ struct BindGroupLayoutEntry {
     uint32_t binding;
     VkDescriptorType descriptorType;
     VkShaderStageFlags stageFlags;
+    uint32_t descriptorCount = 1; // Number of descriptors in the array
 };
 
 struct BindGroupLayoutCreateInfo {

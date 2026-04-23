@@ -1469,6 +1469,7 @@ typedef struct {
     uint32_t binding;
     GfxShaderStageFlags visibility;
     GfxBindingType type; // Explicitly specify the binding type
+    uint32_t count; // Number of descriptors (for arrays), default 1
 
     // Resource type - use type field to determine which is valid
     struct {

@@ -1476,6 +1476,7 @@ core::BindGroupLayoutCreateInfo gfxDescriptorToBindGroupLayoutCreateInfo(const G
 
         core::BindGroupLayoutEntry layoutEntry{};
         layoutEntry.binding = entry.binding;
+        layoutEntry.descriptorCount = entry.count > 0 ? entry.count : 1;
 
         // Convert GfxBindingType to VkDescriptorType
         switch (entry.type) {

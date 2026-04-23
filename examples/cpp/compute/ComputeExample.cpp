@@ -890,6 +890,7 @@ bool ComputeApp::createComputeBindGroupLayout()
         gfx::BindGroupLayoutEntry storageTextureEntry{
             .binding = 0,
             .visibility = gfx::ShaderStage::Compute,
+            .count = 1,
             .resource = gfx::BindGroupLayoutEntry::StorageTextureBinding{
                 .format = gfx::Format::R8G8B8A8Unorm,
                 .writeOnly = true,
@@ -900,6 +901,7 @@ bool ComputeApp::createComputeBindGroupLayout()
         gfx::BindGroupLayoutEntry uniformBufferEntry{
             .binding = 1,
             .visibility = gfx::ShaderStage::Compute,
+            .count = 1,
             .resource = gfx::BindGroupLayoutEntry::BufferBinding{
                 .hasDynamicOffset = false,
                 .minBindingSize = sizeof(ComputeUniformData),
@@ -1191,6 +1193,7 @@ bool ComputeApp::createRenderBindGroupLayout()
         gfx::BindGroupLayoutEntry samplerEntry{
             .binding = 0,
             .visibility = gfx::ShaderStage::Fragment,
+            .count = 1,
             .resource = gfx::BindGroupLayoutEntry::SamplerBinding{
                 .comparison = false,
             }
@@ -1199,6 +1202,7 @@ bool ComputeApp::createRenderBindGroupLayout()
         gfx::BindGroupLayoutEntry textureEntry{
             .binding = 1,
             .visibility = gfx::ShaderStage::Fragment,
+            .count = 1,
             .resource = gfx::BindGroupLayoutEntry::TextureBinding{
                 .multisampled = false,
                 .viewDimension = gfx::TextureViewType::View2D,
@@ -1208,6 +1212,7 @@ bool ComputeApp::createRenderBindGroupLayout()
         gfx::BindGroupLayoutEntry uniformBufferEntry{
             .binding = 2,
             .visibility = gfx::ShaderStage::Fragment,
+            .count = 1,
             .resource = gfx::BindGroupLayoutEntry::BufferBinding{
                 .hasDynamicOffset = false,
                 .minBindingSize = sizeof(RenderUniformData),

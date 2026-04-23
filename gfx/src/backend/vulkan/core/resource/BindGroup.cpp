@@ -67,7 +67,13 @@ BindGroup::BindGroup(Device* device, const BindGroupCreateInfo& createInfo)
     size_t bufferInfoIndex = 0;
     size_t imageInfoIndex = 0;
 
+    // Track array element index per binding
+    std::unordered_map<uint32_t, uint32_t> bindingArrayIndices;
+
     for (const auto& entry : createInfo.entries) {
+        // Get array element index for this binding (auto-increments on repeated bindings)
+        uint32_t arrayElement = bindingArrayIndices[entry.binding]++;
+
         if (entry.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || entry.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
             VkDescriptorBufferInfo bufferInfo{};
             bufferInfo.buffer = entry.buffer;
@@ -79,7 +85,7 @@ BindGroup::BindGroup(Device* device, const BindGroupCreateInfo& createInfo)
             descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorWrite.dstSet = m_descriptorSet;
             descriptorWrite.dstBinding = entry.binding;
-            descriptorWrite.dstArrayElement = 0;
+            descriptorWrite.dstArrayElement = arrayElement;
             descriptorWrite.descriptorType = entry.descriptorType;
             descriptorWrite.descriptorCount = 1;
             descriptorWrite.pBufferInfo = &bufferInfos[bufferInfoIndex++];
@@ -96,7 +102,7 @@ BindGroup::BindGroup(Device* device, const BindGroupCreateInfo& createInfo)
             descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorWrite.dstSet = m_descriptorSet;
             descriptorWrite.dstBinding = entry.binding;
-            descriptorWrite.dstArrayElement = 0;
+            descriptorWrite.dstArrayElement = arrayElement;
             descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
             descriptorWrite.descriptorCount = 1;
             descriptorWrite.pImageInfo = &imageInfos[imageInfoIndex++];
@@ -113,7 +119,7 @@ BindGroup::BindGroup(Device* device, const BindGroupCreateInfo& createInfo)
             descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorWrite.dstSet = m_descriptorSet;
             descriptorWrite.dstBinding = entry.binding;
-            descriptorWrite.dstArrayElement = 0;
+            descriptorWrite.dstArrayElement = arrayElement;
             descriptorWrite.descriptorType = entry.descriptorType;
             descriptorWrite.descriptorCount = 1;
             descriptorWrite.pImageInfo = &imageInfos[imageInfoIndex++];

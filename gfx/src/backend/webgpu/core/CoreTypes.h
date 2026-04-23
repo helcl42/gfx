@@ -267,6 +267,7 @@ struct SwapchainCreateInfo {
 struct BindGroupLayoutEntry {
     uint32_t binding;
     WGPUShaderStage visibility;
+    uint32_t count = 1; // Number of descriptors (for arrays)
 
     // Buffer binding
     WGPUBufferBindingType bufferType;
