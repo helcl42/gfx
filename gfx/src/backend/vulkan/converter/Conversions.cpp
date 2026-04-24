@@ -1549,6 +1549,8 @@ core::BindGroupCreateInfo gfxDescriptorToBindGroupCreateInfo(const GfxBindGroupD
             // Set image layout based on descriptor type
             if (bindEntry.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
                 bindEntry.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            } else if (isDepthFormat(textureView->getFormat())) {
+                bindEntry.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
             } else {
                 bindEntry.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             }
