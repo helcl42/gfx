@@ -34,6 +34,7 @@ public:
     void blitTextureToTexture(Texture* source, VkOffset3D sourceOrigin, VkExtent3D sourceExtent, uint32_t sourceMipLevel, VkImageLayout srcFinalLayout, Texture* destination, VkOffset3D destinationOrigin, VkExtent3D destinationExtent, uint32_t destinationMipLevel, VkImageLayout dstFinalLayout, VkFilter filter);
 
     void writeTimestamp(VkQueryPool queryPool, uint32_t queryIndex);
+    void resetQuerySet(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount);
     void resolveQuerySet(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, VkBuffer buffer, uint64_t destinationOffset);
 
 private:

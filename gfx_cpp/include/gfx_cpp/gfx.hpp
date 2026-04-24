@@ -1618,6 +1618,7 @@ public:
     virtual void generateMipmaps(std::shared_ptr<Texture> texture) = 0;
     virtual void generateMipmapsRange(std::shared_ptr<Texture> texture, uint32_t baseMipLevel, uint32_t levelCount) = 0;
     virtual void writeTimestamp(std::shared_ptr<QuerySet> querySet, uint32_t queryIndex) = 0;
+    virtual void resetQuerySet(std::shared_ptr<QuerySet> querySet, uint32_t firstQuery, uint32_t queryCount) = 0;
     virtual void resolveQuerySet(std::shared_ptr<QuerySet> querySet, uint32_t firstQuery, uint32_t queryCount, std::shared_ptr<Buffer> destinationBuffer, uint64_t destinationOffset) = 0;
     virtual void end() = 0;
     virtual void begin() = 0;

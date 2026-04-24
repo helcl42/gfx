@@ -172,11 +172,29 @@ void CommandEncoderImpl::writeTimestamp(std::shared_ptr<QuerySet> querySet, uint
     }
 }
 
+void CommandEncoderImpl::resetQuerySet(std::shared_ptr<QuerySet> querySet, uint32_t firstQuery, uint32_t queryCount)
+{
+    if (!querySet) {
+        throw std::invalid_argument("QuerySet cannot be null");
+    }
+
+    auto qs = std::dynamic_pointer_cast<QuerySetImpl>(querySet);
+    if (!qs) {
+        throw std::runtime_error("Invalid QuerySet type");
+    }
+
+    GfxResult result = gfxCommandEncoderResetQuerySet(m_handle, qs->getHandle(), firstQuery, queryCount);
+    if (result != GFX_RESULT_SUCCESS) {
+        throw std::runtime_error("Failed to reset query set");
+    }
+}
+
 void CommandEncoderImpl::resolveQuerySet(std::shared_ptr<QuerySet> querySet, uint32_t firstQuery, uint32_t queryCount, std::shared_ptr<Buffer> destinationBuffer, uint64_t destinationOffset)
 {
     if (!querySet) {
         throw std::invalid_argument("QuerySet cannot be null");
     }
+
     if (!destinationBuffer) {
         throw std::invalid_argument("Destination buffer cannot be null");
     }

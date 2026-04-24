@@ -35,6 +35,7 @@ public:
 
     // Query operations
     void writeTimestamp(WGPUQuerySet querySet, uint32_t queryIndex);
+    void resetQuerySet(WGPUQuerySet querySet, uint32_t firstQuery, uint32_t queryCount);
     void resolveQuerySet(WGPUQuerySet querySet, uint32_t firstQuery, uint32_t queryCount, WGPUBuffer buffer, uint64_t destinationOffset);
 
 private:

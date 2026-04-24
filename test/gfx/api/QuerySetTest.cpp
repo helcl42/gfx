@@ -211,6 +211,35 @@ TEST_P(GfxQuerySetTest, WriteTimestampWithNullQuerySet)
     gfxCommandEncoderDestroy(encoder);
 }
 
+TEST_P(GfxQuerySetTest, ResetQuerySetWithNullEncoder)
+{
+    GfxQuerySetDescriptor querySetDesc = {};
+    querySetDesc.type = GFX_QUERY_TYPE_TIMESTAMP;
+    querySetDesc.count = 8;
+
+    GfxQuerySet querySet = nullptr;
+    ASSERT_EQ(gfxDeviceCreateQuerySet(device, &querySetDesc, &querySet), GFX_RESULT_SUCCESS);
+
+    GfxResult result = gfxCommandEncoderResetQuerySet(nullptr, querySet, 0, 8);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    gfxQuerySetDestroy(querySet);
+}
+
+TEST_P(GfxQuerySetTest, ResetQuerySetWithNullQuerySet)
+{
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    encoderDesc.label = "Test Encoder";
+
+    GfxCommandEncoder encoder = nullptr;
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxResult result = gfxCommandEncoderResetQuerySet(encoder, nullptr, 0, 8);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    gfxCommandEncoderDestroy(encoder);
+}
+
 TEST_P(GfxQuerySetTest, ResolveQuerySetWithNullEncoder)
 {
     GfxQuerySetDescriptor querySetDesc = {};
@@ -412,6 +441,30 @@ TEST_P(GfxQuerySetTest, WriteTimestampOperation)
     EXPECT_EQ(result, GFX_RESULT_SUCCESS);
 
     result = gfxCommandEncoderWriteTimestamp(encoder, querySet, 1);
+    EXPECT_EQ(result, GFX_RESULT_SUCCESS);
+
+    gfxCommandEncoderDestroy(encoder);
+    gfxQuerySetDestroy(querySet);
+}
+
+TEST_P(GfxQuerySetTest, ResetQuerySetOperation)
+{
+    GfxQuerySetDescriptor querySetDesc = {};
+    querySetDesc.label = "Timestamp Query Set";
+    querySetDesc.type = GFX_QUERY_TYPE_TIMESTAMP;
+    querySetDesc.count = 2;
+
+    GfxQuerySet querySet = nullptr;
+    ASSERT_EQ(gfxDeviceCreateQuerySet(device, &querySetDesc, &querySet), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    encoderDesc.label = "Test Encoder";
+
+    GfxCommandEncoder encoder = nullptr;
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    // Reset query set before writing timestamps
+    GfxResult result = gfxCommandEncoderResetQuerySet(encoder, querySet, 0, 2);
     EXPECT_EQ(result, GFX_RESULT_SUCCESS);
 
     gfxCommandEncoderDestroy(encoder);

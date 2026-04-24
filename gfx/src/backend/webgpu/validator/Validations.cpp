@@ -1139,6 +1139,14 @@ GfxResult validateCommandEncoderWriteTimestamp(GfxCommandEncoder commandEncoder,
     return GFX_RESULT_SUCCESS;
 }
 
+GfxResult validateCommandEncoderResetQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet)
+{
+    if (!commandEncoder || !querySet) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult validateCommandEncoderResolveQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, GfxBuffer destinationBuffer)
 {
     if (!commandEncoder || !querySet || !destinationBuffer) {

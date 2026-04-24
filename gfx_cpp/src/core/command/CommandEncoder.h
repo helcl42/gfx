@@ -28,6 +28,7 @@ public:
     void generateMipmaps(std::shared_ptr<Texture> texture) override;
     void generateMipmapsRange(std::shared_ptr<Texture> texture, uint32_t baseMipLevel, uint32_t levelCount) override;
     void writeTimestamp(std::shared_ptr<QuerySet> querySet, uint32_t queryIndex) override;
+    void resetQuerySet(std::shared_ptr<QuerySet> querySet, uint32_t firstQuery, uint32_t queryCount) override;
     void resolveQuerySet(std::shared_ptr<QuerySet> querySet, uint32_t firstQuery, uint32_t queryCount, std::shared_ptr<Buffer> destinationBuffer, uint64_t destinationOffset) override;
     void end() override;
     void begin() override;

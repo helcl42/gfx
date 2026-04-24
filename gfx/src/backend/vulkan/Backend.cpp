@@ -427,6 +427,11 @@ GfxResult Backend::commandEncoderWriteTimestamp(GfxCommandEncoder commandEncoder
     return m_commandComponent.commandEncoderWriteTimestamp(commandEncoder, querySet, queryIndex);
 }
 
+GfxResult Backend::commandEncoderResetQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount) const
+{
+    return m_commandComponent.commandEncoderResetQuerySet(commandEncoder, querySet, firstQuery, queryCount);
+}
+
 GfxResult Backend::commandEncoderResolveQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount, GfxBuffer destinationBuffer, uint64_t destinationOffset) const
 {
     return m_commandComponent.commandEncoderResolveQuerySet(commandEncoder, querySet, firstQuery, queryCount, destinationBuffer, destinationOffset);

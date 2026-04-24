@@ -1819,6 +1819,7 @@ GFX_API GfxResult gfxCommandEncoderPipelineBarrier(GfxCommandEncoder commandEnco
 GFX_API GfxResult gfxCommandEncoderGenerateMipmaps(GfxCommandEncoder commandEncoder, GfxTexture texture);
 GFX_API GfxResult gfxCommandEncoderGenerateMipmapsRange(GfxCommandEncoder commandEncoder, GfxTexture texture, uint32_t baseMipLevel, uint32_t levelCount);
 GFX_API GfxResult gfxCommandEncoderWriteTimestamp(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t queryIndex);
+GFX_API GfxResult gfxCommandEncoderResetQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount);
 GFX_API GfxResult gfxCommandEncoderResolveQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount, GfxBuffer destinationBuffer, uint64_t destinationOffset);
 GFX_API GfxResult gfxCommandEncoderEnd(GfxCommandEncoder commandEncoder);
 GFX_API GfxResult gfxCommandEncoderBegin(GfxCommandEncoder commandEncoder);

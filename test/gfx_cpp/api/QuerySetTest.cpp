@@ -151,6 +151,17 @@ TEST_P(GfxCppQuerySetTest, WriteTimestampWithNullQuerySet)
     EXPECT_THROW({ encoder->writeTimestamp(nullptr, 0); }, std::exception);
 }
 
+TEST_P(GfxCppQuerySetTest, ResetQuerySetWithNullQuerySet)
+{
+    ASSERT_NE(device, nullptr);
+
+    auto encoder = device->createCommandEncoder({ .label = "Test Encoder" });
+    ASSERT_NE(encoder, nullptr);
+
+    // Passing nullptr should throw
+    EXPECT_THROW({ encoder->resetQuerySet(nullptr, 0, 8); }, std::exception);
+}
+
 TEST_P(GfxCppQuerySetTest, ResolveQuerySetWithNullQuerySet)
 {
     ASSERT_NE(device, nullptr);
@@ -221,6 +232,33 @@ TEST_P(GfxCppQuerySetTest, WriteTimestampOperation)
     // Write timestamps at beginning and end
     encoder->writeTimestamp(querySet, 0);
     encoder->writeTimestamp(querySet, 1);
+
+    encoder->end();
+}
+
+TEST_P(GfxCppQuerySetTest, ResetQuerySetOperation)
+{
+    ASSERT_NE(device, nullptr);
+
+    gfx::QuerySetDescriptor querySetDesc{
+        .type = gfx::QueryType::Timestamp,
+        .count = 2
+    };
+
+    std::shared_ptr<gfx::QuerySet> querySet;
+    try {
+        querySet = device->createQuerySet(querySetDesc);
+    } catch (const std::exception&) {
+        GTEST_SKIP() << "Timestamp queries not supported";
+    }
+
+    ASSERT_NE(querySet, nullptr);
+
+    auto encoder = device->createCommandEncoder({});
+    ASSERT_NE(encoder, nullptr);
+
+    // Reset query set before writing timestamps
+    encoder->resetQuerySet(querySet, 0, 2);
 
     encoder->end();
 }

@@ -125,6 +125,7 @@ public:
     virtual GfxResult commandEncoderGenerateMipmaps(GfxCommandEncoder commandEncoder, GfxTexture texture) const = 0;
     virtual GfxResult commandEncoderGenerateMipmapsRange(GfxCommandEncoder commandEncoder, GfxTexture texture, uint32_t baseMipLevel, uint32_t levelCount) const = 0;
     virtual GfxResult commandEncoderWriteTimestamp(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t queryIndex) const = 0;
+    virtual GfxResult commandEncoderResetQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount) const = 0;
     virtual GfxResult commandEncoderResolveQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount, GfxBuffer destinationBuffer, uint64_t destinationOffset) const = 0;
     virtual GfxResult commandEncoderEnd(GfxCommandEncoder commandEncoder) const = 0;
     virtual GfxResult commandEncoderBegin(GfxCommandEncoder commandEncoder) const = 0;

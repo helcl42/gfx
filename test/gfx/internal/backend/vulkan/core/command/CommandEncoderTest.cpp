@@ -326,6 +326,20 @@ TEST_F(VulkanCommandEncoderTest, WriteTimestamp_WorksCorrectly)
     encoder->end();
 }
 
+TEST_F(VulkanCommandEncoderTest, ResetQuerySet_WorksCorrectly)
+{
+    gfx::backend::vulkan::core::QuerySetCreateInfo queryInfo{};
+    queryInfo.type = VK_QUERY_TYPE_TIMESTAMP;
+    queryInfo.count = 2;
+    auto querySet = std::make_unique<gfx::backend::vulkan::core::QuerySet>(device.get(), queryInfo);
+
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+
+    encoder->begin();
+    EXPECT_NO_THROW(encoder->resetQuerySet(querySet->handle(), 0, 2));
+    encoder->end();
+}
+
 TEST_F(VulkanCommandEncoderTest, ResolveQuerySet_WorksCorrectly)
 {
     gfx::backend::vulkan::core::QuerySetCreateInfo queryInfo{};

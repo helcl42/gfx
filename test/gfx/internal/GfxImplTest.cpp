@@ -129,6 +129,7 @@ public:
     MOCK_METHOD(GfxResult, commandEncoderGenerateMipmaps, (GfxCommandEncoder, GfxTexture), (const, override));
     MOCK_METHOD(GfxResult, commandEncoderGenerateMipmapsRange, (GfxCommandEncoder, GfxTexture, uint32_t, uint32_t), (const, override));
     MOCK_METHOD(GfxResult, commandEncoderWriteTimestamp, (GfxCommandEncoder, GfxQuerySet, uint32_t), (const, override));
+    MOCK_METHOD(GfxResult, commandEncoderResetQuerySet, (GfxCommandEncoder, GfxQuerySet, uint32_t, uint32_t), (const, override));
     MOCK_METHOD(GfxResult, commandEncoderResolveQuerySet, (GfxCommandEncoder, GfxQuerySet, uint32_t, uint32_t, GfxBuffer, uint64_t), (const, override));
     MOCK_METHOD(GfxResult, commandEncoderEnd, (GfxCommandEncoder), (const, override));
     MOCK_METHOD(GfxResult, commandEncoderBegin, (GfxCommandEncoder), (const, override));
@@ -1300,6 +1301,12 @@ TEST_F(GfxImplTest, CommandEncoderWriteTimestamp_NullEncoder_ReturnsError)
 {
     GfxQuerySet querySet = reinterpret_cast<GfxQuerySet>(0x1);
     ASSERT_EQ(gfxCommandEncoderWriteTimestamp(nullptr, querySet, 0), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_F(GfxImplTest, CommandEncoderResetQuerySet_NullEncoder_ReturnsError)
+{
+    GfxQuerySet querySet = reinterpret_cast<GfxQuerySet>(0x1);
+    ASSERT_EQ(gfxCommandEncoderResetQuerySet(nullptr, querySet, 0, 1), GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
 TEST_F(GfxImplTest, CommandEncoderResolveQuerySet_NullEncoder_ReturnsError)

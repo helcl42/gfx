@@ -343,6 +343,11 @@ void CommandEncoder::writeTimestamp(VkQueryPool queryPool, uint32_t queryIndex)
     vkCmdWriteTimestamp(m_commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, queryIndex);
 }
 
+void CommandEncoder::resetQuerySet(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount)
+{
+    vkCmdResetQueryPool(m_commandBuffer, queryPool, firstQuery, queryCount);
+}
+
 void CommandEncoder::resolveQuerySet(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, VkBuffer buffer, uint64_t destinationOffset)
 {
     vkCmdCopyQueryPoolResults(m_commandBuffer, queryPool, firstQuery, queryCount, buffer, destinationOffset, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);

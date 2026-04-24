@@ -1071,6 +1071,18 @@ GfxResult gfxCommandEncoderWriteTimestamp(GfxCommandEncoder commandEncoder, GfxQ
     return backend->commandEncoderWriteTimestamp(commandEncoder, querySet, queryIndex);
 }
 
+GfxResult gfxCommandEncoderResetQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount)
+{
+    if (!commandEncoder || !querySet) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(commandEncoder);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->commandEncoderResetQuerySet(commandEncoder, querySet, firstQuery, queryCount);
+}
+
 GfxResult gfxCommandEncoderResolveQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount, GfxBuffer destinationBuffer, uint64_t destinationOffset)
 {
     if (!commandEncoder || !querySet || !destinationBuffer) {

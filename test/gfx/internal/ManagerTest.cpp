@@ -99,6 +99,7 @@ public:
     GfxResult commandEncoderGenerateMipmaps(GfxCommandEncoder, GfxTexture) const override { return GFX_RESULT_SUCCESS; }
     GfxResult commandEncoderGenerateMipmapsRange(GfxCommandEncoder, GfxTexture, uint32_t, uint32_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult commandEncoderWriteTimestamp(GfxCommandEncoder, GfxQuerySet, uint32_t) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult commandEncoderResetQuerySet(GfxCommandEncoder, GfxQuerySet, uint32_t, uint32_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult commandEncoderResolveQuerySet(GfxCommandEncoder, GfxQuerySet, uint32_t, uint32_t, GfxBuffer, uint64_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult commandEncoderEnd(GfxCommandEncoder) const override { return GFX_RESULT_SUCCESS; }
     GfxResult commandEncoderBegin(GfxCommandEncoder) const override { return GFX_RESULT_SUCCESS; }

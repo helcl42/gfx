@@ -261,6 +261,19 @@ GfxResult CommandComponent::commandEncoderWriteTimestamp(GfxCommandEncoder comma
     return GFX_RESULT_SUCCESS;
 }
 
+GfxResult CommandComponent::commandEncoderResetQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount) const
+{
+    GfxResult validationResult = validator::validateCommandEncoderResetQuerySet(commandEncoder, querySet);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* encoder = converter::toNative<core::CommandEncoder>(commandEncoder);
+    auto* query = converter::toNative<core::QuerySet>(querySet);
+    encoder->resetQuerySet(query->handle(), firstQuery, queryCount);
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult CommandComponent::commandEncoderResolveQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount, GfxBuffer destinationBuffer, uint64_t destinationOffset) const
 {
     GfxResult validationResult = validator::validateCommandEncoderResolveQuerySet(commandEncoder, querySet, destinationBuffer);
