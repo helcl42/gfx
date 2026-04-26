@@ -335,6 +335,42 @@ GfxFormat vkFormatToGfxFormat(VkFormat format)
         return GFX_FORMAT_DEPTH32_FLOAT;
     case VK_FORMAT_D32_SFLOAT_S8_UINT:
         return GFX_FORMAT_DEPTH32_FLOAT_STENCIL8;
+    case VK_FORMAT_R8_SINT:
+        return GFX_FORMAT_R8_SINT;
+    case VK_FORMAT_R8_UINT:
+        return GFX_FORMAT_R8_UINT;
+    case VK_FORMAT_R8G8_SINT:
+        return GFX_FORMAT_R8G8_SINT;
+    case VK_FORMAT_R8G8_UINT:
+        return GFX_FORMAT_R8G8_UINT;
+    case VK_FORMAT_R8G8B8A8_SINT:
+        return GFX_FORMAT_R8G8B8A8_SINT;
+    case VK_FORMAT_R8G8B8A8_UINT:
+        return GFX_FORMAT_R8G8B8A8_UINT;
+    case VK_FORMAT_R16_SINT:
+        return GFX_FORMAT_R16_SINT;
+    case VK_FORMAT_R16_UINT:
+        return GFX_FORMAT_R16_UINT;
+    case VK_FORMAT_R16G16_SINT:
+        return GFX_FORMAT_R16G16_SINT;
+    case VK_FORMAT_R16G16_UINT:
+        return GFX_FORMAT_R16G16_UINT;
+    case VK_FORMAT_R16G16B16A16_SINT:
+        return GFX_FORMAT_R16G16B16A16_SINT;
+    case VK_FORMAT_R16G16B16A16_UINT:
+        return GFX_FORMAT_R16G16B16A16_UINT;
+    case VK_FORMAT_R32_SINT:
+        return GFX_FORMAT_R32_SINT;
+    case VK_FORMAT_R32_UINT:
+        return GFX_FORMAT_R32_UINT;
+    case VK_FORMAT_R32G32_SINT:
+        return GFX_FORMAT_R32G32_SINT;
+    case VK_FORMAT_R32G32_UINT:
+        return GFX_FORMAT_R32G32_UINT;
+    case VK_FORMAT_R32G32B32A32_SINT:
+        return GFX_FORMAT_R32G32B32A32_SINT;
+    case VK_FORMAT_R32G32B32A32_UINT:
+        return GFX_FORMAT_R32G32B32A32_UINT;
     default:
         return GFX_FORMAT_UNDEFINED;
     }
