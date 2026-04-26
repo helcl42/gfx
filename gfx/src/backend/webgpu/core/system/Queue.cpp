@@ -88,7 +88,7 @@ void Queue::writeBuffer(Buffer* buffer, uint64_t offset, const void* data, uint6
     wgpuQueueWriteBuffer(m_queue, buffer->handle(), offset, data, size);
 }
 
-void Queue::writeTexture(Texture* texture, uint32_t mipLevel, const WGPUOrigin3D& origin, const void* data, uint64_t dataSize, const WGPUExtent3D& extent)
+void Queue::writeTexture(Texture* texture, uint32_t mipLevel, uint32_t arrayLayer, const WGPUOrigin3D& origin, const void* data, uint64_t dataSize, const WGPUExtent3D& extent)
 {
     uint32_t bytesPerRow = calculateBytesPerRow(texture->getFormat(), extent.width);
 
@@ -96,6 +96,7 @@ void Queue::writeTexture(Texture* texture, uint32_t mipLevel, const WGPUOrigin3D
     dest.texture = texture->handle();
     dest.mipLevel = mipLevel;
     dest.origin = origin;
+    dest.origin.z = arrayLayer;
 
     WGPUTexelCopyBufferLayout layout = WGPU_TEXEL_COPY_BUFFER_LAYOUT_INIT;
     layout.bytesPerRow = bytesPerRow;

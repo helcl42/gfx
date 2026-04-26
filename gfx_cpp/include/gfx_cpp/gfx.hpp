@@ -1661,7 +1661,7 @@ public:
 
     virtual Result submit(const SubmitDescriptor& submitDescriptor) = 0;
     virtual void writeBuffer(std::shared_ptr<Buffer> buffer, uint64_t offset, const void* data, uint64_t size) = 0;
-    virtual void writeTexture(std::shared_ptr<Texture> texture, const Origin3D& origin, uint32_t mipLevel, const void* data, uint64_t dataSize, const Extent3D& extent, TextureLayout finalLayout) = 0;
+    virtual void writeTexture(std::shared_ptr<Texture> texture, const Origin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, const Extent3D& extent, TextureLayout finalLayout) = 0;
     virtual void waitIdle() = 0;
 
     template <typename T>

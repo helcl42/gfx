@@ -1729,7 +1729,7 @@ GFX_API GfxAccessFlags gfxDeviceGetAccessFlagsForLayout(GfxDevice device, GfxTex
 // Queue functions
 GFX_API GfxResult gfxQueueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitDescriptor);
 GFX_API GfxResult gfxQueueWriteBuffer(GfxQueue queue, GfxBuffer buffer, uint64_t offset, const void* data, uint64_t size);
-GFX_API GfxResult gfxQueueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, const void* data, uint64_t dataSize, GfxTextureLayout finalLayout);
+GFX_API GfxResult gfxQueueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, GfxTextureLayout finalLayout);
 GFX_API GfxResult gfxQueueWaitIdle(GfxQueue queue);
 
 // Surface functions

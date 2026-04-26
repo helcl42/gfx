@@ -204,7 +204,7 @@ void Queue::writeBuffer(Buffer* buffer, uint64_t offset, const void* data, uint6
 }
 
 void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mipLevel,
-    const void* data, uint64_t dataSize,
+    uint32_t arrayLayer, const void* data, uint64_t dataSize,
     const VkExtent3D& extent, VkImageLayout finalLayout)
 {
     VkDevice device = texture->device();
@@ -263,7 +263,7 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
     CommandExecutor executor(this);
     executor.execute([&](VkCommandBuffer cmd) {
         // Transition image to transfer dst optimal
-        texture->transitionLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevel, 1, 0, 1);
+        texture->transitionLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevel, 1, arrayLayer, 1);
 
         // Copy buffer to image
         VkBufferImageCopy region{};
@@ -272,7 +272,7 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
         region.bufferImageHeight = 0;
         region.imageSubresource.aspectMask = getImageAspectMask(texture->getFormat());
         region.imageSubresource.mipLevel = mipLevel;
-        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.baseArrayLayer = arrayLayer;
         region.imageSubresource.layerCount = 1;
         region.imageOffset = origin;
         region.imageExtent = extent;
@@ -281,7 +281,7 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
         // Transition image to final layout
-        texture->transitionLayout(cmd, finalLayout, mipLevel, 1, 0, 1);
+        texture->transitionLayout(cmd, finalLayout, mipLevel, 1, arrayLayer, 1);
     });
 
     // Cleanup

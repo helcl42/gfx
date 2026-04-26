@@ -108,7 +108,7 @@ TEST_P(QueueImplTest, WriteTexture)
     Extent3D extent = { 16, 16, 1 };
 
     // Should not crash
-    queueWrapper.writeTexture(texture, origin, 0, data.data(), data.size(), extent, TextureLayout::Undefined);
+    queueWrapper.writeTexture(texture, origin, 0, 0, data.data(), data.size(), extent, TextureLayout::Undefined);
 }
 
 TEST_P(QueueImplTest, Submit)
