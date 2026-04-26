@@ -20,7 +20,6 @@
 
 #ifdef GFX_HAS_WAYLAND
 #define VK_USE_PLATFORM_WAYLAND_KHR
-#define VK_USE_PLATFORM_METAL_KHR
 #include <wayland-client.h>
 #endif
 
@@ -38,6 +37,7 @@ typedef void CAMetalLayer;
 
 #ifdef GFX_HAS_UIKIT
 #define VK_USE_PLATFORM_IOS_MVK
+#define VK_USE_PLATFORM_METAL_KHR
 // Metal layer type needed for MoltenVK
 #ifdef __OBJC__
 #import <UIKit/UIKit.h>
