@@ -893,7 +893,7 @@ bool ComputeApp::createComputeBindGroupLayout()
             .count = 1,
             .resource = gfx::BindGroupLayoutEntry::StorageTextureBinding{
                 .format = gfx::Format::R8G8B8A8Unorm,
-                .writeOnly = true,
+                .access = gfx::StorageTextureAccess::WriteOnly,
                 .viewDimension = gfx::TextureViewType::View2D,
             }
         };

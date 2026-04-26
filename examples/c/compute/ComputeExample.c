@@ -980,7 +980,7 @@ static bool createComputeBindGroupLayout(ComputeApp* app)
             .storageTexture = {
                 .format = GFX_FORMAT_R8G8B8A8_UNORM,
                 .viewDimension = GFX_TEXTURE_VIEW_TYPE_2D,
-                .writeOnly = true,
+                .access = GFX_STORAGE_TEXTURE_ACCESS_WRITE_ONLY,
             },
         },
         {

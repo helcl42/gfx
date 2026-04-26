@@ -210,6 +210,7 @@ WGPUStencilOperation gfxStencilOperationToWGPU(GfxStencilOperation op);
 
 // Texture binding conversions
 WGPUTextureSampleType gfxTextureSampleTypeToWGPU(GfxTextureSampleType sampleType);
+WGPUStorageTextureAccess gfxStorageTextureAccessToWGPU(GfxStorageTextureAccess access);
 
 // Vertex format conversions
 WGPUVertexFormat gfxFormatToWGPUVertexFormat(GfxFormat format);

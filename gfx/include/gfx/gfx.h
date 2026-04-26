@@ -835,6 +835,13 @@ typedef enum {
     GFX_QUERY_TYPE_MAX_ENUM = 0x7FFFFFFF
 } GfxQueryType;
 
+typedef enum {
+    GFX_STORAGE_TEXTURE_ACCESS_WRITE_ONLY = 0,
+    GFX_STORAGE_TEXTURE_ACCESS_READ_ONLY = 1,
+    GFX_STORAGE_TEXTURE_ACCESS_READ_WRITE = 2,
+    GFX_STORAGE_TEXTURE_ACCESS_MAX_ENUM = 0x7FFFFFFF
+} GfxStorageTextureAccess;
+
 // Structure types for extensibility (Vulkan-style)
 typedef enum {
     GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR = 1,
@@ -1490,7 +1497,7 @@ typedef struct {
     struct {
         GfxFormat format;
         GfxTextureViewType viewDimension;
-        bool writeOnly;
+        GfxStorageTextureAccess access;
     } storageTexture;
 } GfxBindGroupLayoutEntry;
 

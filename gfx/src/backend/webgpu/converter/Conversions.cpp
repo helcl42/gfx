@@ -514,9 +514,7 @@ core::BindGroupLayoutCreateInfo gfxDescriptorToWebGPUBindGroupLayoutCreateInfo(c
             layoutEntry.textureMultisampled = entry.texture.multisampled ? WGPU_TRUE : WGPU_FALSE;
             break;
         case GFX_BINDING_TYPE_STORAGE_TEXTURE:
-            layoutEntry.storageTextureAccess = entry.storageTexture.writeOnly
-                ? WGPUStorageTextureAccess_WriteOnly
-                : WGPUStorageTextureAccess_ReadOnly;
+            layoutEntry.storageTextureAccess = gfxStorageTextureAccessToWGPU(entry.storageTexture.access);
             layoutEntry.storageTextureFormat = gfxFormatToWGPUFormat(entry.storageTexture.format);
             layoutEntry.storageTextureViewDimension = gfxTextureViewTypeToWGPU(entry.storageTexture.viewDimension);
             break;
@@ -1373,6 +1371,20 @@ WGPUStencilOperation gfxStencilOperationToWGPU(GfxStencilOperation op)
         return WGPUStencilOperation_DecrementWrap;
     default:
         return WGPUStencilOperation_Undefined;
+    }
+}
+
+WGPUStorageTextureAccess gfxStorageTextureAccessToWGPU(GfxStorageTextureAccess access)
+{
+    switch (access) {
+    case GFX_STORAGE_TEXTURE_ACCESS_WRITE_ONLY:
+        return WGPUStorageTextureAccess_WriteOnly;
+    case GFX_STORAGE_TEXTURE_ACCESS_READ_ONLY:
+        return WGPUStorageTextureAccess_ReadOnly;
+    case GFX_STORAGE_TEXTURE_ACCESS_READ_WRITE:
+        return WGPUStorageTextureAccess_ReadWrite;
+    default:
+        return WGPUStorageTextureAccess_WriteOnly;
     }
 }
 

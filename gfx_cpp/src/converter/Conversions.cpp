@@ -940,7 +940,7 @@ void convertBindGroupLayoutDescriptor(const BindGroupLayoutDescriptor& descripto
             outEntries[i].type = GFX_BINDING_TYPE_STORAGE_TEXTURE;
             const auto& storageTexture = std::get<BindGroupLayoutEntry::StorageTextureBinding>(entry.resource);
             outEntries[i].storageTexture.format = cppFormatToCFormat(storageTexture.format);
-            outEntries[i].storageTexture.writeOnly = storageTexture.writeOnly;
+            outEntries[i].storageTexture.access = static_cast<GfxStorageTextureAccess>(storageTexture.access);
             outEntries[i].storageTexture.viewDimension = cppTextureViewTypeToCType(storageTexture.viewDimension);
         }
     }

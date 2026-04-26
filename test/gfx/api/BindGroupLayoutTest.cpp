@@ -224,7 +224,7 @@ TEST_P(GfxBindGroupLayoutTest, CreateBindGroupLayoutWithStorageTexture)
     entry.type = GFX_BINDING_TYPE_STORAGE_TEXTURE;
     entry.storageTexture.format = GFX_FORMAT_R32G32B32A32_FLOAT;
     entry.storageTexture.viewDimension = GFX_TEXTURE_VIEW_TYPE_2D;
-    entry.storageTexture.writeOnly = true;
+    entry.storageTexture.access = GFX_STORAGE_TEXTURE_ACCESS_WRITE_ONLY;
 
     GfxBindGroupLayoutDescriptor desc = {};
     desc.label = "Storage Texture Layout";

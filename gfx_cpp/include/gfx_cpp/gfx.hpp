@@ -345,6 +345,12 @@ enum class TextureViewType : int32_t {
     ViewCubeArray = 6
 };
 
+enum class StorageTextureAccess : int32_t {
+    WriteOnly = 0,
+    ReadOnly = 1,
+    ReadWrite = 2
+};
+
 enum class TextureUsage : uint32_t {
     None = 0,
     CopySrc = 1 << 0,
@@ -1122,7 +1128,7 @@ struct BindGroupLayoutEntry {
 
     struct StorageTextureBinding {
         Format format = Format::Undefined;
-        bool writeOnly = true;
+        StorageTextureAccess access = StorageTextureAccess::WriteOnly;
         TextureViewType viewDimension = TextureViewType::View2D;
     };
 
