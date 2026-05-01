@@ -103,14 +103,12 @@ void RenderPassEncoder::setBindGroup(uint32_t index, WGPUBindGroup bindGroup, co
 
 void RenderPassEncoder::setVertexBuffer(uint32_t slot, Buffer* buffer, uint64_t offset, uint64_t size)
 {
-    uint64_t actualSize = (size == 0) ? (buffer->getInfo().size - offset) : size;
-    wgpuRenderPassEncoderSetVertexBuffer(m_encoder, slot, buffer->handle(), offset, actualSize);
+    wgpuRenderPassEncoderSetVertexBuffer(m_encoder, slot, buffer->handle(), offset, size);
 }
 
 void RenderPassEncoder::setIndexBuffer(Buffer* buffer, WGPUIndexFormat format, uint64_t offset, uint64_t size)
 {
-    uint64_t actualSize = (size == 0) ? (buffer->getInfo().size - offset) : size;
-    wgpuRenderPassEncoderSetIndexBuffer(m_encoder, buffer->handle(), format, offset, actualSize);
+    wgpuRenderPassEncoderSetIndexBuffer(m_encoder, buffer->handle(), format, offset, size);
 }
 
 void RenderPassEncoder::setViewport(float x, float y, float width, float height, float minDepth, float maxDepth)
