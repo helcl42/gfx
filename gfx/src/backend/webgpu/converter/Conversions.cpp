@@ -504,9 +504,7 @@ core::BindGroupLayoutCreateInfo gfxDescriptorToWebGPUBindGroupLayoutCreateInfo(c
             layoutEntry.bufferMinBindingSize = entry.buffer.minBindingSize;
             break;
         case GFX_BINDING_TYPE_SAMPLER:
-            layoutEntry.samplerType = entry.sampler.comparison
-                ? WGPUSamplerBindingType_Comparison
-                : WGPUSamplerBindingType_Filtering;
+            layoutEntry.samplerType = gfxSamplerBindingTypeToWGPU(entry.sampler.type);
             break;
         case GFX_BINDING_TYPE_TEXTURE:
             layoutEntry.textureSampleType = gfxTextureSampleTypeToWGPU(entry.texture.sampleType);
@@ -1385,6 +1383,20 @@ WGPUStorageTextureAccess gfxStorageTextureAccessToWGPU(GfxStorageTextureAccess a
         return WGPUStorageTextureAccess_ReadWrite;
     default:
         return WGPUStorageTextureAccess_WriteOnly;
+    }
+}
+
+WGPUSamplerBindingType gfxSamplerBindingTypeToWGPU(GfxSamplerBindingType type)
+{
+    switch (type) {
+    case GFX_SAMPLER_BINDING_TYPE_FILTERING:
+        return WGPUSamplerBindingType_Filtering;
+    case GFX_SAMPLER_BINDING_TYPE_NON_FILTERING:
+        return WGPUSamplerBindingType_NonFiltering;
+    case GFX_SAMPLER_BINDING_TYPE_COMPARISON:
+        return WGPUSamplerBindingType_Comparison;
+    default:
+        return WGPUSamplerBindingType_Filtering;
     }
 }
 

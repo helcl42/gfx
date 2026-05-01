@@ -177,7 +177,7 @@ TEST_P(BindGroupImplTest, CreateBindGroupWithSampler)
         .binding = 0,
         .visibility = ShaderStage::Fragment,
         .resource = BindGroupLayoutEntry::SamplerBinding{
-            .comparison = false }
+            .type = SamplerBindingType::Filtering }
     };
 
     BindGroupLayoutDescriptor layoutDesc{
@@ -236,7 +236,7 @@ TEST_P(BindGroupImplTest, CreateBindGroupWithMultipleBindings)
         .binding = 1,
         .visibility = ShaderStage::Compute,
         .resource = BindGroupLayoutEntry::SamplerBinding{
-            .comparison = false }
+            .type = SamplerBindingType::Filtering }
     };
 
     BindGroupLayoutDescriptor layoutDesc{

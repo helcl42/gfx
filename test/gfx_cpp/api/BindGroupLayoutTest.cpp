@@ -93,7 +93,7 @@ TEST_P(GfxCppBindGroupLayoutTest, CreateBindGroupLayoutWithSampler)
         .binding = 0,
         .visibility = gfx::ShaderStage::Fragment,
         .resource = gfx::BindGroupLayoutEntry::SamplerBinding{
-            .comparison = false }
+            .type = gfx::SamplerBindingType::Filtering }
     };
 
     gfx::BindGroupLayoutDescriptor desc{
@@ -175,7 +175,7 @@ TEST_P(GfxCppBindGroupLayoutTest, CreateBindGroupLayoutWithMultipleEntries)
         .binding = 2,
         .visibility = gfx::ShaderStage::Fragment,
         .resource = gfx::BindGroupLayoutEntry::SamplerBinding{
-            .comparison = false } });
+            .type = gfx::SamplerBindingType::Filtering } });
 
     gfx::BindGroupLayoutDescriptor desc{
         .label = "Multi-Entry Layout",

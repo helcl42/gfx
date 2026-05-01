@@ -99,7 +99,7 @@ TEST_P(GfxCppBindGroupTest, CreateBindGroupWithSampler)
         .binding = 0,
         .visibility = gfx::ShaderStage::Fragment,
         .resource = gfx::BindGroupLayoutEntry::SamplerBinding{
-            .comparison = false }
+            .type = gfx::SamplerBindingType::Filtering }
     };
 
     gfx::BindGroupLayoutDescriptor layoutDesc{
@@ -266,7 +266,7 @@ TEST_P(GfxCppBindGroupTest, CreateBindGroupWithMultipleEntries)
         .binding = 1,
         .visibility = gfx::ShaderStage::Fragment,
         .resource = gfx::BindGroupLayoutEntry::SamplerBinding{
-            .comparison = false } });
+            .type = gfx::SamplerBindingType::Filtering } });
 
     // Binding 2: Texture
     layoutEntries.push_back(gfx::BindGroupLayoutEntry{

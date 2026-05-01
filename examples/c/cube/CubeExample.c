@@ -1201,7 +1201,7 @@ static bool createBindGroup(CubeApp* app)
             .type = GFX_BINDING_TYPE_SAMPLER,
             .count = 1,
             .sampler = {
-                // No type field needed for sampler binding
+                .type = GFX_SAMPLER_BINDING_TYPE_FILTERING,
             },
         }
     };

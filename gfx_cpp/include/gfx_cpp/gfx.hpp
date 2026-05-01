@@ -351,6 +351,12 @@ enum class StorageTextureAccess : int32_t {
     ReadWrite = 2
 };
 
+enum class SamplerBindingType : int32_t {
+    Filtering = 0,
+    NonFiltering = 1,
+    Comparison = 2
+};
+
 enum class TextureUsage : uint32_t {
     None = 0,
     CopySrc = 1 << 0,
@@ -1118,7 +1124,7 @@ struct BindGroupLayoutEntry {
     };
 
     struct SamplerBinding {
-        bool comparison = false;
+        SamplerBindingType type = SamplerBindingType::Filtering;
     };
 
     struct TextureBinding {

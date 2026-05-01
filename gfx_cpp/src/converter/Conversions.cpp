@@ -700,6 +700,16 @@ GfxTextureViewType cppTextureViewTypeToCType(TextureViewType type)
     return static_cast<GfxTextureViewType>(type);
 }
 
+GfxSamplerBindingType cppSamplerBindingTypeToCType(SamplerBindingType type)
+{
+    return static_cast<GfxSamplerBindingType>(type);
+}
+
+GfxStorageTextureAccess cppStorageTextureAccessToCType(StorageTextureAccess access)
+{
+    return static_cast<GfxStorageTextureAccess>(access);
+}
+
 GfxWindowingSystem cppWindowingSystemToC(WindowingSystem sys)
 {
     return static_cast<GfxWindowingSystem>(sys);
@@ -930,7 +940,7 @@ void convertBindGroupLayoutDescriptor(const BindGroupLayoutDescriptor& descripto
         } else if (std::holds_alternative<BindGroupLayoutEntry::SamplerBinding>(entry.resource)) {
             outEntries[i].type = GFX_BINDING_TYPE_SAMPLER;
             const auto& sampler = std::get<BindGroupLayoutEntry::SamplerBinding>(entry.resource);
-            outEntries[i].sampler.comparison = sampler.comparison;
+            outEntries[i].sampler.type = cppSamplerBindingTypeToCType(sampler.type);
         } else if (std::holds_alternative<BindGroupLayoutEntry::TextureBinding>(entry.resource)) {
             outEntries[i].type = GFX_BINDING_TYPE_TEXTURE;
             const auto& texture = std::get<BindGroupLayoutEntry::TextureBinding>(entry.resource);
@@ -940,7 +950,7 @@ void convertBindGroupLayoutDescriptor(const BindGroupLayoutDescriptor& descripto
             outEntries[i].type = GFX_BINDING_TYPE_STORAGE_TEXTURE;
             const auto& storageTexture = std::get<BindGroupLayoutEntry::StorageTextureBinding>(entry.resource);
             outEntries[i].storageTexture.format = cppFormatToCFormat(storageTexture.format);
-            outEntries[i].storageTexture.access = static_cast<GfxStorageTextureAccess>(storageTexture.access);
+            outEntries[i].storageTexture.access = cppStorageTextureAccessToCType(storageTexture.access);
             outEntries[i].storageTexture.viewDimension = cppTextureViewTypeToCType(storageTexture.viewDimension);
         }
     }

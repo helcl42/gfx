@@ -1195,7 +1195,7 @@ bool ComputeApp::createRenderBindGroupLayout()
             .visibility = gfx::ShaderStage::Fragment,
             .count = 1,
             .resource = gfx::BindGroupLayoutEntry::SamplerBinding{
-                .comparison = false,
+                .type = gfx::SamplerBindingType::Filtering,
             }
         };
 

@@ -238,7 +238,7 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithSampler)
     layoutEntry.binding = 0;
     layoutEntry.visibility = GFX_SHADER_STAGE_FRAGMENT;
     layoutEntry.type = GFX_BINDING_TYPE_SAMPLER;
-    layoutEntry.sampler.comparison = false;
+    layoutEntry.sampler.type = GFX_SAMPLER_BINDING_TYPE_FILTERING;
 
     GfxBindGroupLayoutDescriptor layoutDesc = {};
     layoutDesc.entries = &layoutEntry;
@@ -417,7 +417,7 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithMultipleEntries)
     layoutEntries[1].binding = 1;
     layoutEntries[1].visibility = GFX_SHADER_STAGE_FRAGMENT;
     layoutEntries[1].type = GFX_BINDING_TYPE_SAMPLER;
-    layoutEntries[1].sampler.comparison = false;
+    layoutEntries[1].sampler.type = GFX_SAMPLER_BINDING_TYPE_FILTERING;
 
     // Binding 2: Texture
     layoutEntries[2].binding = 2;

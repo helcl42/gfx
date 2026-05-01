@@ -842,6 +842,13 @@ typedef enum {
     GFX_STORAGE_TEXTURE_ACCESS_MAX_ENUM = 0x7FFFFFFF
 } GfxStorageTextureAccess;
 
+typedef enum {
+    GFX_SAMPLER_BINDING_TYPE_FILTERING = 0,
+    GFX_SAMPLER_BINDING_TYPE_NON_FILTERING = 1,
+    GFX_SAMPLER_BINDING_TYPE_COMPARISON = 2,
+    GFX_SAMPLER_BINDING_TYPE_MAX_ENUM = 0x7FFFFFFF
+} GfxSamplerBindingType;
+
 // Structure types for extensibility (Vulkan-style)
 typedef enum {
     GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR = 1,
@@ -1485,7 +1492,7 @@ typedef struct {
     } buffer;
 
     struct {
-        bool comparison;
+        GfxSamplerBindingType type;
     } sampler;
 
     struct {

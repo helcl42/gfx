@@ -179,6 +179,12 @@ TextureType cTextureTypeToCppType(GfxTextureType type);
 // Texture view type conversions
 GfxTextureViewType cppTextureViewTypeToCType(TextureViewType type);
 
+// Sampler binding type conversions
+GfxSamplerBindingType cppSamplerBindingTypeToCType(SamplerBindingType type);
+
+// Storage texture access conversions
+GfxStorageTextureAccess cppStorageTextureAccessToCType(StorageTextureAccess access);
+
 // Windowing system conversions
 GfxWindowingSystem cppWindowingSystemToC(WindowingSystem sys);
 

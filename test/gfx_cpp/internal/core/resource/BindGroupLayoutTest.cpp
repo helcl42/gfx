@@ -90,7 +90,7 @@ TEST_P(BindGroupLayoutImplTest, CreateBindGroupLayoutWithMultipleBindings)
     BindGroupLayoutEntry samplerEntry{
         .binding = 1,
         .visibility = ShaderStage::Fragment,
-        .resource = BindGroupLayoutEntry::SamplerBinding{ .comparison = false }
+        .resource = BindGroupLayoutEntry::SamplerBinding{ .type = SamplerBindingType::Filtering }
     };
 
     BindGroupLayoutEntry textureEntry{

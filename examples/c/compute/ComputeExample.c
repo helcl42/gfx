@@ -1297,7 +1297,7 @@ static bool createRenderBindGroupLayout(ComputeApp* app)
             .type = GFX_BINDING_TYPE_SAMPLER,
             .count = 1,
             .sampler = {
-                .comparison = false,
+                .type = GFX_SAMPLER_BINDING_TYPE_FILTERING,
             },
         },
         {
