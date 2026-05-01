@@ -90,7 +90,9 @@ void Queue::writeBuffer(Buffer* buffer, uint64_t offset, const void* data, uint6
 
 void Queue::writeTexture(Texture* texture, uint32_t mipLevel, uint32_t arrayLayer, const WGPUOrigin3D& origin, const void* data, uint64_t dataSize, const WGPUExtent3D& extent)
 {
-    uint32_t bytesPerRow = calculateBytesPerRow(texture->getFormat(), extent.width);
+    // For WriteTexture (CPU→texture), bytesPerRow doesn't require 256-byte alignment
+    // (unlike buffer-to-texture copies). Use tight packing to match the source data layout.
+    uint32_t bytesPerRow = extent.width * getFormatBytesPerPixel(texture->getFormat());
 
     WGPUTexelCopyTextureInfo dest = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
     dest.texture = texture->handle();
@@ -100,6 +102,7 @@ void Queue::writeTexture(Texture* texture, uint32_t mipLevel, uint32_t arrayLaye
 
     WGPUTexelCopyBufferLayout layout = WGPU_TEXEL_COPY_BUFFER_LAYOUT_INIT;
     layout.bytesPerRow = bytesPerRow;
+    layout.rowsPerImage = extent.height;
 
     wgpuQueueWriteTexture(m_queue, &dest, data, dataSize, &layout, &extent);
 }
