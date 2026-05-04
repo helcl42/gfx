@@ -1437,6 +1437,42 @@ WGPUVertexFormat gfxFormatToWGPUVertexFormat(GfxFormat format)
         return WGPUVertexFormat_Unorm8x4;
     case GFX_FORMAT_R8G8B8A8_UNORM_SRGB:
         return WGPUVertexFormat_Unorm8x4;
+    case GFX_FORMAT_R8_UINT:
+        return WGPUVertexFormat_Uint8;
+    case GFX_FORMAT_R8G8_UINT:
+        return WGPUVertexFormat_Uint8x2;
+    case GFX_FORMAT_R8G8B8A8_UINT:
+        return WGPUVertexFormat_Uint8x4;
+    case GFX_FORMAT_R8_SINT:
+        return WGPUVertexFormat_Sint8;
+    case GFX_FORMAT_R8G8_SINT:
+        return WGPUVertexFormat_Sint8x2;
+    case GFX_FORMAT_R8G8B8A8_SINT:
+        return WGPUVertexFormat_Sint8x4;
+    case GFX_FORMAT_R16_UINT:
+        return WGPUVertexFormat_Uint16;
+    case GFX_FORMAT_R16G16_UINT:
+        return WGPUVertexFormat_Uint16x2;
+    case GFX_FORMAT_R16G16B16A16_UINT:
+        return WGPUVertexFormat_Uint16x4;
+    case GFX_FORMAT_R16_SINT:
+        return WGPUVertexFormat_Sint16;
+    case GFX_FORMAT_R16G16_SINT:
+        return WGPUVertexFormat_Sint16x2;
+    case GFX_FORMAT_R16G16B16A16_SINT:
+        return WGPUVertexFormat_Sint16x4;
+    case GFX_FORMAT_R32_UINT:
+        return WGPUVertexFormat_Uint32;
+    case GFX_FORMAT_R32G32_UINT:
+        return WGPUVertexFormat_Uint32x2;
+    case GFX_FORMAT_R32G32B32A32_UINT:
+        return WGPUVertexFormat_Uint32x4;
+    case GFX_FORMAT_R32_SINT:
+        return WGPUVertexFormat_Sint32;
+    case GFX_FORMAT_R32G32_SINT:
+        return WGPUVertexFormat_Sint32x2;
+    case GFX_FORMAT_R32G32B32A32_SINT:
+        return WGPUVertexFormat_Sint32x4;
     default:
         return static_cast<WGPUVertexFormat>(0);
     }
