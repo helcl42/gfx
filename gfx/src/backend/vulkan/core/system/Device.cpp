@@ -82,6 +82,13 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
 
     // Check if all requested extensions are available
     const auto availableExtensions = m_adapter->enumerateExtensionProperties();
+
+#ifdef VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME
+    if (isExtensionAvailable(availableExtensions, VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME)) {
+        requestedExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
+    }
+#endif
+
     for (const char* requestedExt : requestedExtensions) {
         if (!isExtensionAvailable(availableExtensions, requestedExt)) {
             std::string errorMsg = "Required Vulkan device extension not available: ";

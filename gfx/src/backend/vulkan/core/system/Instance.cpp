@@ -110,6 +110,7 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
 {
     // Extensions
     std::vector<const char*> extensions = {};
+    bool portabilityEnumeration = false;
 #ifndef GFX_HEADLESS_BUILD
     if (isExtensionEnabled(createInfo.enabledExtensions, extensions::SURFACE)) {
         extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
@@ -135,6 +136,14 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
 #endif // GFX_HEADLESS_BUILD
 
     const auto availableExtensions = enumerateAvailableExtensions();
+
+#ifdef VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
+    // MoltenVK / portability drivers require portability enumeration at instance creation.
+    if (isExtensionAvailable(availableExtensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
+        extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+        portabilityEnumeration = true;
+    }
+#endif
 
     m_validationEnabled = isExtensionEnabled(createInfo.enabledExtensions, extensions::DEBUG);
     if (m_validationEnabled) {
@@ -184,6 +193,13 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
     VkInstanceCreateInfo vkCreateInfo{};
     vkCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     vkCreateInfo.pApplicationInfo = &appInfo;
+
+#ifdef VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR
+    if (portabilityEnumeration) {
+        vkCreateInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+    }
+#endif
+
     vkCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     vkCreateInfo.ppEnabledExtensionNames = extensions.data();
     vkCreateInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
