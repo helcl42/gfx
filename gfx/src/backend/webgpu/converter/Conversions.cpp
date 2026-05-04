@@ -1115,12 +1115,25 @@ WGPUStoreOp gfxStoreOpToWGPUStoreOp(GfxStoreOp storeOp)
 WGPUBufferUsage gfxBufferUsageToWGPU(GfxBufferUsageFlags usage)
 {
     WGPUBufferUsage wgpuUsage = WGPUBufferUsage_None;
-    if (usage & GFX_BUFFER_USAGE_MAP_READ) {
-        wgpuUsage |= WGPUBufferUsage_MapRead;
+
+    // WebGPU constraint: MapWrite can only combine with CopySrc, MapRead can only combine with CopyDst.
+    // If incompatible usages are present, strip MAP flags and add CopyDst for queue-write fallback.
+    const bool hasMapWrite = (usage & GFX_BUFFER_USAGE_MAP_WRITE) != 0;
+    const bool hasMapRead = (usage & GFX_BUFFER_USAGE_MAP_READ) != 0;
+    const GfxBufferUsageFlags nonMapNonCopy = usage & ~(GfxBufferUsageFlags)(GFX_BUFFER_USAGE_MAP_READ | GFX_BUFFER_USAGE_MAP_WRITE | GFX_BUFFER_USAGE_COPY_SRC | GFX_BUFFER_USAGE_COPY_DST);
+
+    if ((hasMapWrite || hasMapRead) && nonMapNonCopy != 0) {
+        // Incompatible: strip MAP flags, add CopyDst so data can be uploaded via queue write
+        wgpuUsage |= WGPUBufferUsage_CopyDst;
+    } else {
+        if (hasMapRead) {
+            wgpuUsage |= WGPUBufferUsage_MapRead;
+        }
+        if (hasMapWrite) {
+            wgpuUsage |= WGPUBufferUsage_MapWrite;
+        }
     }
-    if (usage & GFX_BUFFER_USAGE_MAP_WRITE) {
-        wgpuUsage |= WGPUBufferUsage_MapWrite;
-    }
+
     if (usage & GFX_BUFFER_USAGE_COPY_SRC) {
         wgpuUsage |= WGPUBufferUsage_CopySrc;
     }
