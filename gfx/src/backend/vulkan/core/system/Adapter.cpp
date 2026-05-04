@@ -130,6 +130,9 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
     if (availableFeatures.samplerAnisotropy) {
         supportedExtensions.push_back(extensions::ANISOTROPIC_FILTERING);
     }
+    if (availableFeatures.fillModeNonSolid) {
+        supportedExtensions.push_back(extensions::NON_SOLID_FILL);
+    }
 
     return supportedExtensions;
 }

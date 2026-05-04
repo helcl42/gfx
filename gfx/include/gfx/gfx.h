@@ -906,6 +906,7 @@ typedef struct GfxChainHeader {
 #define GFX_DEVICE_EXTENSION_TIMELINE_SEMAPHORE "gfx_timeline_semaphore"
 #define GFX_DEVICE_EXTENSION_MULTIVIEW "gfx_multiview"
 #define GFX_DEVICE_EXTENSION_ANISOTROPIC_FILTERING "gfx_anisotropic_filtering"
+#define GFX_DEVICE_EXTENSION_NON_SOLID_FILL "gfx_non_solid_fill"
 
 // ============================================================================
 // Forward Declarations (Opaque Handles)

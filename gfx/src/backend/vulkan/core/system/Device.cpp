@@ -72,6 +72,14 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
         deviceFeatures.samplerAnisotropy = VK_TRUE;
     }
 
+    // Enable non-solid fill mode if requested
+    if (isExtensionEnabled(createInfo.enabledExtensions, extensions::NON_SOLID_FILL)) {
+        if (!availableFeatures.fillModeNonSolid) {
+            throw std::runtime_error("Non-solid fill mode is not supported by this device");
+        }
+        deviceFeatures.fillModeNonSolid = VK_TRUE;
+    }
+
     // Check if all requested extensions are available
     const auto availableExtensions = m_adapter->enumerateExtensionProperties();
     for (const char* requestedExt : requestedExtensions) {

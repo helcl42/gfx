@@ -46,6 +46,9 @@ const char* deviceExtensionNameToGfx(const char* internalName)
     if (std::strcmp(internalName, core::extensions::ANISOTROPIC_FILTERING) == 0) {
         return GFX_DEVICE_EXTENSION_ANISOTROPIC_FILTERING;
     }
+    if (std::strcmp(internalName, core::extensions::NON_SOLID_FILL) == 0) {
+        return GFX_DEVICE_EXTENSION_NON_SOLID_FILL;
+    }
     // Unknown extension - return as-is
     return internalName;
 }

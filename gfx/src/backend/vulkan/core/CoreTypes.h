@@ -32,6 +32,7 @@ namespace extensions {
     constexpr const char* TIMELINE_SEMAPHORE = "gfx_timeline_semaphore";
     constexpr const char* MULTIVIEW = "gfx_multiview";
     constexpr const char* ANISOTROPIC_FILTERING = "gfx_anisotropic_filtering";
+    constexpr const char* NON_SOLID_FILL = "gfx_non_solid_fill";
 } // namespace extensions
 
 // ============================================================================

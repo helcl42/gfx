@@ -490,6 +490,7 @@ constexpr const char* DEVICE_EXTENSION_SWAPCHAIN = "gfx_swapchain";
 constexpr const char* DEVICE_EXTENSION_TIMELINE_SEMAPHORE = "gfx_timeline_semaphore";
 constexpr const char* DEVICE_EXTENSION_MULTIVIEW = "gfx_multiview";
 constexpr const char* DEVICE_EXTENSION_ANISOTROPIC_FILTERING = "gfx_anisotropic_filtering";
+constexpr const char* DEVICE_EXTENSION_NON_SOLID_FILL = "gfx_non_solid_fill";
 
 enum class QueueFlags : uint32_t {
     None = 0,
