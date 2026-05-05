@@ -1,6 +1,7 @@
 #include "CommonTest.h"
 
 #include <cstring>
+#include <vector>
 
 // ===========================================================================
 // Parameterized Tests - Run on both Vulkan and WebGPU backends
@@ -26,8 +27,19 @@ protected:
             };
             adapter = instance->requestAdapter(adapterDesc);
 
+            // Enable timestamp query extension if the adapter supports it
+            auto supportedExts = adapter->enumerateExtensions();
+            std::vector<std::string> deviceExtensions;
+            for (const auto& ext : supportedExts) {
+                if (ext == gfx::DEVICE_EXTENSION_TIMESTAMP_QUERY) {
+                    timestampQuerySupported = true;
+                    deviceExtensions.push_back(gfx::DEVICE_EXTENSION_TIMESTAMP_QUERY);
+                }
+            }
+
             gfx::DeviceDescriptor deviceDesc{
-                .label = "Test Device"
+                .label = "Test Device",
+                .enabledExtensions = deviceExtensions
             };
             device = adapter->createDevice(deviceDesc);
         } catch (const std::exception& e) {
@@ -39,6 +51,7 @@ protected:
     std::shared_ptr<gfx::Instance> instance;
     std::shared_ptr<gfx::Adapter> adapter;
     std::shared_ptr<gfx::Device> device;
+    bool timestampQuerySupported = false;
 };
 
 // ===========================================================================
@@ -283,7 +296,7 @@ TEST_P(GfxCppQuerySetTest, ResolveQuerySetOperation)
 
     gfx::BufferDescriptor bufferDesc{
         .size = 2 * sizeof(uint64_t),
-        .usage = gfx::BufferUsage::CopySrc | gfx::BufferUsage::CopyDst,
+        .usage = gfx::BufferUsage::QueryResolve | gfx::BufferUsage::CopyDst,
         .memoryProperties = gfx::MemoryProperty::HostVisible | gfx::MemoryProperty::HostCoherent
     };
     auto buffer = device->createBuffer(bufferDesc);
@@ -351,7 +364,7 @@ TEST_P(GfxCppQuerySetTest, ResolveQuerySetPartialRange)
 
     gfx::BufferDescriptor bufferDesc{
         .size = 8 * sizeof(uint64_t),
-        .usage = gfx::BufferUsage::CopySrc | gfx::BufferUsage::CopyDst,
+        .usage = gfx::BufferUsage::QueryResolve | gfx::BufferUsage::CopyDst,
         .memoryProperties = gfx::MemoryProperty::HostVisible | gfx::MemoryProperty::HostCoherent
     };
     auto buffer = device->createBuffer(bufferDesc);
@@ -391,7 +404,7 @@ TEST_P(GfxCppQuerySetTest, ResolveQuerySetWithOffset)
 
     gfx::BufferDescriptor bufferDesc{
         .size = 8 * sizeof(uint64_t),
-        .usage = gfx::BufferUsage::CopySrc | gfx::BufferUsage::CopyDst,
+        .usage = gfx::BufferUsage::QueryResolve | gfx::BufferUsage::CopyDst,
         .memoryProperties = gfx::MemoryProperty::HostVisible | gfx::MemoryProperty::HostCoherent
     };
     auto buffer = device->createBuffer(bufferDesc);
@@ -432,14 +445,14 @@ TEST_P(GfxCppQuerySetTest, MultipleResolveOperations)
 
     gfx::BufferDescriptor bufferDesc1{
         .size = 4 * sizeof(uint64_t),
-        .usage = gfx::BufferUsage::CopySrc | gfx::BufferUsage::CopyDst,
+        .usage = gfx::BufferUsage::QueryResolve | gfx::BufferUsage::CopyDst,
         .memoryProperties = gfx::MemoryProperty::HostVisible | gfx::MemoryProperty::HostCoherent
     };
     auto buffer1 = device->createBuffer(bufferDesc1);
 
     gfx::BufferDescriptor bufferDesc2{
         .size = 4 * sizeof(uint64_t),
-        .usage = gfx::BufferUsage::CopySrc | gfx::BufferUsage::CopyDst,
+        .usage = gfx::BufferUsage::QueryResolve | gfx::BufferUsage::CopyDst,
         .memoryProperties = gfx::MemoryProperty::HostVisible | gfx::MemoryProperty::HostCoherent
     };
     auto buffer2 = device->createBuffer(bufferDesc2);
@@ -543,7 +556,8 @@ TEST_P(GfxCppQuerySetTest, BeginOcclusionQueryInRenderPass)
     ASSERT_NE(encoder, nullptr);
 
     gfx::RenderPassBeginDescriptor beginDesc{
-        .framebuffer = framebuffer
+        .framebuffer = framebuffer,
+        .occlusionQuerySet = querySet
     };
 
     auto renderPassEncoder = encoder->beginRenderPass(beginDesc);
@@ -625,7 +639,7 @@ TEST_P(GfxCppQuerySetTest, EndOcclusionQueryInRenderPass)
     auto encoder = device->createCommandEncoder({});
     ASSERT_NE(encoder, nullptr);
 
-    auto renderPassEncoder = encoder->beginRenderPass({ .framebuffer = framebuffer });
+    auto renderPassEncoder = encoder->beginRenderPass({ .framebuffer = framebuffer, .occlusionQuerySet = querySet });
     ASSERT_NE(renderPassEncoder, nullptr);
 
     // Test multiple begin/end cycles

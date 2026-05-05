@@ -30,6 +30,7 @@ public:
     void waitIdle() const;
 
     bool supportsShaderFormat(ShaderSourceType format) const;
+    bool isTimestampQueryEnabled() const;
 
     Blit* getBlit();
 

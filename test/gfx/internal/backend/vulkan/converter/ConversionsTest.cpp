@@ -1202,4 +1202,60 @@ TEST(VulkanConversionsTest, VkSurfaceCapabilitiesToGfxSurfaceInfo_LargeValues_Co
     EXPECT_EQ(result.maxExtent.height, 8192u);
 }
 
+// ============================================================================
+// RenderPassBeginDescriptor Conversion Tests
+// ============================================================================
+
+TEST(VulkanConversionsTest, GfxRenderPassBeginDescriptorToBeginInfo_NullTimestampQuerySet_SetsPoolToNull)
+{
+    GfxRenderPassBeginDescriptor descriptor{};
+    descriptor.occlusionQuerySet = nullptr;
+    descriptor.timestampQuerySet = nullptr;
+    descriptor.colorClearValueCount = 0;
+    descriptor.colorClearValues = nullptr;
+    descriptor.depthClearValue = 1.0f;
+    descriptor.stencilClearValue = 0;
+
+    auto result = gfx::backend::vulkan::converter::gfxRenderPassBeginDescriptorToBeginInfo(&descriptor);
+
+    EXPECT_EQ(result.timestampQueryPool, VK_NULL_HANDLE);
+}
+
+TEST(VulkanConversionsTest, GfxRenderPassBeginDescriptorToBeginInfo_NullOcclusionQuerySet_SetsPoolToNull)
+{
+    GfxRenderPassBeginDescriptor descriptor{};
+    descriptor.occlusionQuerySet = nullptr;
+    descriptor.timestampQuerySet = nullptr;
+    descriptor.colorClearValueCount = 0;
+    descriptor.colorClearValues = nullptr;
+    descriptor.depthClearValue = 1.0f;
+    descriptor.stencilClearValue = 0;
+
+    auto result = gfx::backend::vulkan::converter::gfxRenderPassBeginDescriptorToBeginInfo(&descriptor);
+
+    EXPECT_EQ(result.occlusionQueryPool, VK_NULL_HANDLE);
+}
+
+TEST(VulkanConversionsTest, GfxRenderPassBeginDescriptorToBeginInfo_ClearValues_ConvertedCorrectly)
+{
+    GfxColor clearColor = { 0.1f, 0.2f, 0.3f, 1.0f };
+    GfxRenderPassBeginDescriptor descriptor{};
+    descriptor.occlusionQuerySet = nullptr;
+    descriptor.timestampQuerySet = nullptr;
+    descriptor.colorClearValues = &clearColor;
+    descriptor.colorClearValueCount = 1;
+    descriptor.depthClearValue = 0.5f;
+    descriptor.stencilClearValue = 42;
+
+    auto result = gfx::backend::vulkan::converter::gfxRenderPassBeginDescriptorToBeginInfo(&descriptor);
+
+    ASSERT_EQ(result.colorClearValues.size(), 1u);
+    EXPECT_FLOAT_EQ(result.colorClearValues[0].float32[0], 0.1f);
+    EXPECT_FLOAT_EQ(result.colorClearValues[0].float32[1], 0.2f);
+    EXPECT_FLOAT_EQ(result.colorClearValues[0].float32[2], 0.3f);
+    EXPECT_FLOAT_EQ(result.colorClearValues[0].float32[3], 1.0f);
+    EXPECT_FLOAT_EQ(result.depthClearValue, 0.5f);
+    EXPECT_EQ(result.stencilClearValue, 42u);
+}
+
 } // namespace

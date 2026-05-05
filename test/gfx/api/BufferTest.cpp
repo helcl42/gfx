@@ -144,7 +144,7 @@ TEST_P(GfxBufferTest, GetBufferInfo)
     GfxBufferDescriptor desc = {};
     desc.label = "Test Buffer";
     desc.size = 2048;
-    desc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_UNIFORM | GFX_BUFFER_USAGE_COPY_DST | GFX_BUFFER_USAGE_MAP_READ);
+    desc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_UNIFORM | GFX_BUFFER_USAGE_COPY_DST);
     desc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
 
     GfxBuffer buffer = NULL;
@@ -156,7 +156,7 @@ TEST_P(GfxBufferTest, GetBufferInfo)
 
     EXPECT_EQ(result, GFX_RESULT_SUCCESS);
     EXPECT_EQ(info.size, 2048);
-    EXPECT_EQ(info.usage, GFX_BUFFER_USAGE_UNIFORM | GFX_BUFFER_USAGE_COPY_DST | GFX_BUFFER_USAGE_MAP_READ);
+    EXPECT_EQ(info.usage, GFX_BUFFER_USAGE_UNIFORM | GFX_BUFFER_USAGE_COPY_DST);
 
     gfxBufferDestroy(buffer);
 }

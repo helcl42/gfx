@@ -112,7 +112,7 @@ TEST_P(GfxCppBufferTest, GetBufferInfo)
     gfx::BufferDescriptor desc{
         .label = "Test Buffer",
         .size = 2048,
-        .usage = gfx::BufferUsage::Uniform | gfx::BufferUsage::CopyDst | gfx::BufferUsage::MapRead,
+        .usage = gfx::BufferUsage::Uniform | gfx::BufferUsage::CopyDst,
         .memoryProperties = gfx::MemoryProperty::HostVisible | gfx::MemoryProperty::HostCoherent
     };
 
@@ -122,7 +122,7 @@ TEST_P(GfxCppBufferTest, GetBufferInfo)
     auto info = buffer->getInfo();
 
     EXPECT_EQ(info.size, 2048);
-    EXPECT_EQ(info.usage, gfx::BufferUsage::Uniform | gfx::BufferUsage::CopyDst | gfx::BufferUsage::MapRead);
+    EXPECT_EQ(info.usage, gfx::BufferUsage::Uniform | gfx::BufferUsage::CopyDst);
 }
 
 TEST_P(GfxCppBufferTest, MapUnmapBuffer)

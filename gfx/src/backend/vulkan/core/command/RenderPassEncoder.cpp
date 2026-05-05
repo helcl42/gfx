@@ -9,12 +9,16 @@
 #include "../resource/Buffer.h"
 #include "../system/Device.h"
 
+#include <stdexcept>
+
 namespace gfx::backend::vulkan::core {
 
 RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass* renderPass, Framebuffer* framebuffer, const RenderPassEncoderBeginInfo& beginInfo)
     : m_commandBuffer(commandEncoder->handle())
     , m_device(commandEncoder->getDevice())
     , m_commandEncoder(commandEncoder)
+    , m_passOcclusionQueryPool(beginInfo.occlusionQueryPool)
+    , m_passTimestampQueryPool(beginInfo.timestampQueryPool)
 {
     // Build clear values array
     std::vector<VkClearValue> clearValues;
@@ -56,10 +60,20 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
     vkBeginInfo.pClearValues = clearValues.data();
 
     vkCmdBeginRenderPass(m_commandBuffer, &vkBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    // Write start timestamp if requested
+    if (m_passTimestampQueryPool != VK_NULL_HANDLE) {
+        vkCmdWriteTimestamp(m_commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_passTimestampQueryPool, 0);
+    }
 }
 
 RenderPassEncoder::~RenderPassEncoder()
 {
+    // Write end timestamp before ending the pass
+    if (m_passTimestampQueryPool != VK_NULL_HANDLE) {
+        vkCmdWriteTimestamp(m_commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_passTimestampQueryPool, 1);
+    }
+
     vkCmdEndRenderPass(m_commandBuffer);
 }
 
@@ -145,11 +159,15 @@ void RenderPassEncoder::drawIndexedIndirect(Buffer* buffer, uint64_t offset)
     vkCmdDrawIndexedIndirect(m_commandBuffer, buffer->handle(), offset, 1, 0);
 }
 
-void RenderPassEncoder::beginOcclusionQuery(VkQueryPool queryPool, uint32_t queryIndex)
+void RenderPassEncoder::beginOcclusionQuery(VkQueryPool queryPool, uint32_t queryIndex, VkQueryControlFlags flags)
 {
+    if (!isOcclusionQueryPoolCompatible(queryPool)) {
+        throw std::runtime_error("Occlusion query pool is not compatible with render pass begin descriptor");
+    }
+
     m_activeQueryPool = queryPool;
     m_activeQueryIndex = queryIndex;
-    vkCmdBeginQuery(m_commandBuffer, queryPool, queryIndex, 0);
+    vkCmdBeginQuery(m_commandBuffer, queryPool, queryIndex, flags);
 }
 
 void RenderPassEncoder::endOcclusionQuery()
@@ -159,6 +177,11 @@ void RenderPassEncoder::endOcclusionQuery()
         m_activeQueryPool = VK_NULL_HANDLE;
         m_activeQueryIndex = 0;
     }
+}
+
+bool RenderPassEncoder::isOcclusionQueryPoolCompatible(VkQueryPool queryPool) const
+{
+    return m_passOcclusionQueryPool != VK_NULL_HANDLE && queryPool == m_passOcclusionQueryPool;
 }
 
 } // namespace gfx::backend::vulkan::core

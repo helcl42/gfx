@@ -110,7 +110,6 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
 {
     // Extensions
     std::vector<const char*> extensions = {};
-    bool portabilityEnumeration = false;
 #ifndef GFX_HEADLESS_BUILD
     if (isExtensionEnabled(createInfo.enabledExtensions, extensions::SURFACE)) {
         extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
@@ -141,7 +140,6 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
     // MoltenVK / portability drivers require portability enumeration at instance creation.
     if (isExtensionAvailable(availableExtensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
         extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-        portabilityEnumeration = true;
     }
 #endif
 
@@ -195,7 +193,7 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
     vkCreateInfo.pApplicationInfo = &appInfo;
 
 #ifdef VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR
-    if (portabilityEnumeration) {
+    if (isExtensionAvailable(availableExtensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
         vkCreateInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
     }
 #endif

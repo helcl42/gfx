@@ -376,7 +376,8 @@ enum class BufferUsage : uint32_t {
     Vertex = 1 << 5,
     Uniform = 1 << 6,
     Storage = 1 << 7,
-    Indirect = 1 << 8
+    Indirect = 1 << 8,
+    QueryResolve = 1 << 9
 };
 
 enum class MemoryProperty : uint32_t {
@@ -491,6 +492,8 @@ constexpr const char* DEVICE_EXTENSION_TIMELINE_SEMAPHORE = "gfx_timeline_semaph
 constexpr const char* DEVICE_EXTENSION_MULTIVIEW = "gfx_multiview";
 constexpr const char* DEVICE_EXTENSION_ANISOTROPIC_FILTERING = "gfx_anisotropic_filtering";
 constexpr const char* DEVICE_EXTENSION_NON_SOLID_FILL = "gfx_non_solid_fill";
+constexpr const char* DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE = "gfx_occlusion_query_precise";
+constexpr const char* DEVICE_EXTENSION_TIMESTAMP_QUERY = "gfx_timestamp_query";
 
 enum class QueueFlags : uint32_t {
     None = 0,
@@ -1385,6 +1388,7 @@ struct RenderPassBeginDescriptor {
     std::vector<Color> colorClearValues;
     float depthClearValue = 1.0f;
     uint32_t stencilClearValue = 0;
+    std::shared_ptr<QuerySet> occlusionQuerySet;
 };
 
 struct ComputePassBeginDescriptor {

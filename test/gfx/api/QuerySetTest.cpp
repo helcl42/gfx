@@ -1,6 +1,7 @@
 #include "CommonTest.h"
 
 #include <cstring>
+#include <vector>
 
 // C API tests compiled with C++ for GoogleTest compatibility
 
@@ -49,6 +50,23 @@ protected:
         deviceDesc.pNext = nullptr;
         deviceDesc.label = "Test Device";
 
+        // Probe adapter for optional extensions
+        uint32_t extCount = 0;
+        gfxAdapterEnumerateExtensions(adapter, &extCount, nullptr);
+        std::vector<const char*> adapterExts(extCount);
+        gfxAdapterEnumerateExtensions(adapter, &extCount, adapterExts.data());
+
+        std::vector<const char*> deviceExtensions;
+        for (const char* ext : adapterExts) {
+            if (std::strcmp(ext, GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY) == 0) {
+                timestampQuerySupported = true;
+                deviceExtensions.push_back(GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY);
+            }
+        }
+
+        deviceDesc.enabledExtensions = deviceExtensions.empty() ? nullptr : deviceExtensions.data();
+        deviceDesc.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+
         if (gfxAdapterCreateDevice(adapter, &deviceDesc, &device) != GFX_RESULT_SUCCESS) {
             gfxInstanceDestroy(instance);
             gfxUnloadBackend(backend);
@@ -71,6 +89,7 @@ protected:
     GfxInstance instance = nullptr;
     GfxAdapter adapter = nullptr;
     GfxDevice device = nullptr;
+    bool timestampQuerySupported = false;
 };
 
 // ===========================================================================
@@ -141,6 +160,9 @@ TEST_P(GfxQuerySetTest, CreateAndDestroyOcclusionQuerySet)
 
 TEST_P(GfxQuerySetTest, CreateAndDestroyTimestampQuerySet)
 {
+    if (!timestampQuerySupported) {
+        GTEST_SKIP() << "GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY not supported";
+    }
     GfxQuerySetDescriptor querySetDesc = {};
     querySetDesc.label = "Timestamp Query Set";
     querySetDesc.type = GFX_QUERY_TYPE_TIMESTAMP;
@@ -157,6 +179,9 @@ TEST_P(GfxQuerySetTest, CreateAndDestroyTimestampQuerySet)
 
 TEST_P(GfxQuerySetTest, CreateMultipleQuerySets)
 {
+    if (!timestampQuerySupported) {
+        GTEST_SKIP() << "GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY not supported";
+    }
     GfxQuerySetDescriptor occlusionDesc = {};
     occlusionDesc.type = GFX_QUERY_TYPE_OCCLUSION;
     occlusionDesc.count = 8;
@@ -184,6 +209,9 @@ TEST_P(GfxQuerySetTest, CreateMultipleQuerySets)
 
 TEST_P(GfxQuerySetTest, WriteTimestampWithNullEncoder)
 {
+    if (!timestampQuerySupported) {
+        GTEST_SKIP() << "GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY not supported";
+    }
     GfxQuerySetDescriptor querySetDesc = {};
     querySetDesc.type = GFX_QUERY_TYPE_TIMESTAMP;
     querySetDesc.count = 8;
@@ -213,6 +241,9 @@ TEST_P(GfxQuerySetTest, WriteTimestampWithNullQuerySet)
 
 TEST_P(GfxQuerySetTest, ResetQuerySetWithNullEncoder)
 {
+    if (!timestampQuerySupported) {
+        GTEST_SKIP() << "GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY not supported";
+    }
     GfxQuerySetDescriptor querySetDesc = {};
     querySetDesc.type = GFX_QUERY_TYPE_TIMESTAMP;
     querySetDesc.count = 8;
@@ -242,6 +273,9 @@ TEST_P(GfxQuerySetTest, ResetQuerySetWithNullQuerySet)
 
 TEST_P(GfxQuerySetTest, ResolveQuerySetWithNullEncoder)
 {
+    if (!timestampQuerySupported) {
+        GTEST_SKIP() << "GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY not supported";
+    }
     GfxQuerySetDescriptor querySetDesc = {};
     querySetDesc.type = GFX_QUERY_TYPE_TIMESTAMP;
     querySetDesc.count = 8;
@@ -289,6 +323,10 @@ TEST_P(GfxQuerySetTest, ResolveQuerySetWithNullQuerySet)
 
 TEST_P(GfxQuerySetTest, ResolveQuerySetWithNullBuffer)
 {
+    if (!timestampQuerySupported) {
+        GTEST_SKIP() << "GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY not supported";
+    }
+
     GfxCommandEncoderDescriptor encoderDesc = {};
     encoderDesc.label = "Test Encoder";
 
@@ -305,6 +343,41 @@ TEST_P(GfxQuerySetTest, ResolveQuerySetWithNullBuffer)
     GfxResult result = gfxCommandEncoderResolveQuerySet(encoder, querySet, 0, 8, nullptr, 0);
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 
+    gfxQuerySetDestroy(querySet);
+    gfxCommandEncoderDestroy(encoder);
+}
+
+TEST_P(GfxQuerySetTest, ResolveQuerySetWithWrongBufferUsage)
+{
+    if (!timestampQuerySupported) {
+        GTEST_SKIP() << "GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY not supported";
+    }
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    encoderDesc.label = "Test Encoder";
+
+    GfxCommandEncoder encoder = nullptr;
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxQuerySetDescriptor querySetDesc = {};
+    querySetDesc.type = GFX_QUERY_TYPE_TIMESTAMP;
+    querySetDesc.count = 8;
+
+    GfxQuerySet querySet = nullptr;
+    ASSERT_EQ(gfxDeviceCreateQuerySet(device, &querySetDesc, &querySet), GFX_RESULT_SUCCESS);
+
+    // Buffer without GFX_BUFFER_USAGE_QUERY_RESOLVE - should be rejected
+    GfxBufferDescriptor bufferDesc = {};
+    bufferDesc.size = 8 * sizeof(uint64_t);
+    bufferDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_COPY_DST);
+    bufferDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_DEVICE_LOCAL);
+
+    GfxBuffer buffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &bufferDesc, &buffer), GFX_RESULT_SUCCESS);
+
+    GfxResult result = gfxCommandEncoderResolveQuerySet(encoder, querySet, 0, 8, buffer, 0);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    gfxBufferDestroy(buffer);
     gfxQuerySetDestroy(querySet);
     gfxCommandEncoderDestroy(encoder);
 }
@@ -422,6 +495,9 @@ TEST_P(GfxQuerySetTest, EndOcclusionQueryWithNullEncoder)
 
 TEST_P(GfxQuerySetTest, WriteTimestampOperation)
 {
+    if (!timestampQuerySupported) {
+        GTEST_SKIP() << "GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY not supported";
+    }
     GfxQuerySetDescriptor querySetDesc = {};
     querySetDesc.label = "Timestamp Query Set";
     querySetDesc.type = GFX_QUERY_TYPE_TIMESTAMP;
@@ -449,6 +525,9 @@ TEST_P(GfxQuerySetTest, WriteTimestampOperation)
 
 TEST_P(GfxQuerySetTest, ResetQuerySetOperation)
 {
+    if (!timestampQuerySupported) {
+        GTEST_SKIP() << "GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY not supported";
+    }
     GfxQuerySetDescriptor querySetDesc = {};
     querySetDesc.label = "Timestamp Query Set";
     querySetDesc.type = GFX_QUERY_TYPE_TIMESTAMP;
@@ -473,6 +552,9 @@ TEST_P(GfxQuerySetTest, ResetQuerySetOperation)
 
 TEST_P(GfxQuerySetTest, ResolveQuerySetOperation)
 {
+    if (!timestampQuerySupported) {
+        GTEST_SKIP() << "GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY not supported";
+    }
     GfxQuerySetDescriptor querySetDesc = {};
     querySetDesc.type = GFX_QUERY_TYPE_TIMESTAMP;
     querySetDesc.count = 2;
@@ -482,8 +564,8 @@ TEST_P(GfxQuerySetTest, ResolveQuerySetOperation)
 
     GfxBufferDescriptor bufferDesc = {};
     bufferDesc.size = 2 * sizeof(uint64_t);
-    bufferDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_COPY_SRC | GFX_BUFFER_USAGE_COPY_DST);
-    bufferDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+    bufferDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_QUERY_RESOLVE | GFX_BUFFER_USAGE_COPY_SRC);
+    bufferDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_DEVICE_LOCAL);
 
     GfxBuffer buffer = nullptr;
     ASSERT_EQ(gfxDeviceCreateBuffer(device, &bufferDesc, &buffer), GFX_RESULT_SUCCESS);

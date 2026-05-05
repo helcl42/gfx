@@ -10,6 +10,7 @@ QuerySet::QuerySet(Device* device, const QuerySetCreateInfo& createInfo)
     : m_device(device)
     , m_type(createInfo.type)
     , m_count(createInfo.count)
+    , m_precise(createInfo.precise)
 {
     VkQueryPoolCreateInfo poolCreateInfo{};
     poolCreateInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
@@ -47,6 +48,11 @@ VkQueryType QuerySet::getType() const
 uint32_t QuerySet::getCount() const
 {
     return m_count;
+}
+
+bool QuerySet::isPrecise() const
+{
+    return m_precise;
 }
 
 } // namespace gfx::backend::vulkan::core

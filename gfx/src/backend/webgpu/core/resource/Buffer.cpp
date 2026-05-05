@@ -124,8 +124,15 @@ void* Buffer::map(uint64_t offset, uint64_t size)
         return nullptr;
     }
 
-    // Get the mapped range
-    void* mappedData = wgpuBufferGetMappedRange(m_buffer, offset, mapSize);
+    // Get the mapped range. Read-only buffers require wgpuBufferGetConstMappedRange;
+    // wgpuBufferGetMappedRange returns null for MapRead buffers.
+    void* mappedData;
+    if (mapMode & WGPUMapMode_Read) {
+        mappedData = const_cast<void*>(wgpuBufferGetConstMappedRange(m_buffer, offset, mapSize));
+    } else {
+        mappedData = wgpuBufferGetMappedRange(m_buffer, offset, mapSize);
+    }
+
     if (!mappedData) {
         wgpuBufferUnmap(m_buffer);
         return nullptr;

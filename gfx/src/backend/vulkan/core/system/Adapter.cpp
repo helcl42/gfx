@@ -130,8 +130,16 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
     if (availableFeatures.samplerAnisotropy) {
         supportedExtensions.push_back(extensions::ANISOTROPIC_FILTERING);
     }
+    if (availableFeatures.occlusionQueryPrecise) {
+        supportedExtensions.push_back(extensions::OCCLUSION_QUERY_PRECISE);
+    }
     if (availableFeatures.fillModeNonSolid) {
         supportedExtensions.push_back(extensions::NON_SOLID_FILL);
+    }
+    // Timestamps are supported when the graphics queue has non-zero timestampValidBits
+    auto queueFamilies = getQueueFamilyProperties();
+    if (m_graphicsQueueFamily < queueFamilies.size() && queueFamilies[m_graphicsQueueFamily].timestampValidBits > 0) {
+        supportedExtensions.push_back(extensions::TIMESTAMP_QUERY);
     }
 
     return supportedExtensions;

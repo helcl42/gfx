@@ -639,6 +639,7 @@ typedef enum {
     GFX_BUFFER_USAGE_UNIFORM = 1 << 6,
     GFX_BUFFER_USAGE_STORAGE = 1 << 7,
     GFX_BUFFER_USAGE_INDIRECT = 1 << 8,
+    GFX_BUFFER_USAGE_QUERY_RESOLVE = 1 << 9,
     GFX_BUFFER_USAGE_MAX_ENUM = 0x7FFFFFFF
 } GfxBufferUsageFlagBits;
 typedef uint32_t GfxBufferUsageFlags;
@@ -836,6 +837,12 @@ typedef enum {
 } GfxQueryType;
 
 typedef enum {
+    GFX_OCCLUSION_QUERY_MODE_BOOLEAN = 0, // 0 or non-zero only — portable across all backends
+    GFX_OCCLUSION_QUERY_MODE_PRECISE = 1, // exact sample count — Vulkan only, requires GFX_DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE
+    GFX_OCCLUSION_QUERY_MODE_MAX_ENUM = 0x7FFFFFFF
+} GfxOcclusionQueryMode;
+
+typedef enum {
     GFX_STORAGE_TEXTURE_ACCESS_WRITE_ONLY = 0,
     GFX_STORAGE_TEXTURE_ACCESS_READ_ONLY = 1,
     GFX_STORAGE_TEXTURE_ACCESS_READ_WRITE = 2,
@@ -879,6 +886,7 @@ typedef enum {
     GFX_STRUCTURE_TYPE_COMPUTE_PASS_BEGIN_DESCRIPTOR = 26,
     GFX_STRUCTURE_TYPE_PRESENT_DESCRIPTOR = 27,
     GFX_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_DESCRIPTOR = 28,
+    GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR = 29,
     GFX_STRUCTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } GfxStructureType;
 
@@ -906,6 +914,8 @@ typedef struct GfxChainHeader {
 #define GFX_DEVICE_EXTENSION_TIMELINE_SEMAPHORE "gfx_timeline_semaphore"
 #define GFX_DEVICE_EXTENSION_MULTIVIEW "gfx_multiview"
 #define GFX_DEVICE_EXTENSION_ANISOTROPIC_FILTERING "gfx_anisotropic_filtering"
+#define GFX_DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE "gfx_occlusion_query_precise"
+#define GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY "gfx_timestamp_query"
 #define GFX_DEVICE_EXTENSION_NON_SOLID_FILL "gfx_non_solid_fill"
 
 // ============================================================================
@@ -1125,6 +1135,15 @@ typedef struct {
     uint32_t colorClearValueCount; // Number of color clear values (should match render pass color attachment count)
     float depthClearValue; // Used when depth loadOp = CLEAR
     uint32_t stencilClearValue; // Used when stencil loadOp = CLEAR
+
+    // Optional: query set used for occlusion queries in this render pass
+    // Required by WebGPU when calling gfxRenderPassEncoderBeginOcclusionQuery.
+    GfxQuerySet occlusionQuerySet;
+
+    // Optional: timestamp query set for measuring GPU render pass duration.
+    // Timestamps are written at begin (index 0) and end (index 1) of the pass.
+    // On WebGPU this uses WGPURenderPassTimestampWrites; on Vulkan vkCmdWriteTimestamp.
+    GfxQuerySet timestampQuerySet;
 } GfxRenderPassBeginDescriptor;
 
 typedef struct {
@@ -1562,6 +1581,22 @@ typedef struct {
     GfxQueryType type;
     uint32_t count; // Number of queries in the set
 } GfxQuerySetDescriptor;
+
+// Optional extension for GfxQuerySetDescriptor (type == GFX_QUERY_TYPE_OCCLUSION only).
+// Chain to GfxQuerySetDescriptor.pNext to request precise sample counting.
+// Requires GFX_DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE to be enabled on the device.
+// Example:
+//   GfxOcclusionQueryDescriptor occlusionDesc = {
+//       .sType = GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR,
+//       .pNext = NULL,
+//       .mode  = GFX_OCCLUSION_QUERY_MODE_PRECISE
+//   };
+//   GfxQuerySetDescriptor desc = { ..., .pNext = &occlusionDesc };
+typedef struct {
+    GfxStructureType sType; // Must be GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR
+    const void* pNext;
+    GfxOcclusionQueryMode mode;
+} GfxOcclusionQueryDescriptor;
 
 typedef struct {
     GfxStructureType sType;

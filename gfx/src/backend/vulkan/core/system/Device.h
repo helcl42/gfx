@@ -28,6 +28,7 @@ public:
     const VkPhysicalDeviceProperties& getProperties() const;
 
     bool supportsShaderFormat(ShaderSourceType format) const;
+    bool isTimestampQueryEnabled() const;
 
     // Extension function pointer loaders
     template <typename T>
@@ -39,6 +40,7 @@ public:
 private:
     VkDevice m_device = VK_NULL_HANDLE;
     Adapter* m_adapter = nullptr; // Non-owning pointer
+    bool m_timestampQueryEnabled = false;
 
     // Map of (queueFamilyIndex << 16 | queueIndex) -> Queue
     std::unordered_map<uint64_t, std::unique_ptr<Queue>> m_queues;

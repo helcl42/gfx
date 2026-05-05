@@ -1,5 +1,11 @@
 #include "Validations.h"
 
+#include "backend/webgpu/converter/Conversions.h"
+#include "backend/webgpu/core/command/RenderPassEncoder.h"
+#include "backend/webgpu/core/query/QuerySet.h"
+#include "backend/webgpu/core/resource/Buffer.h"
+#include "backend/webgpu/core/system/Device.h"
+
 #include <cstdint>
 
 namespace gfx::backend::webgpu::validator {
@@ -892,6 +898,12 @@ GfxResult validateDeviceCreateQuerySet(GfxDevice device, const GfxQuerySetDescri
     if (descriptor->count == 0) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
+    if (descriptor->type == GFX_QUERY_TYPE_TIMESTAMP) {
+        const auto* dev = converter::toNative<core::Device>(device);
+        if (!dev->isTimestampQueryEnabled()) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+    }
     return GFX_RESULT_SUCCESS;
 }
 
@@ -1152,6 +1164,10 @@ GfxResult validateCommandEncoderResolveQuerySet(GfxCommandEncoder commandEncoder
     if (!commandEncoder || !querySet || !destinationBuffer) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
+    const auto* buf = converter::toNative<core::Buffer>(destinationBuffer);
+    if (!(buf->getInfo().usage & WGPUBufferUsage_QueryResolve)) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
     return GFX_RESULT_SUCCESS;
 }
 
@@ -1222,6 +1238,11 @@ GfxResult validateRenderPassEncoderDrawIndexedIndirect(GfxRenderPassEncoder rend
 GfxResult validateRenderPassEncoderBeginOcclusionQuery(GfxRenderPassEncoder renderPassEncoder, GfxQuerySet querySet)
 {
     if (!renderPassEncoder || !querySet) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    const auto* encoder = converter::toNative<core::RenderPassEncoder>(renderPassEncoder);
+    const auto* query = converter::toNative<core::QuerySet>(querySet);
+    if (!encoder->isOcclusionQuerySetCompatible(query->handle())) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     return GFX_RESULT_SUCCESS;

@@ -72,12 +72,34 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
         deviceFeatures.samplerAnisotropy = VK_TRUE;
     }
 
+    // Enable precise occlusion queries if requested
+    if (isExtensionEnabled(createInfo.enabledExtensions, extensions::OCCLUSION_QUERY_PRECISE)) {
+        if (!availableFeatures.occlusionQueryPrecise) {
+            throw std::runtime_error("Precise occlusion queries are not supported by this device");
+        }
+        deviceFeatures.occlusionQueryPrecise = VK_TRUE;
+    }
+
+    if (isExtensionEnabled(createInfo.enabledExtensions, extensions::TIMESTAMP_QUERY)) {
+        // Timestamps require no extra feature bit — they are available when
+        // timestampValidBits > 0 on the graphics queue, which the Adapter already
+        // verified before reporting this extension as supported.
+        m_timestampQueryEnabled = true;
+    }
+
     // Enable non-solid fill mode if requested
     if (isExtensionEnabled(createInfo.enabledExtensions, extensions::NON_SOLID_FILL)) {
         if (!availableFeatures.fillModeNonSolid) {
             throw std::runtime_error("Non-solid fill mode is not supported by this device");
         }
         deviceFeatures.fillModeNonSolid = VK_TRUE;
+    }
+
+    // Gate timestamp query sets behind the extension
+    if (isExtensionEnabled(createInfo.enabledExtensions, extensions::TIMESTAMP_QUERY)) {
+        // No VkPhysicalDeviceFeatures bit required — the Adapter only exposes this
+        // extension when timestampValidBits > 0 on the graphics queue family.
+        m_timestampQueryEnabled = true;
     }
 
     // Check if all requested extensions are available
@@ -233,6 +255,11 @@ bool Device::supportsShaderFormat(ShaderSourceType format) const
 {
     // Vulkan backend only supports SPIR-V
     return format == ShaderSourceType::SPIRV;
+}
+
+bool Device::isTimestampQueryEnabled() const
+{
+    return m_timestampQueryEnabled;
 }
 
 } // namespace gfx::backend::vulkan::core

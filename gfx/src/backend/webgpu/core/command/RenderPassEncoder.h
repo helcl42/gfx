@@ -35,11 +35,14 @@ public:
     void beginOcclusionQuery(WGPUQuerySet querySet, uint32_t queryIndex);
     void endOcclusionQuery();
 
+    bool isOcclusionQuerySetCompatible(WGPUQuerySet querySet) const;
+
     WGPURenderPassEncoder handle() const;
 
 private:
     WGPURenderPassEncoder m_encoder = nullptr;
     bool m_ended = false;
+    WGPUQuerySet m_occlusionQuerySet = nullptr;
 };
 
 } // namespace gfx::backend::webgpu::core

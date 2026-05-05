@@ -8,6 +8,7 @@
 
 #include "common/Logger.h"
 
+#include <algorithm>
 #include <stdexcept>
 
 namespace gfx::backend::webgpu::core {
@@ -52,6 +53,16 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     gfx::common::Logger::instance().logDebug("WebGPU Device: Enabling Dawn toggles - allow_unsafe_apis (enabled), disallow_spirv (disabled)");
 
     wgpuDesc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&deviceTogglesDesc);
+
+    // Request timestamp query feature only when the extension is enabled and the adapter supports it
+    static const WGPUFeatureName timestampFeature[] = { WGPUFeatureName_TimestampQuery };
+    const bool wantsTimestamp = std::find(createInfo.enabledExtensions.begin(), createInfo.enabledExtensions.end(),
+                                    std::string(extensions::TIMESTAMP_QUERY))
+        != createInfo.enabledExtensions.end();
+    if (wantsTimestamp && wgpuAdapterHasFeature(adapter->handle(), WGPUFeatureName_TimestampQuery)) {
+        wgpuDesc.requiredFeatures = timestampFeature;
+        wgpuDesc.requiredFeatureCount = 1;
+    }
 #endif
 
     // DeviceCreateInfo is currently empty, but we keep it for future extensibility
@@ -176,6 +187,15 @@ bool Device::supportsShaderFormat(ShaderSourceType format) const
 #else
     // Native WebGPU (Dawn) supports both SPIR-V and WGSL
     return format == ShaderSourceType::SPIRV || format == ShaderSourceType::WGSL;
+#endif
+}
+
+bool Device::isTimestampQueryEnabled() const
+{
+#ifdef __EMSCRIPTEN__
+    return false;
+#else
+    return wgpuDeviceHasFeature(m_device, WGPUFeatureName_TimestampQuery);
 #endif
 }
 

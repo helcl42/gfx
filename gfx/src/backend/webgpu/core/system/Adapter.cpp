@@ -90,11 +90,16 @@ AdapterInfo Adapter::createAdapterInfo() const
 
 std::vector<const char*> Adapter::enumerateSupportedExtensions() const
 {
-    static const std::vector<const char*> supportedExtensions = {
+    std::vector<const char*> supportedExtensions = {
         extensions::SWAPCHAIN,
         extensions::TIMELINE_SEMAPHORE,
         extensions::ANISOTROPIC_FILTERING
     };
+#ifndef __EMSCRIPTEN__
+    if (wgpuAdapterHasFeature(m_adapter, WGPUFeatureName_TimestampQuery)) {
+        supportedExtensions.push_back(extensions::TIMESTAMP_QUERY);
+    }
+#endif
     return supportedExtensions;
 }
 

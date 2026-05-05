@@ -53,6 +53,9 @@ const char* deviceExtensionNameToGfx(const char* internalName)
     if (std::strcmp(internalName, core::extensions::TIMELINE_SEMAPHORE) == 0) {
         return GFX_DEVICE_EXTENSION_TIMELINE_SEMAPHORE;
     }
+    if (std::strcmp(internalName, core::extensions::TIMESTAMP_QUERY) == 0) {
+        return GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY;
+    }
     // Unknown extension - return as-is
     return internalName;
 }
@@ -791,6 +794,9 @@ GfxBufferUsageFlags webgpuBufferUsageToGfxBufferUsage(WGPUBufferUsage usage)
     if (usage & WGPUBufferUsage_Indirect) {
         gfxUsage |= GFX_BUFFER_USAGE_INDIRECT;
     }
+    if (usage & WGPUBufferUsage_QueryResolve) {
+        gfxUsage |= GFX_BUFFER_USAGE_QUERY_RESOLVE;
+    }
     return gfxUsage;
 }
 
@@ -1154,6 +1160,9 @@ WGPUBufferUsage gfxBufferUsageToWGPU(GfxBufferUsageFlags usage)
     }
     if (usage & GFX_BUFFER_USAGE_INDIRECT) {
         wgpuUsage |= WGPUBufferUsage_Indirect;
+    }
+    if (usage & GFX_BUFFER_USAGE_QUERY_RESOLVE) {
+        wgpuUsage |= WGPUBufferUsage_QueryResolve;
     }
     return wgpuUsage;
 }
@@ -1650,6 +1659,18 @@ core::RenderPassEncoderBeginInfo gfxRenderPassBeginDescriptorToBeginInfo(const G
 
     beginInfo.depthClearValue = descriptor->depthClearValue;
     beginInfo.stencilClearValue = descriptor->stencilClearValue;
+
+    beginInfo.occlusionQuerySet = nullptr;
+    if (descriptor->occlusionQuerySet) {
+        auto* querySet = toNative<core::QuerySet>(descriptor->occlusionQuerySet);
+        beginInfo.occlusionQuerySet = querySet->handle();
+    }
+
+    beginInfo.timestampQuerySet = nullptr;
+    if (descriptor->timestampQuerySet) {
+        auto* querySet = toNative<core::QuerySet>(descriptor->timestampQuerySet);
+        beginInfo.timestampQuerySet = querySet->handle();
+    }
 
     return beginInfo;
 }

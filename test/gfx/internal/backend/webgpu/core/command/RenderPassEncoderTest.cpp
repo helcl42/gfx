@@ -61,4 +61,13 @@ TEST_F(WebGPURenderPassEncoderTest, DrawCommands_ApiExists)
     SUCCEED();
 }
 
+TEST_F(WebGPURenderPassEncoderTest, TimestampQuery_ApiExists)
+{
+    // Full testing of WGPUPassTimestampWrites requires a complete render pass + framebuffer setup
+    // and a WGPUQuerySet created with WGPUQueryType_Timestamp.
+    // The field is wired in RenderPassEncoder constructor: when beginInfo.timestampQuerySet is
+    // non-null, WGPUPassTimestampWrites is set with beginningOfPassWriteIndex=0, endOfPassWriteIndex=1.
+    SUCCEED();
+}
+
 } // anonymous namespace

@@ -256,6 +256,7 @@ TEST_F(VulkanRenderPassEncoderTest, OcclusionQuery_WorksCorrectly)
     gfx::backend::vulkan::core::RenderPassEncoderBeginInfo beginInfo{};
     VkClearColorValue clearColor = { { 0.0f, 0.0f, 0.0f, 1.0f } };
     beginInfo.colorClearValues = { clearColor };
+    beginInfo.occlusionQueryPool = querySet->handle();
 
     auto encoder = std::make_unique<gfx::backend::vulkan::core::RenderPassEncoder>(commandEncoder.get(), renderPass.get(), framebuffer.get(), beginInfo);
 
@@ -288,6 +289,55 @@ TEST_F(VulkanRenderPassEncoderTest, Destructor_CleansUpResources)
 
     // If we reach here without crashing, cleanup succeeded
     SUCCEED();
+}
+
+// ============================================================================
+// Timestamp Query Tests
+// ============================================================================
+
+TEST_F(VulkanRenderPassEncoderTest, TimestampQuery_NullTimestampQueryPool_CreatesSuccessfully)
+{
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+
+    commandEncoder->begin();
+
+    gfx::backend::vulkan::core::RenderPassEncoderBeginInfo beginInfo{};
+    VkClearColorValue clearColor = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+    beginInfo.colorClearValues = { clearColor };
+    beginInfo.timestampQueryPool = VK_NULL_HANDLE;
+
+    EXPECT_NO_THROW({
+        auto encoder = std::make_unique<gfx::backend::vulkan::core::RenderPassEncoder>(
+            commandEncoder.get(), renderPass.get(), framebuffer.get(), beginInfo);
+    });
+
+    commandEncoder->end();
+}
+
+TEST_F(VulkanRenderPassEncoderTest, TimestampQuery_WithTimestampQueryPool_WritesTimestampsWithoutError)
+{
+    gfx::backend::vulkan::core::QuerySetCreateInfo queryInfo{};
+    queryInfo.type = VK_QUERY_TYPE_TIMESTAMP;
+    queryInfo.count = 2;
+    auto querySet = std::make_unique<gfx::backend::vulkan::core::QuerySet>(device.get(), queryInfo);
+
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+
+    commandEncoder->begin();
+
+    gfx::backend::vulkan::core::RenderPassEncoderBeginInfo beginInfo{};
+    VkClearColorValue clearColor = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+    beginInfo.colorClearValues = { clearColor };
+    beginInfo.timestampQueryPool = querySet->handle();
+
+    // Constructor writes vkCmdWriteTimestamp(TOP_OF_PIPE, index=0)
+    // Destructor writes vkCmdWriteTimestamp(BOTTOM_OF_PIPE, index=1)
+    EXPECT_NO_THROW({
+        auto encoder = std::make_unique<gfx::backend::vulkan::core::RenderPassEncoder>(
+            commandEncoder.get(), renderPass.get(), framebuffer.get(), beginInfo);
+    });
+
+    commandEncoder->end();
 }
 
 } // anonymous namespace

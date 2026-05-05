@@ -455,7 +455,8 @@ GfxResult CommandComponent::renderPassEncoderBeginOcclusionQuery(GfxRenderPassEn
 
     auto* encoder = converter::toNative<core::RenderPassEncoder>(renderPassEncoder);
     auto* query = converter::toNative<core::QuerySet>(querySet);
-    encoder->beginOcclusionQuery(query->handle(), queryIndex);
+    const VkQueryControlFlags flags = query->isPrecise() ? VK_QUERY_CONTROL_PRECISE_BIT : 0;
+    encoder->beginOcclusionQuery(query->handle(), queryIndex, flags);
     return GFX_RESULT_SUCCESS;
 }
 

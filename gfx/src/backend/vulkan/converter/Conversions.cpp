@@ -46,6 +46,12 @@ const char* deviceExtensionNameToGfx(const char* internalName)
     if (std::strcmp(internalName, core::extensions::ANISOTROPIC_FILTERING) == 0) {
         return GFX_DEVICE_EXTENSION_ANISOTROPIC_FILTERING;
     }
+    if (std::strcmp(internalName, core::extensions::OCCLUSION_QUERY_PRECISE) == 0) {
+        return GFX_DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE;
+    }
+    if (std::strcmp(internalName, core::extensions::TIMESTAMP_QUERY) == 0) {
+        return GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY;
+    }
     if (std::strcmp(internalName, core::extensions::NON_SOLID_FILL) == 0) {
         return GFX_DEVICE_EXTENSION_NON_SOLID_FILL;
     }
@@ -1044,6 +1050,9 @@ VkBufferUsageFlags gfxBufferUsageToVkBufferUsage(GfxBufferUsageFlags gfxUsage)
     if (gfxUsage & GFX_BUFFER_USAGE_INDIRECT) {
         usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
     }
+    if (gfxUsage & GFX_BUFFER_USAGE_QUERY_RESOLVE) {
+        usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    }
     return usage;
 }
 
@@ -1893,6 +1902,18 @@ core::RenderPassEncoderBeginInfo gfxRenderPassBeginDescriptorToBeginInfo(const G
     beginInfo.depthClearValue = descriptor->depthClearValue;
     beginInfo.stencilClearValue = descriptor->stencilClearValue;
 
+    beginInfo.occlusionQueryPool = VK_NULL_HANDLE;
+    if (descriptor->occlusionQuerySet) {
+        auto* querySet = toNative<core::QuerySet>(descriptor->occlusionQuerySet);
+        beginInfo.occlusionQueryPool = querySet->handle();
+    }
+
+    beginInfo.timestampQueryPool = VK_NULL_HANDLE;
+    if (descriptor->timestampQuerySet) {
+        auto* querySet = toNative<core::QuerySet>(descriptor->timestampQuerySet);
+        beginInfo.timestampQueryPool = querySet->handle();
+    }
+
     return beginInfo;
 }
 
@@ -1914,6 +1935,18 @@ core::QuerySetCreateInfo gfxDescriptorToQuerySetCreateInfo(const GfxQuerySetDesc
     } else {
         createInfo.type = VK_QUERY_TYPE_OCCLUSION;
         createInfo.count = 1;
+    }
+
+    // Walk pNext chain for occlusion-specific options
+    if (descriptor->type == GFX_QUERY_TYPE_OCCLUSION) {
+        const GfxChainHeader* chain = static_cast<const GfxChainHeader*>(descriptor->pNext);
+        while (chain) {
+            if (chain->sType == GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR) {
+                const GfxOcclusionQueryDescriptor* occ = static_cast<const GfxOcclusionQueryDescriptor*>(static_cast<const void*>(chain));
+                createInfo.precise = (occ->mode == GFX_OCCLUSION_QUERY_MODE_PRECISE);
+            }
+            chain = static_cast<const GfxChainHeader*>(chain->pNext);
+        }
     }
 
     return createInfo;

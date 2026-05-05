@@ -1,6 +1,7 @@
 #include "Conversions.h"
 
 #include "../core/command/CommandEncoder.h"
+#include "../core/query/QuerySet.h"
 #include "../core/resource/BindGroupLayout.h"
 #include "../core/resource/Buffer.h"
 #include "../core/resource/Sampler.h"
@@ -1116,6 +1117,15 @@ void convertRenderPassBeginDescriptor(const RenderPassBeginDescriptor& descripto
     outDesc.colorClearValueCount = static_cast<uint32_t>(outClearValues.size());
     outDesc.depthClearValue = descriptor.depthClearValue;
     outDesc.stencilClearValue = descriptor.stencilClearValue;
+    outDesc.occlusionQuerySet = nullptr;
+
+    if (descriptor.occlusionQuerySet) {
+        auto querySetImpl = std::dynamic_pointer_cast<QuerySetImpl>(descriptor.occlusionQuerySet);
+        if (!querySetImpl) {
+            throw std::runtime_error("Invalid query set type");
+        }
+        outDesc.occlusionQuerySet = querySetImpl->getHandle();
+    }
 }
 
 void convertComputePassBeginDescriptor(const ComputePassBeginDescriptor& descriptor, GfxComputePassBeginDescriptor& outDesc)

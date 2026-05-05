@@ -32,7 +32,9 @@ namespace extensions {
     constexpr const char* TIMELINE_SEMAPHORE = "gfx_timeline_semaphore";
     constexpr const char* MULTIVIEW = "gfx_multiview";
     constexpr const char* ANISOTROPIC_FILTERING = "gfx_anisotropic_filtering";
+    constexpr const char* OCCLUSION_QUERY_PRECISE = "gfx_occlusion_query_precise";
     constexpr const char* NON_SOLID_FILL = "gfx_non_solid_fill";
+    constexpr const char* TIMESTAMP_QUERY = "gfx_timestamp_query";
 } // namespace extensions
 
 // ============================================================================
@@ -147,6 +149,7 @@ struct QuerySetCreateInfo {
     const char* label = nullptr;
     VkQueryType type = VK_QUERY_TYPE_OCCLUSION;
     uint32_t count = 0;
+    bool precise = false; // Only meaningful when type == VK_QUERY_TYPE_OCCLUSION
 };
 
 struct MemoryBarrier {
@@ -423,6 +426,8 @@ struct RenderPassEncoderBeginInfo {
     std::vector<VkClearColorValue> colorClearValues;
     float depthClearValue;
     uint32_t stencilClearValue;
+    VkQueryPool occlusionQueryPool = VK_NULL_HANDLE;
+    VkQueryPool timestampQueryPool = VK_NULL_HANDLE;
 };
 
 struct ComputePassEncoderCreateInfo {

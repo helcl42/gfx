@@ -21,12 +21,14 @@ public:
     Device* getDevice() const;
     VkQueryType getType() const;
     uint32_t getCount() const;
+    bool isPrecise() const;
 
 private:
     Device* m_device = nullptr;
     VkQueryPool m_queryPool = VK_NULL_HANDLE;
     VkQueryType m_type = VK_QUERY_TYPE_OCCLUSION;
     uint32_t m_count = 0;
+    bool m_precise = false;
 };
 
 } // namespace gfx::backend::vulkan::core

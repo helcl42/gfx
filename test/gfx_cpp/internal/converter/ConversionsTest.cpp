@@ -214,6 +214,7 @@ TEST(ConversionsTest, BufferUsageRoundTrip_SingleFlags)
         BufferUsage::Uniform,
         BufferUsage::Storage,
         BufferUsage::Indirect,
+        BufferUsage::QueryResolve,
     };
 
     for (const auto& usage : usages) {
