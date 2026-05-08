@@ -192,11 +192,10 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
     vkCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     vkCreateInfo.pApplicationInfo = &appInfo;
 
-#ifdef VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR
+    // Set portability enumeration flag if available (not guarded by macro since it's an enum value)
     if (isExtensionAvailable(availableExtensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
         vkCreateInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
     }
-#endif
 
     vkCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     vkCreateInfo.ppEnabledExtensionNames = extensions.data();
