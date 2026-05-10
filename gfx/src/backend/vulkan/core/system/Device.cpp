@@ -105,11 +105,10 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     // Check if all requested extensions are available
     const auto availableExtensions = m_adapter->enumerateExtensionProperties();
 
-#ifdef VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME
-    if (isExtensionAvailable(availableExtensions, VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME)) {
-        requestedExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
+    constexpr const char* portabilitySubsetExtension = "VK_KHR_portability_subset";
+    if (isExtensionAvailable(availableExtensions, portabilitySubsetExtension)) {
+        requestedExtensions.push_back(portabilitySubsetExtension);
     }
-#endif
 
     for (const char* requestedExt : requestedExtensions) {
         if (!isExtensionAvailable(availableExtensions, requestedExt)) {
