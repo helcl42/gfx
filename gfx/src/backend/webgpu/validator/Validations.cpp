@@ -1007,6 +1007,38 @@ GfxResult validateBufferMap(GfxBuffer buffer, void** outMappedPointer)
     return GFX_RESULT_SUCCESS;
 }
 
+GfxResult validateBufferAsyncMap(GfxBuffer buffer)
+{
+    if (!buffer) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult validateBufferIsAsyncMapped(GfxBuffer buffer, bool* outMapped)
+{
+    if (!buffer || !outMapped) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult validateBufferGetAsyncMappedPointer(GfxBuffer buffer, void** outMappedPointer)
+{
+    if (!buffer || !outMappedPointer) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult validateBufferWaitAsyncMapped(GfxBuffer buffer)
+{
+    if (!buffer) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult validateTextureGetInfo(GfxTexture texture, GfxTextureInfo* outInfo)
 {
     if (!texture || !outInfo) {

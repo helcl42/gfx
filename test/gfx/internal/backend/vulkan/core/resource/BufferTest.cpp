@@ -402,4 +402,79 @@ TEST_F(VulkanBufferTest, CreateBuffer_IndirectUsage_CreatesSuccessfully)
     EXPECT_TRUE(buffer.getUsage() & VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
 }
 
+// ============================================================================
+// Async Map Tests
+// ============================================================================
+
+TEST_F(VulkanBufferTest, AsyncMap_InitialState_NotMapped)
+{
+    gfx::backend::vulkan::core::BufferCreateInfo createInfo{};
+    createInfo.size = 1024;
+    createInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    createInfo.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+    gfx::backend::vulkan::core::Buffer buffer(device.get(), createInfo);
+
+    EXPECT_FALSE(buffer.isAsyncMapped());
+    EXPECT_EQ(buffer.getAsyncMappedPointer(), nullptr);
+}
+
+TEST_F(VulkanBufferTest, AsyncMap_MapsSuccessfully)
+{
+    gfx::backend::vulkan::core::BufferCreateInfo createInfo{};
+    createInfo.size = 1024;
+    createInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    createInfo.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+    gfx::backend::vulkan::core::Buffer buffer(device.get(), createInfo);
+
+    EXPECT_FALSE(buffer.isAsyncMapped());
+
+    buffer.asyncMap(0, 1024);
+
+    EXPECT_TRUE(buffer.isAsyncMapped());
+    EXPECT_NE(buffer.getAsyncMappedPointer(), nullptr);
+
+    buffer.unmap();
+}
+
+TEST_F(VulkanBufferTest, AsyncMap_WaitUntilMapped)
+{
+    gfx::backend::vulkan::core::BufferCreateInfo createInfo{};
+    createInfo.size = 1024;
+    createInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    createInfo.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+    gfx::backend::vulkan::core::Buffer buffer(device.get(), createInfo);
+
+    buffer.asyncMap(0, 1024);
+
+    EXPECT_TRUE(buffer.waitUntilAsyncMapped(UINT64_MAX));
+    EXPECT_NE(buffer.getAsyncMappedPointer(), nullptr);
+
+    buffer.unmap();
+}
+
+TEST_F(VulkanBufferTest, AsyncMap_WriteData_SuccessfullyWrites)
+{
+    gfx::backend::vulkan::core::BufferCreateInfo createInfo{};
+    createInfo.size = 256;
+    createInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    createInfo.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+    gfx::backend::vulkan::core::Buffer buffer(device.get(), createInfo);
+
+    buffer.asyncMap(0, 256);
+    ASSERT_TRUE(buffer.isAsyncMapped());
+
+    void* ptr = buffer.getAsyncMappedPointer();
+    ASSERT_NE(ptr, nullptr);
+
+    std::memset(ptr, 0xCD, 256);
+
+    buffer.unmap();
+    EXPECT_FALSE(buffer.isAsyncMapped());
+    EXPECT_EQ(buffer.getAsyncMappedPointer(), nullptr);
+}
+
 } // namespace

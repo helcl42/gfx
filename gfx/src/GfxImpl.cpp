@@ -31,24 +31,24 @@
     }
 
 // Macro to generate instance create functions
-#define INSTANCE_CREATE_FUNC(TypeName, funcName)                                                                                       \
+#define INSTANCE_CREATE_FUNC(TypeName, funcName)                                                                                           \
     GfxResult gfxInstanceCreate##funcName(GfxInstance instance, const Gfx##funcName##Descriptor* descriptor, Gfx##TypeName* out##TypeName) \
-    {                                                                                                                                \
-        if (!instance || !descriptor || !out##TypeName) {                                                                            \
-            return GFX_RESULT_ERROR_INVALID_ARGUMENT;                                                                                \
-        }                                                                                                                            \
-        auto backend = gfx::backend::BackendManager::instance().getBackend(instance);                                                \
-        if (!backend) {                                                                                                              \
-            return GFX_RESULT_ERROR_NOT_FOUND;                                                                                       \
-        }                                                                                                                            \
-        GfxBackend backendType = gfx::backend::BackendManager::instance().getBackendType(instance);                                  \
-        Gfx##TypeName native##TypeName = nullptr;                                                                                    \
-        GfxResult result = backend->instanceCreate##funcName(instance, descriptor, &native##TypeName);                               \
-        if (result != GFX_RESULT_SUCCESS) {                                                                                          \
-            return result;                                                                                                           \
-        }                                                                                                                            \
-        *out##TypeName = gfx::backend::BackendManager::instance().wrap(backendType, native##TypeName);                               \
-        return GFX_RESULT_SUCCESS;                                                                                                   \
+    {                                                                                                                                      \
+        if (!instance || !descriptor || !out##TypeName) {                                                                                  \
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;                                                                                      \
+        }                                                                                                                                  \
+        auto backend = gfx::backend::BackendManager::instance().getBackend(instance);                                                      \
+        if (!backend) {                                                                                                                    \
+            return GFX_RESULT_ERROR_NOT_FOUND;                                                                                             \
+        }                                                                                                                                  \
+        GfxBackend backendType = gfx::backend::BackendManager::instance().getBackendType(instance);                                        \
+        Gfx##TypeName native##TypeName = nullptr;                                                                                          \
+        GfxResult result = backend->instanceCreate##funcName(instance, descriptor, &native##TypeName);                                     \
+        if (result != GFX_RESULT_SUCCESS) {                                                                                                \
+            return result;                                                                                                                 \
+        }                                                                                                                                  \
+        *out##TypeName = gfx::backend::BackendManager::instance().wrap(backendType, native##TypeName);                                     \
+        return GFX_RESULT_SUCCESS;                                                                                                         \
     }
 
 // Macro for destroy functions
@@ -750,6 +750,54 @@ GfxResult gfxBufferUnmap(GfxBuffer buffer)
         return GFX_RESULT_ERROR_NOT_FOUND;
     }
     return backend->bufferUnmap(buffer);
+}
+
+GfxResult gfxBufferAsyncMap(GfxBuffer buffer, uint64_t offset, uint64_t size)
+{
+    if (!buffer) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(buffer);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->bufferAsyncMap(buffer, offset, size);
+}
+
+GfxResult gfxBufferIsAsyncMapped(GfxBuffer buffer, bool* outMapped)
+{
+    if (!buffer || !outMapped) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(buffer);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->bufferIsAsyncMapped(buffer, outMapped);
+}
+
+GfxResult gfxBufferGetAsyncMappedPointer(GfxBuffer buffer, void** outMappedPointer)
+{
+    if (!buffer || !outMappedPointer) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(buffer);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->bufferGetAsyncMappedPointer(buffer, outMappedPointer);
+}
+
+GfxResult gfxBufferWaitAsyncMapped(GfxBuffer buffer, uint64_t timeoutNs)
+{
+    if (!buffer) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(buffer);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->bufferWaitAsyncMapped(buffer, timeoutNs);
 }
 
 GfxResult gfxBufferFlushMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size)

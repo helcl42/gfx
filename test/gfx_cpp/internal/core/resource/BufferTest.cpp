@@ -240,6 +240,88 @@ TEST_P(BufferImplTest, ImportBuffer)
 }
 
 // ===========================================================================
+// Async Map Tests
+// ===========================================================================
+
+TEST_P(BufferImplTest, AsyncMapInitialState)
+{
+    DeviceImpl deviceWrapper(device);
+
+    BufferDescriptor desc{
+        .size = 1024,
+        .usage = BufferUsage::MapWrite | BufferUsage::CopySrc,
+        .memoryProperties = MemoryProperty::HostVisible | MemoryProperty::HostCoherent
+    };
+
+    auto buffer = deviceWrapper.createBuffer(desc);
+    ASSERT_NE(buffer, nullptr);
+
+    EXPECT_FALSE(buffer->isAsyncMapped());
+    EXPECT_EQ(buffer->getAsyncMappedPointer(), nullptr);
+}
+
+TEST_P(BufferImplTest, AsyncMapOperation)
+{
+    DeviceImpl deviceWrapper(device);
+
+    BufferDescriptor desc{
+        .size = 1024,
+        .usage = BufferUsage::MapWrite | BufferUsage::CopySrc,
+        .memoryProperties = MemoryProperty::HostVisible | MemoryProperty::HostCoherent
+    };
+
+    auto buffer = deviceWrapper.createBuffer(desc);
+    ASSERT_NE(buffer, nullptr);
+
+    EXPECT_FALSE(buffer->isAsyncMapped());
+
+    buffer->asyncMap(0, desc.size);
+
+    // Give the device a chance to process the async work before polling
+    gfxDeviceWaitIdle(device);
+
+    // Poll until mapped (with timeout for WebGPU async behaviour)
+    constexpr int maxAttempts = 100;
+    bool mapped = false;
+    for (int i = 0; i < maxAttempts; ++i) {
+        mapped = buffer->isAsyncMapped();
+        if (mapped) {
+            break;
+        }
+    }
+    ASSERT_TRUE(mapped) << "Buffer did not become async-mapped within timeout";
+
+    void* ptr = buffer->getAsyncMappedPointer();
+    EXPECT_NE(ptr, nullptr);
+
+    buffer->unmap();
+}
+
+TEST_P(BufferImplTest, WaitAsyncMappedOperation)
+{
+    DeviceImpl deviceWrapper(device);
+
+    BufferDescriptor desc{
+        .size = 1024,
+        .usage = BufferUsage::MapWrite | BufferUsage::CopySrc,
+        .memoryProperties = MemoryProperty::HostVisible | MemoryProperty::HostCoherent
+    };
+
+    auto buffer = deviceWrapper.createBuffer(desc);
+    ASSERT_NE(buffer, nullptr);
+
+    buffer->asyncMap(0, desc.size);
+
+    // Block until mapped
+    EXPECT_TRUE(buffer->waitAsyncMapped(UINT64_MAX));
+
+    void* ptr = buffer->getAsyncMappedPointer();
+    EXPECT_NE(ptr, nullptr);
+
+    buffer->unmap();
+}
+
+// ===========================================================================
 // Test Instantiation
 // ===========================================================================
 

@@ -89,4 +89,79 @@ TEST_F(WebGPUBufferTest, MultipleBuffers_CanCoexist)
     EXPECT_NE(buffer1->handle(), buffer2->handle());
 }
 
+// ============================================================================
+// Async Map Tests
+// ============================================================================
+
+TEST_F(WebGPUBufferTest, AsyncMap_InitialState_NotMapped)
+{
+    gfx::backend::webgpu::core::BufferCreateInfo createInfo{};
+    createInfo.size = 1024;
+    createInfo.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc;
+
+    auto buffer = std::make_unique<gfx::backend::webgpu::core::Buffer>(device.get(), createInfo);
+
+    EXPECT_FALSE(buffer->isAsyncMapped());
+    EXPECT_EQ(buffer->getAsyncMappedPointer(), nullptr);
+}
+
+TEST_F(WebGPUBufferTest, AsyncMap_MapsSuccessfully)
+{
+    gfx::backend::webgpu::core::BufferCreateInfo createInfo{};
+    createInfo.size = 1024;
+    createInfo.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc;
+
+    auto buffer = std::make_unique<gfx::backend::webgpu::core::Buffer>(device.get(), createInfo);
+
+    EXPECT_FALSE(buffer->isAsyncMapped());
+
+    buffer->asyncMap(0, 1024);
+
+    // Block until Dawn resolves the map callback (up to 5s)
+    ASSERT_TRUE(buffer->waitUntilAsyncMapped(5'000'000'000ULL)) << "Buffer did not become async-mapped within timeout";
+
+    EXPECT_NE(buffer->getAsyncMappedPointer(), nullptr);
+
+    buffer->unmap();
+}
+
+TEST_F(WebGPUBufferTest, AsyncMap_WaitUntilMapped)
+{
+    gfx::backend::webgpu::core::BufferCreateInfo createInfo{};
+    createInfo.size = 1024;
+    createInfo.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc;
+
+    auto buffer = std::make_unique<gfx::backend::webgpu::core::Buffer>(device.get(), createInfo);
+
+    buffer->asyncMap(0, 1024);
+
+    EXPECT_TRUE(buffer->waitUntilAsyncMapped(UINT64_MAX));
+    EXPECT_NE(buffer->getAsyncMappedPointer(), nullptr);
+
+    buffer->unmap();
+}
+
+TEST_F(WebGPUBufferTest, AsyncMap_WriteData_SuccessfullyWrites)
+{
+    gfx::backend::webgpu::core::BufferCreateInfo createInfo{};
+    createInfo.size = 256;
+    createInfo.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc;
+
+    auto buffer = std::make_unique<gfx::backend::webgpu::core::Buffer>(device.get(), createInfo);
+
+    buffer->asyncMap(0, 256);
+
+    // Block until Dawn resolves the map callback (up to 5s)
+    ASSERT_TRUE(buffer->waitUntilAsyncMapped(5'000'000'000ULL)) << "Buffer did not become async-mapped within timeout";
+
+    void* ptr = buffer->getAsyncMappedPointer();
+    ASSERT_NE(ptr, nullptr);
+
+    std::memset(ptr, 0xCD, 256);
+
+    buffer->unmap();
+    EXPECT_FALSE(buffer->isAsyncMapped());
+    EXPECT_EQ(buffer->getAsyncMappedPointer(), nullptr);
+}
+
 } // anonymous namespace

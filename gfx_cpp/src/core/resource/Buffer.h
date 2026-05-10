@@ -20,6 +20,10 @@ public:
     void unmap() override;
     void flushMappedRange(uint64_t offset, uint64_t size) override;
     void invalidateMappedRange(uint64_t offset, uint64_t size) override;
+    void asyncMap(uint64_t offset = 0, uint64_t size = WholeSize) override;
+    bool isAsyncMapped() const override;
+    void* getAsyncMappedPointer() const override;
+    bool waitAsyncMapped(uint64_t timeoutNs = UINT64_MAX) override;
 
 private:
     GfxBuffer m_handle;

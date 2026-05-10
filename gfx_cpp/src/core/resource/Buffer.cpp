@@ -67,4 +67,28 @@ void BufferImpl::invalidateMappedRange(uint64_t offset, uint64_t size)
     gfxBufferInvalidateMappedRange(m_handle, offset, size);
 }
 
+void BufferImpl::asyncMap(uint64_t offset, uint64_t size)
+{
+    gfxBufferAsyncMap(m_handle, offset, size);
+}
+
+bool BufferImpl::isAsyncMapped() const
+{
+    bool mapped = false;
+    gfxBufferIsAsyncMapped(m_handle, &mapped);
+    return mapped;
+}
+
+void* BufferImpl::getAsyncMappedPointer() const
+{
+    void* ptr = nullptr;
+    gfxBufferGetAsyncMappedPointer(m_handle, &ptr);
+    return ptr;
+}
+
+bool BufferImpl::waitAsyncMapped(uint64_t timeoutNs)
+{
+    return gfxBufferWaitAsyncMapped(m_handle, timeoutNs) == GFX_RESULT_SUCCESS;
+}
+
 } // namespace gfx

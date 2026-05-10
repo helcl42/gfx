@@ -1808,6 +1808,10 @@ GFX_API GfxResult gfxBufferGetInfo(GfxBuffer buffer, GfxBufferInfo* outInfo);
 GFX_API GfxResult gfxBufferGetNativeHandle(GfxBuffer buffer, void** outHandle);
 GFX_API GfxResult gfxBufferMap(GfxBuffer buffer, uint64_t offset, uint64_t size, void** outMappedPointer);
 GFX_API GfxResult gfxBufferUnmap(GfxBuffer buffer);
+GFX_API GfxResult gfxBufferAsyncMap(GfxBuffer buffer, uint64_t offset, uint64_t size);
+GFX_API GfxResult gfxBufferIsAsyncMapped(GfxBuffer buffer, bool* outMapped);
+GFX_API GfxResult gfxBufferGetAsyncMappedPointer(GfxBuffer buffer, void** outMappedPointer);
+GFX_API GfxResult gfxBufferWaitAsyncMapped(GfxBuffer buffer, uint64_t timeoutNs);
 GFX_API GfxResult gfxBufferFlushMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size);
 GFX_API GfxResult gfxBufferInvalidateMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size);
 

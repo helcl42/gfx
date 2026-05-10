@@ -22,6 +22,10 @@ public:
     GfxResult bufferGetNativeHandle(GfxBuffer buffer, void** outHandle) const;
     GfxResult bufferMap(GfxBuffer buffer, uint64_t offset, uint64_t size, void** outMappedPointer) const;
     GfxResult bufferUnmap(GfxBuffer buffer) const;
+    GfxResult bufferAsyncMap(GfxBuffer buffer, uint64_t offset, uint64_t size) const;
+    GfxResult bufferIsAsyncMapped(GfxBuffer buffer, bool* outMapped) const;
+    GfxResult bufferGetAsyncMappedPointer(GfxBuffer buffer, void** outMappedPointer) const;
+    GfxResult bufferWaitAsyncMapped(GfxBuffer buffer, uint64_t timeoutNs) const;
     GfxResult bufferFlushMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size) const;
     GfxResult bufferInvalidateMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size) const;
 

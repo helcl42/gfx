@@ -30,6 +30,14 @@ public:
     void* map(uint64_t offset, uint64_t size);
     void unmap();
 
+    // Async mapping - non-blocking
+    void asyncMap(uint64_t offset, uint64_t size);
+    bool isAsyncMapped() const;
+    void* getAsyncMappedPointer();
+    // Blocking wait until async map completes or timeout (nanoseconds) elapses.
+    // Returns true if mapped successfully.
+    bool waitUntilAsyncMapped(uint64_t timeoutNs = UINT64_MAX);
+
     // Memory synchronization (no-ops on WebGPU - memory is always coherent)
     void flushMappedRange(uint64_t offset, uint64_t size);
     void invalidateMappedRange(uint64_t offset, uint64_t size);
@@ -38,11 +46,24 @@ private:
     static BufferInfo createBufferInfo(const BufferCreateInfo& createInfo);
     static BufferInfo createBufferInfo(const BufferImportInfo& importInfo);
 
+    struct AsyncMapCallbackData {
+        WGPUMapAsyncStatus status = WGPUMapAsyncStatus_Error;
+        bool completed = false;
+        uint64_t offset = 0;
+        uint64_t size = 0;
+    };
+
 private:
     Device* m_device = nullptr; // Non-owning pointer for device operations
     bool m_ownsResources = true;
     WGPUBuffer m_buffer = nullptr;
     BufferInfo m_info{};
+
+    // Async map state
+    WGPUFuture m_asyncMapFuture{};
+    mutable AsyncMapCallbackData m_asyncCallbackData{};
+    mutable bool m_asyncMapPending = false;
+    mutable bool m_asyncMapped = false;
 };
 
 } // namespace gfx::backend::webgpu::core

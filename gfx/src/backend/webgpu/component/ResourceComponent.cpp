@@ -124,6 +124,58 @@ GfxResult ResourceComponent::bufferUnmap(GfxBuffer buffer) const
     return GFX_RESULT_SUCCESS;
 }
 
+GfxResult ResourceComponent::bufferAsyncMap(GfxBuffer buffer, uint64_t offset, uint64_t size) const
+{
+    GfxResult validationResult = validator::validateBufferAsyncMap(buffer);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* bufferPtr = converter::toNative<core::Buffer>(buffer);
+    bufferPtr->asyncMap(offset, size);
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult ResourceComponent::bufferIsAsyncMapped(GfxBuffer buffer, bool* outMapped) const
+{
+    GfxResult validationResult = validator::validateBufferIsAsyncMapped(buffer, outMapped);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* bufferPtr = converter::toNative<core::Buffer>(buffer);
+    *outMapped = bufferPtr->isAsyncMapped();
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult ResourceComponent::bufferGetAsyncMappedPointer(GfxBuffer buffer, void** outMappedPointer) const
+{
+    GfxResult validationResult = validator::validateBufferGetAsyncMappedPointer(buffer, outMappedPointer);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* bufferPtr = converter::toNative<core::Buffer>(buffer);
+    void* ptr = bufferPtr->getAsyncMappedPointer();
+    if (!ptr) {
+        return GFX_RESULT_NOT_READY;
+    }
+    *outMappedPointer = ptr;
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult ResourceComponent::bufferWaitAsyncMapped(GfxBuffer buffer, uint64_t timeoutNs) const
+{
+    GfxResult validationResult = validator::validateBufferWaitAsyncMapped(buffer);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* bufferPtr = converter::toNative<core::Buffer>(buffer);
+    const bool mapped = bufferPtr->waitUntilAsyncMapped(timeoutNs);
+    return mapped ? GFX_RESULT_SUCCESS : GFX_RESULT_NOT_READY;
+}
+
 GfxResult ResourceComponent::bufferFlushMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size) const
 {
     GfxResult validationResult = validator::validateBufferFlushMappedRange(buffer);

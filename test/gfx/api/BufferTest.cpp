@@ -655,6 +655,142 @@ TEST_P(GfxBufferTest, CreateBufferWithMapWriteRequiresHostVisible)
 }
 
 // ===========================================================================
+// Async Map Tests
+// ===========================================================================
+
+TEST_P(GfxBufferTest, AsyncMapWithNullBuffer)
+{
+    EXPECT_EQ(gfxBufferAsyncMap(nullptr, 0, 1024), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_P(GfxBufferTest, WaitAsyncMappedWithNullBuffer)
+{
+    EXPECT_EQ(gfxBufferWaitAsyncMapped(nullptr, UINT64_MAX), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_P(GfxBufferTest, AsyncMapIsAsyncMappedWithNullBuffer)
+{
+    bool mapped = false;
+    EXPECT_EQ(gfxBufferIsAsyncMapped(nullptr, &mapped), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_P(GfxBufferTest, AsyncMapIsAsyncMappedWithNullOut)
+{
+    GfxBufferDescriptor desc = {};
+    desc.label = "Async Map Buffer";
+    desc.size = 1024;
+    desc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_WRITE | GFX_BUFFER_USAGE_COPY_SRC);
+    desc.memoryProperties = GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT;
+
+    GfxBuffer buffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &desc, &buffer), GFX_RESULT_SUCCESS);
+    ASSERT_NE(buffer, nullptr);
+
+    EXPECT_EQ(gfxBufferIsAsyncMapped(buffer, nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    gfxBufferDestroy(buffer);
+}
+
+TEST_P(GfxBufferTest, AsyncMapGetPointerWithNullBuffer)
+{
+    void* ptr = nullptr;
+    EXPECT_EQ(gfxBufferGetAsyncMappedPointer(nullptr, &ptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_P(GfxBufferTest, AsyncMapGetPointerWithNullOut)
+{
+    GfxBufferDescriptor desc = {};
+    desc.label = "Async Map Buffer";
+    desc.size = 1024;
+    desc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_WRITE | GFX_BUFFER_USAGE_COPY_SRC);
+    desc.memoryProperties = GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT;
+
+    GfxBuffer buffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &desc, &buffer), GFX_RESULT_SUCCESS);
+    ASSERT_NE(buffer, nullptr);
+
+    EXPECT_EQ(gfxBufferGetAsyncMappedPointer(buffer, nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    gfxBufferDestroy(buffer);
+}
+
+TEST_P(GfxBufferTest, AsyncMapOperation)
+{
+    GfxBufferDescriptor desc = {};
+    desc.label = "Async Map Buffer";
+    desc.size = 1024;
+    desc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_WRITE | GFX_BUFFER_USAGE_COPY_SRC);
+    desc.memoryProperties = GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT;
+
+    GfxBuffer buffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &desc, &buffer), GFX_RESULT_SUCCESS);
+    ASSERT_NE(buffer, nullptr);
+
+    // Should not be mapped initially
+    bool mapped = true;
+    ASSERT_EQ(gfxBufferIsAsyncMapped(buffer, &mapped), GFX_RESULT_SUCCESS);
+    EXPECT_FALSE(mapped);
+
+    // Pointer should not be available before mapping
+    void* ptr = nullptr;
+    EXPECT_NE(gfxBufferGetAsyncMappedPointer(buffer, &ptr), GFX_RESULT_SUCCESS);
+
+    // Initiate async map
+    ASSERT_EQ(gfxBufferAsyncMap(buffer, 0, desc.size), GFX_RESULT_SUCCESS);
+
+    // Give the device a chance to process the async work before polling
+    gfxDeviceWaitIdle(device);
+
+    // Poll until mapped (with timeout for WebGPU)
+    constexpr int maxAttempts = 100;
+    for (int i = 0; i < maxAttempts; ++i) {
+        ASSERT_EQ(gfxBufferIsAsyncMapped(buffer, &mapped), GFX_RESULT_SUCCESS);
+        if (mapped) {
+            break;
+        }
+    }
+    ASSERT_TRUE(mapped) << "Buffer did not become async-mapped within timeout";
+
+    // Pointer should now be available
+    ptr = nullptr;
+    ASSERT_EQ(gfxBufferGetAsyncMappedPointer(buffer, &ptr), GFX_RESULT_SUCCESS);
+    EXPECT_NE(ptr, nullptr);
+
+    // Write some data
+    std::memset(ptr, 0xAB, desc.size);
+
+    gfxBufferUnmap(buffer);
+    gfxBufferDestroy(buffer);
+}
+
+TEST_P(GfxBufferTest, WaitAsyncMappedOperation)
+{
+    GfxBufferDescriptor desc = {};
+    desc.label = "Wait Async Map Buffer";
+    desc.size = 1024;
+    desc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_WRITE | GFX_BUFFER_USAGE_COPY_SRC);
+    desc.memoryProperties = GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT;
+
+    GfxBuffer buffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &desc, &buffer), GFX_RESULT_SUCCESS);
+    ASSERT_NE(buffer, nullptr);
+
+    ASSERT_EQ(gfxBufferAsyncMap(buffer, 0, desc.size), GFX_RESULT_SUCCESS);
+
+    // Block until mapped
+    ASSERT_EQ(gfxBufferWaitAsyncMapped(buffer, UINT64_MAX), GFX_RESULT_SUCCESS);
+
+    void* ptr = nullptr;
+    ASSERT_EQ(gfxBufferGetAsyncMappedPointer(buffer, &ptr), GFX_RESULT_SUCCESS);
+    EXPECT_NE(ptr, nullptr);
+
+    std::memset(ptr, 0xAB, desc.size);
+
+    gfxBufferUnmap(buffer);
+    gfxBufferDestroy(buffer);
+}
+
+// ===========================================================================
 // Test Instantiation
 // ===========================================================================
 

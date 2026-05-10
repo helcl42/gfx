@@ -27,7 +27,7 @@ public:
     GfxResult instanceRequestAdapter(GfxInstance instance, const GfxAdapterDescriptor* descriptor, GfxAdapter* outAdapter) const override;
     GfxResult instanceEnumerateAdapters(GfxInstance instance, uint32_t* adapterCount, GfxAdapter* adapters) const override;
     GfxResult instanceCreateSurface(GfxInstance instance, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const override;
-    
+
     // Adapter functions
     GfxResult adapterCreateDevice(GfxAdapter adapter, const GfxDeviceDescriptor* descriptor, GfxDevice* outDevice) const override;
     GfxResult adapterGetInfo(GfxAdapter adapter, GfxAdapterInfo* outInfo) const override;
@@ -73,6 +73,10 @@ public:
     GfxResult bufferGetNativeHandle(GfxBuffer buffer, void** outHandle) const override;
     GfxResult bufferMap(GfxBuffer buffer, uint64_t offset, uint64_t size, void** outMappedPointer) const override;
     GfxResult bufferUnmap(GfxBuffer buffer) const override;
+    GfxResult bufferAsyncMap(GfxBuffer buffer, uint64_t offset, uint64_t size) const override;
+    GfxResult bufferIsAsyncMapped(GfxBuffer buffer, bool* outMapped) const override;
+    GfxResult bufferGetAsyncMappedPointer(GfxBuffer buffer, void** outMappedPointer) const override;
+    GfxResult bufferWaitAsyncMapped(GfxBuffer buffer, uint64_t timeoutNs) const override;
     GfxResult bufferFlushMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size) const override;
     GfxResult bufferInvalidateMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size) const override;
 
