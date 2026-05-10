@@ -447,12 +447,13 @@ if(BUILD_VULKAN_BACKEND)
             "-framework IOSurface"
             "-framework CoreGraphics"
         )
-    # For macOS desktop, link Cocoa and QuartzCore for Metal layer creation
+    # For macOS desktop, link Cocoa, QuartzCore and IOSurface for MoltenVK
     elseif(APPLE)
         target_link_libraries(gfx PUBLIC
             "-framework Metal"
             "-framework Cocoa"
             "-framework QuartzCore"
+            "-framework IOSurface"
         )
     endif()
     
@@ -489,6 +490,7 @@ if(BUILD_WEBGPU_BACKEND)
     # Configure WebGPU for native vs web builds
     if(BUILD_FOR_WEB)
         # For web builds, use emdawnwebgpu port
+        target_compile_options(gfx PUBLIC --use-port=emdawnwebgpu)
         target_link_options(gfx PUBLIC --use-port=emdawnwebgpu)
         target_include_directories(gfx PUBLIC 
             ${CMAKE_BINARY_DIR}/dawn/gen/src/emdawnwebgpu/include  # Generated headers first
