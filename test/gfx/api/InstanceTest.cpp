@@ -463,4 +463,36 @@ TEST(GfxInstanceTestNonParam, DestroyNullInstance)
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
+TEST(GfxInstanceTestNonParam, GetNativeHandleNullInstance)
+{
+    void* handle = nullptr;
+    GfxResult result = gfxInstanceGetNativeHandle(nullptr, &handle);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST(GfxInstanceTestNonParam, GetNativeHandleNullOutput)
+{
+    GfxResult result = gfxInstanceGetNativeHandle(reinterpret_cast<GfxInstance>(1), nullptr);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_P(GfxInstanceTest, GetNativeHandle)
+{
+    const char* extensions[] = { GFX_INSTANCE_EXTENSION_DEBUG };
+    GfxInstanceDescriptor desc = {};
+    desc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
+    desc.pNext = nullptr;
+    desc.backend = backend;
+    desc.enabledExtensions = extensions;
+    desc.enabledExtensionCount = 1;
+
+    GfxResult result = gfxCreateInstance(&desc, &instance);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+
+    void* handle = nullptr;
+    result = gfxInstanceGetNativeHandle(instance, &handle);
+    EXPECT_EQ(result, GFX_RESULT_SUCCESS);
+    EXPECT_NE(handle, nullptr);
+}
+
 } // namespace

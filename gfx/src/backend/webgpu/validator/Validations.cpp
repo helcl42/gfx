@@ -690,12 +690,36 @@ GfxResult validateInstanceEnumerateAdapters(GfxInstance instance, uint32_t* adap
     return GFX_RESULT_SUCCESS;
 }
 
+GfxResult validateInstanceGetNativeHandle(GfxInstance instance, void** outHandle)
+{
+    if (!instance || !outHandle) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult validateEnumerateInstanceExtensions(uint32_t* extensionCount)
+{
+    if (!extensionCount) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult validateAdapterCreateDevice(GfxAdapter adapter, const GfxDeviceDescriptor* descriptor, GfxDevice* outDevice)
 {
     if (!adapter || !outDevice) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     return validateDeviceDescriptor(descriptor);
+}
+
+GfxResult validateAdapterGetNativeHandle(GfxAdapter adapter, void** outHandle)
+{
+    if (!adapter || !outHandle) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult validateAdapterGetInfo(GfxAdapter adapter, GfxAdapterInfo* outInfo)
@@ -733,6 +757,22 @@ GfxResult validateAdapterGetQueueFamilySurfaceSupport(GfxAdapter adapter, GfxSur
 GfxResult validateAdapterEnumerateExtensions(GfxAdapter adapter, uint32_t* extensionCount)
 {
     if (!adapter || !extensionCount) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult validateDeviceGetNativeHandle(GfxDevice device, void** outHandle)
+{
+    if (!device || !outHandle) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult validateDeviceSupportsShaderFormat(GfxDevice device, bool* outSupported)
+{
+    if (!device || !outSupported) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     return GFX_RESULT_SUCCESS;
@@ -1069,6 +1109,22 @@ GfxResult validateTextureCreateView(GfxTexture texture, const GfxTextureViewDesc
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     return validateTextureViewDescriptor(descriptor);
+}
+
+GfxResult validateQueueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo)
+{
+    if (!queue || !outInfo) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult validateQueueGetNativeHandle(GfxQueue queue, void** outHandle)
+{
+    if (!queue || !outHandle) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult validateQueueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitDescriptor)

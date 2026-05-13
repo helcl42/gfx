@@ -116,6 +116,11 @@ struct SwapchainInfo {
     WGPUPresentMode presentMode;
 };
 
+struct QueueInfo {
+    uint32_t queueFamilyIndex;
+    uint32_t queueIndex;
+};
+
 struct TextureCreateInfo {
     WGPUTextureFormat format;
     WGPUExtent3D size;

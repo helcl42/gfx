@@ -14,6 +14,7 @@ public:
     explicit DeviceImpl(GfxDevice h);
     ~DeviceImpl() override;
 
+    void* getNativeHandle() const override;
     std::shared_ptr<Queue> getQueue() override;
     std::shared_ptr<Queue> getQueueByIndex(uint32_t queueFamilyIndex, uint32_t queueIndex) override;
 

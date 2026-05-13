@@ -6,6 +6,8 @@
 
 #include "../../../../common/Logger.h"
 
+#include <gfx/gfx.h>
+
 #include <algorithm>
 #include <cstring>
 #include <set>
@@ -150,6 +152,22 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
         } else if (isExtensionAvailable(availableExtensions, VK_EXT_DEBUG_REPORT_EXTENSION_NAME)) {
             extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
         }
+    }
+
+    // Add native (raw Vulkan) extensions from pNext chain
+    const GfxChainHeader* header = static_cast<const GfxChainHeader*>(createInfo.pNext);
+    while (header) {
+        if (header->sType == GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR) {
+            const auto* nativeDesc = reinterpret_cast<const GfxNativeExtensionsDescriptor*>(header);
+            if (nativeDesc->nativeExtensions && nativeDesc->nativeExtensionCount > 0) {
+                for (uint32_t i = 0; i < nativeDesc->nativeExtensionCount; ++i) {
+                    if (isExtensionAvailable(availableExtensions, nativeDesc->nativeExtensions[i])) {
+                        extensions.push_back(nativeDesc->nativeExtensions[i]);
+                    }
+                }
+            }
+        }
+        header = static_cast<const GfxChainHeader*>(header->pNext);
     }
 
     // Check if all requested extensions are availables

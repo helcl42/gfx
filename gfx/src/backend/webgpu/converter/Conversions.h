@@ -13,6 +13,7 @@ namespace core {
     struct TextureInfo;
     struct SurfaceInfo;
     struct SwapchainInfo;
+    struct QueueInfo;
     struct QueueFamilyProperties;
 
     struct AdapterCreateInfo;
@@ -150,6 +151,7 @@ GfxTextureInfo wgpuTextureInfoToGfxTextureInfo(const core::TextureInfo& info);
 GfxSurfaceInfo wgpuSurfaceInfoToGfxSurfaceInfo(const core::SurfaceInfo& info);
 GfxSwapchainInfo wgpuSwapchainInfoToGfxSwapchainInfo(const core::SwapchainInfo& info);
 GfxBufferInfo wgpuBufferToGfxBufferInfo(const core::BufferInfo& info);
+GfxQueueInfo wgpuQueueInfoToGfxQueueInfo(const core::QueueInfo& info);
 
 // ============================================================================
 // String utilities

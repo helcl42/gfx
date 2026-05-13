@@ -21,6 +21,16 @@ InstanceImpl::~InstanceImpl()
     }
 }
 
+void* InstanceImpl::getNativeHandle() const
+{
+    void* handle = nullptr;
+    GfxResult result = gfxInstanceGetNativeHandle(m_handle, &handle);
+    if (result != GFX_RESULT_SUCCESS) {
+        return nullptr;
+    }
+    return handle;
+}
+
 std::shared_ptr<Adapter> InstanceImpl::requestAdapter(const AdapterDescriptor& descriptor)
 {
     GfxAdapterDescriptor cDesc = {};

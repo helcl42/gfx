@@ -854,6 +854,14 @@ GfxBufferInfo wgpuBufferToGfxBufferInfo(const core::BufferInfo& info)
     return gfxInfo;
 }
 
+GfxQueueInfo wgpuQueueInfoToGfxQueueInfo(const core::QueueInfo& info)
+{
+    GfxQueueInfo gfxInfo{};
+    gfxInfo.queueFamilyIndex = info.queueFamilyIndex;
+    gfxInfo.queueIndex = info.queueIndex;
+    return gfxInfo;
+}
+
 // ============================================================================
 // Conversion Function Implementations
 // ============================================================================

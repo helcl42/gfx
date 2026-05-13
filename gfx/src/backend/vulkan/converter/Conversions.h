@@ -116,6 +116,7 @@ GfxTextureInfo vkTextureInfoToGfxTextureInfo(const core::TextureInfo& info);
 GfxSurfaceInfo vkSurfaceCapabilitiesToGfxSurfaceInfo(const VkSurfaceCapabilitiesKHR& caps);
 GfxSwapchainInfo vkSwapchainInfoToGfxSwapchainInfo(const core::SwapchainInfo& info);
 GfxBufferInfo vkBufferToGfxBufferInfo(const core::BufferInfo& info);
+GfxQueueInfo vkQueueInfoToGfxQueueInfo(const core::QueueInfo& info);
 GfxExtent3D vkExtent3DToGfxExtent3D(const VkExtent3D& vkExtent);
 VkExtent3D gfxExtent3DToVkExtent3D(const GfxExtent3D* gfxExtent);
 VkOffset3D gfxOrigin3DToVkOffset3D(const GfxOrigin3D* gfxOrigin);

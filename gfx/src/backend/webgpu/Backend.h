@@ -24,12 +24,14 @@ public:
 
     // Instance functions
     GfxResult instanceDestroy(GfxInstance instance) const override;
+    GfxResult instanceGetNativeHandle(GfxInstance instance, void** outHandle) const override;
     GfxResult instanceRequestAdapter(GfxInstance instance, const GfxAdapterDescriptor* descriptor, GfxAdapter* outAdapter) const override;
     GfxResult instanceEnumerateAdapters(GfxInstance instance, uint32_t* adapterCount, GfxAdapter* adapters) const override;
     GfxResult instanceCreateSurface(GfxInstance instance, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const override;
 
     // Adapter functions
     GfxResult adapterCreateDevice(GfxAdapter adapter, const GfxDeviceDescriptor* descriptor, GfxDevice* outDevice) const override;
+    GfxResult adapterGetNativeHandle(GfxAdapter adapter, void** outHandle) const override;
     GfxResult adapterGetInfo(GfxAdapter adapter, GfxAdapterInfo* outInfo) const override;
     GfxResult adapterGetLimits(GfxAdapter adapter, GfxDeviceLimits* outLimits) const override;
     GfxResult adapterEnumerateQueueFamilies(GfxAdapter adapter, uint32_t* queueFamilyCount, GfxQueueFamilyProperties* queueFamilies) const override;
@@ -38,6 +40,7 @@ public:
 
     // Device functions
     GfxResult deviceDestroy(GfxDevice device) const override;
+    GfxResult deviceGetNativeHandle(GfxDevice device, void** outHandle) const override;
     GfxResult deviceGetQueue(GfxDevice device, GfxQueue* outQueue) const override;
     GfxResult deviceGetQueueByIndex(GfxDevice device, uint32_t queueFamilyIndex, uint32_t queueIndex, GfxQueue* outQueue) const override;
     GfxResult deviceWaitIdle(GfxDevice device) const override;
@@ -45,6 +48,8 @@ public:
     GfxResult deviceSupportsShaderFormat(GfxDevice device, GfxShaderSourceType format, bool* outSupported) const override;
 
     // Queue functions
+    GfxResult queueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo) const override;
+    GfxResult queueGetNativeHandle(GfxQueue queue, void** outHandle) const override;
     GfxResult queueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitDescriptor) const override;
     GfxResult queueWriteBuffer(GfxQueue queue, GfxBuffer buffer, uint64_t offset, const void* data, uint64_t size) const override;
     GfxResult queueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, GfxTextureLayout finalLayout) const override;

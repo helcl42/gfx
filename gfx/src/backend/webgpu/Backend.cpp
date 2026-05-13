@@ -18,6 +18,11 @@ GfxResult Backend::instanceDestroy(GfxInstance instance) const
     return m_systemComponent.instanceDestroy(instance);
 }
 
+GfxResult Backend::instanceGetNativeHandle(GfxInstance instance, void** outHandle) const
+{
+    return m_systemComponent.instanceGetNativeHandle(instance, outHandle);
+}
+
 GfxResult Backend::instanceRequestAdapter(GfxInstance instance, const GfxAdapterDescriptor* descriptor, GfxAdapter* outAdapter) const
 {
     return m_systemComponent.instanceRequestAdapter(instance, descriptor, outAdapter);
@@ -37,6 +42,11 @@ GfxResult Backend::instanceCreateSurface(GfxInstance instance, const GfxSurfaceD
 GfxResult Backend::adapterCreateDevice(GfxAdapter adapter, const GfxDeviceDescriptor* descriptor, GfxDevice* outDevice) const
 {
     return m_systemComponent.adapterCreateDevice(adapter, descriptor, outDevice);
+}
+
+GfxResult Backend::adapterGetNativeHandle(GfxAdapter adapter, void** outHandle) const
+{
+    return m_systemComponent.adapterGetNativeHandle(adapter, outHandle);
 }
 
 GfxResult Backend::adapterGetInfo(GfxAdapter adapter, GfxAdapterInfo* outInfo) const
@@ -70,6 +80,11 @@ GfxResult Backend::deviceDestroy(GfxDevice device) const
     return m_systemComponent.deviceDestroy(device);
 }
 
+GfxResult Backend::deviceGetNativeHandle(GfxDevice device, void** outHandle) const
+{
+    return m_systemComponent.deviceGetNativeHandle(device, outHandle);
+}
+
 GfxResult Backend::deviceGetQueue(GfxDevice device, GfxQueue* outQueue) const
 {
     return m_systemComponent.deviceGetQueue(device, outQueue);
@@ -96,6 +111,16 @@ GfxResult Backend::deviceSupportsShaderFormat(GfxDevice device, GfxShaderSourceT
 }
 
 // Queue functions
+GfxResult Backend::queueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo) const
+{
+    return m_systemComponent.queueGetInfo(queue, outInfo);
+}
+
+GfxResult Backend::queueGetNativeHandle(GfxQueue queue, void** outHandle) const
+{
+    return m_systemComponent.queueGetNativeHandle(queue, outHandle);
+}
+
 GfxResult Backend::queueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitDescriptor) const
 {
     return m_systemComponent.queueSubmit(queue, submitDescriptor);

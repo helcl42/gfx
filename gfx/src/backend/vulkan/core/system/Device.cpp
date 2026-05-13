@@ -3,6 +3,8 @@
 #include "Adapter.h"
 #include "Queue.h"
 
+#include <gfx/gfx.h>
+
 #include <cstring>
 #include <stdexcept>
 
@@ -105,6 +107,22 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     // Check if all requested extensions are available
     const auto availableExtensions = m_adapter->enumerateExtensionProperties();
 
+    // Add native (raw Vulkan) device extensions from pNext chain
+    const GfxChainHeader* header = static_cast<const GfxChainHeader*>(createInfo.pNext);
+    while (header) {
+        if (header->sType == GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR) {
+            const auto* nativeDesc = reinterpret_cast<const GfxNativeExtensionsDescriptor*>(header);
+            if (nativeDesc->nativeExtensions && nativeDesc->nativeExtensionCount > 0) {
+                for (uint32_t i = 0; i < nativeDesc->nativeExtensionCount; ++i) {
+                    if (isExtensionAvailable(availableExtensions, nativeDesc->nativeExtensions[i])) {
+                        requestedExtensions.push_back(nativeDesc->nativeExtensions[i]);
+                    }
+                }
+            }
+        }
+        header = static_cast<const GfxChainHeader*>(header->pNext);
+    }
+
     constexpr const char* portabilitySubsetExtension = "VK_KHR_portability_subset";
     if (isExtensionAvailable(availableExtensions, portabilitySubsetExtension)) {
         requestedExtensions.push_back(portabilitySubsetExtension);
@@ -200,7 +218,7 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
         vkGetDeviceQueue(m_device, req.queueFamilyIndex, req.queueIndex, &vkQueue);
 
         uint64_t key = makeQueueKey(req.queueFamilyIndex, req.queueIndex);
-        auto queue = std::make_unique<Queue>(this, vkQueue, req.queueFamilyIndex);
+        auto queue = std::make_unique<Queue>(this, vkQueue, req.queueFamilyIndex, req.queueIndex);
 
         // Store default queue pointer (first one created)
         if (!m_defaultQueue) {

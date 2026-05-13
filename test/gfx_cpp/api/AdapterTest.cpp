@@ -232,6 +232,14 @@ TEST_P(GfxCppAdapterTest, InstanceAndDeviceExtensionsAreDifferent)
     EXPECT_TRUE(swapchainInDevice) << "Swapchain should be a device extension";
 }
 
+TEST_P(GfxCppAdapterTest, GetNativeHandle)
+{
+    ASSERT_NE(adapter, nullptr);
+
+    void* handle = adapter->getNativeHandle();
+    EXPECT_NE(handle, nullptr);
+}
+
 // ===========================================================================
 // Test Instantiation
 // ===========================================================================

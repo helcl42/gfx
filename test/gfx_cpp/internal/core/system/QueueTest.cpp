@@ -126,6 +126,23 @@ TEST_P(QueueImplTest, Submit)
     queueWrapper.submit(submitDesc);
 }
 
+TEST_P(QueueImplTest, GetInfo)
+{
+    QueueImpl wrapper(queue);
+
+    auto info = wrapper.getInfo();
+    EXPECT_EQ(info.queueFamilyIndex, 0);
+    EXPECT_EQ(info.queueIndex, 0);
+}
+
+TEST_P(QueueImplTest, GetNativeHandle)
+{
+    QueueImpl wrapper(queue);
+
+    void* handle = wrapper.getNativeHandle();
+    EXPECT_NE(handle, nullptr);
+}
+
 // ===========================================================================
 // Test Instantiation
 // ===========================================================================

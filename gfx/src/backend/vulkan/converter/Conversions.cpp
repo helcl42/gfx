@@ -735,6 +735,14 @@ GfxBufferInfo vkBufferToGfxBufferInfo(const core::BufferInfo& info)
     return gfxInfo;
 }
 
+GfxQueueInfo vkQueueInfoToGfxQueueInfo(const core::QueueInfo& info)
+{
+    GfxQueueInfo gfxInfo{};
+    gfxInfo.queueFamilyIndex = info.queueFamilyIndex;
+    gfxInfo.queueIndex = info.queueIndex;
+    return gfxInfo;
+}
+
 GfxExtent3D vkExtent3DToGfxExtent3D(const VkExtent3D& vkExtent)
 {
     return { vkExtent.width, vkExtent.height, vkExtent.depth };
@@ -1398,6 +1406,8 @@ core::InstanceCreateInfo gfxDescriptorToInstanceCreateInfo(const GfxInstanceDesc
                 createInfo.enabledExtensions.push_back(descriptor->enabledExtensions[i]);
             }
         }
+
+        createInfo.pNext = descriptor->pNext;
     } else {
         createInfo.applicationName = "Gfx Application";
         createInfo.applicationVersion = 1;
@@ -1444,6 +1454,18 @@ core::DeviceCreateInfo gfxDescriptorToDeviceCreateInfo(const GfxDeviceDescriptor
                 createInfo.enabledExtensions.push_back(descriptor->enabledExtensions[i]);
             }
         }
+
+        // Convert queue requests
+        if (descriptor->queueRequests && descriptor->queueRequestCount > 0) {
+            createInfo.queueRequests.reserve(descriptor->queueRequestCount);
+            for (uint32_t i = 0; i < descriptor->queueRequestCount; ++i) {
+                createInfo.queueRequests.push_back({ descriptor->queueRequests[i].queueFamilyIndex,
+                    descriptor->queueRequests[i].queueIndex,
+                    descriptor->queueRequests[i].priority });
+            }
+        }
+
+        createInfo.pNext = descriptor->pNext;
     }
 
     return createInfo;

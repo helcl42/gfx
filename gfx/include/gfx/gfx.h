@@ -887,6 +887,7 @@ typedef enum {
     GFX_STRUCTURE_TYPE_PRESENT_DESCRIPTOR = 27,
     GFX_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_DESCRIPTOR = 28,
     GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR = 29,
+    GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR = 30,
     GFX_STRUCTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } GfxStructureType;
 
@@ -1598,6 +1599,23 @@ typedef struct {
     GfxOcclusionQueryMode mode;
 } GfxOcclusionQueryDescriptor;
 
+// Queue information returned by gfxQueueGetInfo
+typedef struct {
+    uint32_t queueFamilyIndex;
+    uint32_t queueIndex;
+} GfxQueueInfo;
+
+// Native (backend-specific) extensions to pass through to the underlying API.
+// Chain to GfxInstanceDescriptor.pNext or GfxDeviceDescriptor.pNext.
+// These extension names are passed directly to Vulkan without translation.
+// Ignored by the WebGPU backend.
+typedef struct {
+    GfxStructureType sType; // Must be GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR
+    const void* pNext;
+    const char** nativeExtensions;
+    uint32_t nativeExtensionCount;
+} GfxNativeExtensionsDescriptor;
+
 typedef struct {
     GfxStructureType sType;
     const void* pNext;
@@ -1750,12 +1768,14 @@ GFX_API GfxResult gfxEnumerateInstanceExtensions(GfxBackend backend, uint32_t* e
 // Instance functions
 GFX_API GfxResult gfxCreateInstance(const GfxInstanceDescriptor* descriptor, GfxInstance* outInstance);
 GFX_API GfxResult gfxInstanceDestroy(GfxInstance instance);
+GFX_API GfxResult gfxInstanceGetNativeHandle(GfxInstance instance, void** outHandle);
 GFX_API GfxResult gfxInstanceRequestAdapter(GfxInstance instance, const GfxAdapterDescriptor* descriptor, GfxAdapter* outAdapter);
 // Vulkan-style enumeration: call with adapters=NULL to get count, then call again with allocated array
 GFX_API GfxResult gfxInstanceEnumerateAdapters(GfxInstance instance, uint32_t* adapterCount, GfxAdapter* adapters);
 
 // Adapter functions
 GFX_API GfxResult gfxAdapterCreateDevice(GfxAdapter adapter, const GfxDeviceDescriptor* descriptor, GfxDevice* outDevice);
+GFX_API GfxResult gfxAdapterGetNativeHandle(GfxAdapter adapter, void** outHandle);
 GFX_API GfxResult gfxAdapterGetInfo(GfxAdapter adapter, GfxAdapterInfo* outInfo);
 GFX_API GfxResult gfxAdapterGetLimits(GfxAdapter adapter, GfxDeviceLimits* outLimits);
 // Vulkan-style enumeration: call with queueFamilies=NULL to get count, then call again with allocated array
@@ -1766,6 +1786,7 @@ GFX_API GfxResult gfxAdapterEnumerateExtensions(GfxAdapter adapter, uint32_t* ex
 
 // Device functions
 GFX_API GfxResult gfxDeviceDestroy(GfxDevice device);
+GFX_API GfxResult gfxDeviceGetNativeHandle(GfxDevice device, void** outHandle);
 GFX_API GfxResult gfxDeviceGetQueue(GfxDevice device, GfxQueue* outQueue);
 GFX_API GfxResult gfxDeviceGetQueueByIndex(GfxDevice device, uint32_t queueFamilyIndex, uint32_t queueIndex, GfxQueue* outQueue);
 GFX_API GfxResult gfxDeviceWaitIdle(GfxDevice device);
@@ -1778,6 +1799,8 @@ GFX_API GfxAccessFlags gfxDeviceGetAccessFlagsForLayout(GfxDevice device, GfxTex
 
 // Queue functions
 GFX_API GfxResult gfxQueueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitDescriptor);
+GFX_API GfxResult gfxQueueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo);
+GFX_API GfxResult gfxQueueGetNativeHandle(GfxQueue queue, void** outHandle);
 GFX_API GfxResult gfxQueueWriteBuffer(GfxQueue queue, GfxBuffer buffer, uint64_t offset, const void* data, uint64_t size);
 GFX_API GfxResult gfxQueueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, GfxTextureLayout finalLayout);
 GFX_API GfxResult gfxQueueWaitIdle(GfxQueue queue);

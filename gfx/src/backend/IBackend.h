@@ -15,12 +15,14 @@ public:
 
     // Instance functions
     virtual GfxResult instanceDestroy(GfxInstance instance) const = 0;
+    virtual GfxResult instanceGetNativeHandle(GfxInstance instance, void** outHandle) const = 0;
     virtual GfxResult instanceRequestAdapter(GfxInstance instance, const GfxAdapterDescriptor* descriptor, GfxAdapter* outAdapter) const = 0;
     virtual GfxResult instanceEnumerateAdapters(GfxInstance instance, uint32_t* adapterCount, GfxAdapter* adapters) const = 0;
     virtual GfxResult instanceCreateSurface(GfxInstance instance, const GfxSurfaceDescriptor* descriptor, GfxSurface* outSurface) const = 0;
 
     // Adapter functions
     virtual GfxResult adapterCreateDevice(GfxAdapter adapter, const GfxDeviceDescriptor* descriptor, GfxDevice* outDevice) const = 0;
+    virtual GfxResult adapterGetNativeHandle(GfxAdapter adapter, void** outHandle) const = 0;
     virtual GfxResult adapterGetInfo(GfxAdapter adapter, GfxAdapterInfo* outInfo) const = 0;
     virtual GfxResult adapterGetLimits(GfxAdapter adapter, GfxDeviceLimits* outLimits) const = 0;
     virtual GfxResult adapterEnumerateQueueFamilies(GfxAdapter adapter, uint32_t* queueFamilyCount, GfxQueueFamilyProperties* queueFamilies) const = 0;
@@ -29,6 +31,7 @@ public:
 
     // Device functions
     virtual GfxResult deviceDestroy(GfxDevice device) const = 0;
+    virtual GfxResult deviceGetNativeHandle(GfxDevice device, void** outHandle) const = 0;
     virtual GfxResult deviceGetQueue(GfxDevice device, GfxQueue* outQueue) const = 0;
     virtual GfxResult deviceGetQueueByIndex(GfxDevice device, uint32_t queueFamilyIndex, uint32_t queueIndex, GfxQueue* outQueue) const = 0;
     virtual GfxResult deviceWaitIdle(GfxDevice device) const = 0;
@@ -37,6 +40,8 @@ public:
 
     // Queue functions
     virtual GfxResult queueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitDescriptor) const = 0;
+    virtual GfxResult queueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo) const = 0;
+    virtual GfxResult queueGetNativeHandle(GfxQueue queue, void** outHandle) const = 0;
     virtual GfxResult queueWriteBuffer(GfxQueue queue, GfxBuffer buffer, uint64_t offset, const void* data, uint64_t size) const = 0;
     virtual GfxResult queueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, GfxTextureLayout finalLayout) const = 0;
     virtual GfxResult queueWaitIdle(GfxQueue queue) const = 0;

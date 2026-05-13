@@ -185,6 +185,26 @@ TEST_P(GfxCppQueueTest, WriteBufferAndSync)
     queue->waitIdle();
 }
 
+TEST_P(GfxCppQueueTest, GetInfo)
+{
+    auto queue = device->getQueue();
+    ASSERT_NE(queue, nullptr);
+
+    auto info = queue->getInfo();
+    // Default queue should be from family 0, index 0
+    EXPECT_EQ(info.queueFamilyIndex, 0);
+    EXPECT_EQ(info.queueIndex, 0);
+}
+
+TEST_P(GfxCppQueueTest, GetNativeHandle)
+{
+    auto queue = device->getQueue();
+    ASSERT_NE(queue, nullptr);
+
+    void* handle = queue->getNativeHandle();
+    EXPECT_NE(handle, nullptr);
+}
+
 // ===========================================================================
 // Test Instantiation
 // ===========================================================================

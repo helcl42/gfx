@@ -121,6 +121,11 @@ struct SwapchainInfo {
     VkPresentModeKHR presentMode;
 };
 
+struct QueueInfo {
+    uint32_t queueFamilyIndex;
+    uint32_t queueIndex;
+};
+
 struct TextureViewCreateInfo {
     VkImageViewType viewType;
     VkFormat format; // VK_FORMAT_UNDEFINED means use texture's format
@@ -245,6 +250,7 @@ struct InstanceCreateInfo {
     const char* applicationName = "Gfx Application";
     uint32_t applicationVersion = 1;
     std::vector<std::string> enabledExtensions;
+    const void* pNext = nullptr;
 };
 
 struct AdapterCreateInfo {
@@ -261,6 +267,7 @@ struct DeviceCreateInfo {
 
     std::vector<std::string> enabledExtensions;
     std::vector<QueueRequest> queueRequests;
+    const void* pNext = nullptr;
 };
 
 struct PlatformWindowHandle {

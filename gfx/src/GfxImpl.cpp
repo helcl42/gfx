@@ -281,6 +281,18 @@ GfxResult gfxInstanceDestroy(GfxInstance instance)
     return result;
 }
 
+GfxResult gfxInstanceGetNativeHandle(GfxInstance instance, void** outHandle)
+{
+    if (!instance || !outHandle) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(instance);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->instanceGetNativeHandle(instance, outHandle);
+}
+
 GfxResult gfxInstanceRequestAdapter(GfxInstance instance, const GfxAdapterDescriptor* descriptor, GfxAdapter* outAdapter)
 {
     if (!instance || !descriptor || !outAdapter) {
@@ -350,6 +362,18 @@ GfxResult gfxAdapterCreateDevice(GfxAdapter adapter, const GfxDeviceDescriptor* 
 
     *outDevice = gfx::backend::BackendManager::instance().wrap(backendType, nativeDevice);
     return GFX_RESULT_SUCCESS;
+}
+
+GfxResult gfxAdapterGetNativeHandle(GfxAdapter adapter, void** outHandle)
+{
+    if (!adapter || !outHandle) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(adapter);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->adapterGetNativeHandle(adapter, outHandle);
 }
 
 GfxResult gfxAdapterGetInfo(GfxAdapter adapter, GfxAdapterInfo* outInfo)
@@ -428,6 +452,18 @@ GfxResult gfxDeviceDestroy(GfxDevice device)
     GfxResult result = backend->deviceDestroy(device);
     gfx::backend::BackendManager::instance().unwrap(device);
     return result;
+}
+
+GfxResult gfxDeviceGetNativeHandle(GfxDevice device, void** outHandle)
+{
+    if (!device || !outHandle) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(device);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->deviceGetNativeHandle(device, outHandle);
 }
 
 GfxResult gfxDeviceGetQueue(GfxDevice device, GfxQueue* outQueue)
@@ -535,6 +571,30 @@ GfxResult gfxQueueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitDescri
         return GFX_RESULT_ERROR_NOT_FOUND;
     }
     return backend->queueSubmit(queue, submitDescriptor);
+}
+
+GfxResult gfxQueueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo)
+{
+    if (!queue || !outInfo) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(queue);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->queueGetInfo(queue, outInfo);
+}
+
+GfxResult gfxQueueGetNativeHandle(GfxQueue queue, void** outHandle)
+{
+    if (!queue || !outHandle) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(queue);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->queueGetNativeHandle(queue, outHandle);
 }
 
 GfxResult gfxQueueWriteBuffer(GfxQueue queue, GfxBuffer buffer, uint64_t offset, const void* data, uint64_t size)

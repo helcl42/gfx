@@ -18,6 +18,26 @@ QueueImpl::QueueImpl(GfxQueue h)
 {
 }
 
+QueueInfo QueueImpl::getInfo() const
+{
+    GfxQueueInfo cInfo = {};
+    gfxQueueGetInfo(m_handle, &cInfo);
+    QueueInfo info;
+    info.queueFamilyIndex = cInfo.queueFamilyIndex;
+    info.queueIndex = cInfo.queueIndex;
+    return info;
+}
+
+void* QueueImpl::getNativeHandle() const
+{
+    void* handle = nullptr;
+    GfxResult result = gfxQueueGetNativeHandle(m_handle, &handle);
+    if (result != GFX_RESULT_SUCCESS) {
+        return nullptr;
+    }
+    return handle;
+}
+
 Result QueueImpl::submit(const SubmitDescriptor& submitDescriptor)
 {
     std::vector<GfxCommandEncoder> cEncoders;

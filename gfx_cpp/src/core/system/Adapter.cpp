@@ -19,6 +19,16 @@ AdapterImpl::~AdapterImpl()
 {
 }
 
+void* AdapterImpl::getNativeHandle() const
+{
+    void* handle = nullptr;
+    GfxResult result = gfxAdapterGetNativeHandle(m_handle, &handle);
+    if (result != GFX_RESULT_SUCCESS) {
+        return nullptr;
+    }
+    return handle;
+}
+
 std::shared_ptr<Device> AdapterImpl::createDevice(const DeviceDescriptor& descriptor)
 {
     std::vector<const char*> cExtensions;

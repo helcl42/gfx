@@ -103,6 +103,14 @@ TEST_P(AdapterImplTest, CreateDevice)
     EXPECT_NE(device, nullptr);
 }
 
+TEST_P(AdapterImplTest, GetNativeHandle)
+{
+    AdapterImpl wrapper(adapter);
+
+    void* handle = wrapper.getNativeHandle();
+    EXPECT_NE(handle, nullptr);
+}
+
 // ===========================================================================
 // Test Instantiation
 // ===========================================================================

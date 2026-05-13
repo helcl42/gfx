@@ -15,6 +15,7 @@ public:
     explicit InstanceImpl(GfxInstance h);
     ~InstanceImpl() override;
 
+    void* getNativeHandle() const override;
     std::shared_ptr<Adapter> requestAdapter(const AdapterDescriptor& descriptor = {}) override;
 
     std::vector<std::shared_ptr<Adapter>> enumerateAdapters() override;

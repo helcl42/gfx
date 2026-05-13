@@ -14,13 +14,15 @@ public:
     Queue(const Queue&) = delete;
     Queue& operator=(const Queue&) = delete;
 
-    Queue(Device* device, VkQueue queue, uint32_t queueFamily);
+    Queue(Device* device, VkQueue queue, uint32_t queueFamily, uint32_t queueIndex);
     ~Queue() = default;
 
     VkQueue handle() const;
     VkDevice device() const;
     VkPhysicalDevice physicalDevice() const;
     uint32_t family() const;
+    uint32_t index() const;
+    QueueInfo getInfo() const;
 
     VkResult submit(const SubmitInfo& submitInfo);
     void waitIdle();
@@ -35,6 +37,7 @@ private:
     VkQueue m_queue = VK_NULL_HANDLE;
     Device* m_device = nullptr;
     uint32_t m_queueFamily = 0;
+    uint32_t m_queueIndex = 0;
 };
 
 } // namespace gfx::backend::vulkan::core

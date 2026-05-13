@@ -52,6 +52,18 @@ GfxResult SystemComponent::instanceDestroy(GfxInstance instance) const
     return GFX_RESULT_SUCCESS;
 }
 
+GfxResult SystemComponent::instanceGetNativeHandle(GfxInstance instance, void** outHandle) const
+{
+    GfxResult validationResult = validator::validateInstanceGetNativeHandle(instance, outHandle);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* inst = converter::toNative<core::Instance>(instance);
+    *outHandle = reinterpret_cast<void*>(inst->handle());
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult SystemComponent::instanceRequestAdapter(GfxInstance instance, const GfxAdapterDescriptor* descriptor, GfxAdapter* outAdapter) const
 {
     GfxResult validationResult = validator::validateInstanceRequestAdapter(instance, descriptor, outAdapter);
@@ -94,8 +106,9 @@ GfxResult SystemComponent::instanceEnumerateAdapters(GfxInstance instance, uint3
 
 GfxResult SystemComponent::enumerateInstanceExtensions(uint32_t* extensionCount, const char** extensionNames) const
 {
-    if (!extensionCount) {
-        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    GfxResult validationResult = validator::validateEnumerateInstanceExtensions(extensionCount);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
     }
 
     const auto internalExtensions = core::Instance::enumerateSupportedExtensions();
@@ -132,6 +145,18 @@ GfxResult SystemComponent::adapterCreateDevice(GfxAdapter adapter, const GfxDevi
         gfx::common::Logger::instance().logError("Failed to create device: {}", e.what());
         return GFX_RESULT_ERROR_UNKNOWN;
     }
+}
+
+GfxResult SystemComponent::adapterGetNativeHandle(GfxAdapter adapter, void** outHandle) const
+{
+    GfxResult validationResult = validator::validateAdapterGetNativeHandle(adapter, outHandle);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* adapterPtr = converter::toNative<core::Adapter>(adapter);
+    *outHandle = reinterpret_cast<void*>(adapterPtr->handle());
+    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult SystemComponent::adapterGetInfo(GfxAdapter adapter, GfxAdapterInfo* outInfo) const
@@ -231,6 +256,18 @@ GfxResult SystemComponent::deviceDestroy(GfxDevice device) const
     return GFX_RESULT_SUCCESS;
 }
 
+GfxResult SystemComponent::deviceGetNativeHandle(GfxDevice device, void** outHandle) const
+{
+    GfxResult validationResult = validator::validateDeviceGetNativeHandle(device, outHandle);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* dev = converter::toNative<core::Device>(device);
+    *outHandle = reinterpret_cast<void*>(dev->handle());
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult SystemComponent::deviceGetQueue(GfxDevice device, GfxQueue* outQueue) const
 {
     GfxResult validationResult = validator::validateDeviceGetQueue(device, outQueue);
@@ -286,8 +323,9 @@ GfxResult SystemComponent::deviceGetLimits(GfxDevice device, GfxDeviceLimits* ou
 
 GfxResult SystemComponent::deviceSupportsShaderFormat(GfxDevice device, GfxShaderSourceType format, bool* outSupported) const
 {
-    if (!device || !outSupported) {
-        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    GfxResult validationResult = validator::validateDeviceSupportsShaderFormat(device, outSupported);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
     }
     auto* devicePtr = converter::toNative<core::Device>(device);
     auto internalFormat = converter::gfxShaderSourceTypeToWebGPUShaderSourceType(format);
@@ -295,7 +333,30 @@ GfxResult SystemComponent::deviceSupportsShaderFormat(GfxDevice device, GfxShade
     return GFX_RESULT_SUCCESS;
 }
 
-// Queue functions
+GfxResult SystemComponent::queueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo) const
+{
+    GfxResult validationResult = validator::validateQueueGetInfo(queue, outInfo);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* q = converter::toNative<core::Queue>(queue);
+    *outInfo = converter::wgpuQueueInfoToGfxQueueInfo(q->getInfo());
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult SystemComponent::queueGetNativeHandle(GfxQueue queue, void** outHandle) const
+{
+    GfxResult validationResult = validator::validateQueueGetNativeHandle(queue, outHandle);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* queuePtr = converter::toNative<core::Queue>(queue);
+    *outHandle = reinterpret_cast<void*>(queuePtr->handle());
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult SystemComponent::queueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitInfo) const
 {
     GfxResult validationResult = validator::validateQueueSubmit(queue, submitInfo);

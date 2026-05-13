@@ -37,6 +37,16 @@ DeviceImpl::DeviceImpl(GfxDevice h)
     m_queue = std::make_shared<QueueImpl>(queueHandle);
 }
 
+void* DeviceImpl::getNativeHandle() const
+{
+    void* handle = nullptr;
+    GfxResult result = gfxDeviceGetNativeHandle(m_handle, &handle);
+    if (result != GFX_RESULT_SUCCESS) {
+        return nullptr;
+    }
+    return handle;
+}
+
 DeviceImpl::~DeviceImpl()
 {
     if (m_handle) {

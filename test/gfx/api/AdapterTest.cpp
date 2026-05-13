@@ -318,6 +318,27 @@ TEST_P(GfxAdapterTest, CheckTimelineSemaphoreExtension)
     EXPECT_NE(it, extensionNames.end()) << "Timeline semaphore extension should be available";
 }
 
+TEST_P(GfxAdapterTest, GetNativeHandle)
+{
+    void* handle = nullptr;
+    GfxResult result = gfxAdapterGetNativeHandle(adapter, &handle);
+    EXPECT_EQ(result, GFX_RESULT_SUCCESS);
+    EXPECT_NE(handle, nullptr);
+}
+
+TEST_P(GfxAdapterTest, GetNativeHandleNullAdapter)
+{
+    void* handle = nullptr;
+    GfxResult result = gfxAdapterGetNativeHandle(nullptr, &handle);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_P(GfxAdapterTest, GetNativeHandleNullOutput)
+{
+    GfxResult result = gfxAdapterGetNativeHandle(adapter, nullptr);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
 // ===========================================================================
 // Test Instantiation
 // ===========================================================================

@@ -106,6 +106,14 @@ TEST_P(DeviceImplTest, SupportsShaderFormat_WGSL)
     }
 }
 
+TEST_P(DeviceImplTest, GetNativeHandle)
+{
+    DeviceImpl wrapper(device);
+
+    void* handle = wrapper.getNativeHandle();
+    EXPECT_NE(handle, nullptr);
+}
+
 // ===========================================================================
 // Test Instantiation
 // ===========================================================================

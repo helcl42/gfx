@@ -913,6 +913,11 @@ struct QueueFamilyProperties {
     uint32_t queueCount = 0;
 };
 
+struct QueueInfo {
+    uint32_t queueFamilyIndex = 0;
+    uint32_t queueIndex = 0;
+};
+
 struct QueueRequest {
     uint32_t queueFamilyIndex = 0;
     uint32_t queueIndex = 0;
@@ -1682,6 +1687,8 @@ class GFX_CPP_API Queue {
 public:
     virtual ~Queue() = default;
 
+    virtual QueueInfo getInfo() const = 0;
+    virtual void* getNativeHandle() const = 0;
     virtual Result submit(const SubmitDescriptor& submitDescriptor) = 0;
     virtual void writeBuffer(std::shared_ptr<Buffer> buffer, uint64_t offset, const void* data, uint64_t size) = 0;
     virtual void writeTexture(std::shared_ptr<Texture> texture, const Origin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, const Extent3D& extent, TextureLayout finalLayout) = 0;
@@ -1701,6 +1708,7 @@ class GFX_CPP_API Device {
 public:
     virtual ~Device() = default;
 
+    virtual void* getNativeHandle() const = 0;
     virtual std::shared_ptr<Queue> getQueue() = 0;
     virtual std::shared_ptr<Queue> getQueueByIndex(uint32_t queueFamilyIndex, uint32_t queueIndex) = 0;
     virtual std::shared_ptr<Swapchain> createSwapchain(const SwapchainDescriptor& descriptor) = 0;
@@ -1730,6 +1738,7 @@ class GFX_CPP_API Adapter {
 public:
     virtual ~Adapter() = default;
 
+    virtual void* getNativeHandle() const = 0;
     virtual std::shared_ptr<Device> createDevice(const DeviceDescriptor& descriptor = {}) = 0;
     virtual AdapterInfo getInfo() const = 0;
     virtual DeviceLimits getLimits() const = 0;
@@ -1742,6 +1751,7 @@ class GFX_CPP_API Instance {
 public:
     virtual ~Instance() = default;
 
+    virtual void* getNativeHandle() const = 0;
     virtual std::shared_ptr<Adapter> requestAdapter(const AdapterDescriptor& descriptor = {}) = 0;
     virtual std::vector<std::shared_ptr<Adapter>> enumerateAdapters() = 0;
     virtual std::shared_ptr<Surface> createSurface(const SurfaceDescriptor& descriptor) = 0;

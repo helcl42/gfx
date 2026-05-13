@@ -69,6 +69,14 @@ TEST_P(InstanceImplTest, EnumerateAdapters)
     EXPECT_GT(adapters.size(), 0u);
 }
 
+TEST_P(InstanceImplTest, GetNativeHandle)
+{
+    InstanceImpl wrapper(instance);
+
+    void* handle = wrapper.getNativeHandle();
+    EXPECT_NE(handle, nullptr);
+}
+
 // ===========================================================================
 // Test Instantiation
 // ===========================================================================

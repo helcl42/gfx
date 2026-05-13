@@ -20,6 +20,7 @@ public:
 
     WGPUQueue handle() const;
     Device* getDevice() const;
+    QueueInfo getInfo() const;
 
     // Submit command encoders with optional fence signaling
     bool submit(const SubmitInfo& submitInfo);

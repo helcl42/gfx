@@ -332,6 +332,18 @@ TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayoutPresent)
     }
 }
 
+TEST_P(GfxCppDeviceTest, GetNativeHandle)
+{
+    ASSERT_NE(adapter, nullptr);
+
+    gfx::DeviceDescriptor desc{};
+    auto device = adapter->createDevice(desc);
+    ASSERT_NE(device, nullptr);
+
+    void* handle = device->getNativeHandle();
+    EXPECT_NE(handle, nullptr);
+}
+
 // ===========================================================================
 // Test Instantiation
 // ===========================================================================

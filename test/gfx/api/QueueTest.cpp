@@ -281,6 +281,71 @@ TEST_P(GfxQueueTest, WriteBufferWithOffset)
     gfxBufferDestroy(buffer);
 }
 
+// Test: Get queue info
+TEST_P(GfxQueueTest, GetQueueInfo)
+{
+    GfxQueue queue = nullptr;
+    GfxResult result = gfxDeviceGetQueue(device, &queue);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+    ASSERT_NE(queue, nullptr);
+
+    GfxQueueInfo info = {};
+    result = gfxQueueGetInfo(queue, &info);
+    EXPECT_EQ(result, GFX_RESULT_SUCCESS);
+}
+
+// Test: Get queue info with null queue
+TEST_P(GfxQueueTest, GetQueueInfoNullQueue)
+{
+    GfxQueueInfo info = {};
+    GfxResult result = gfxQueueGetInfo(nullptr, &info);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+// Test: Get queue info with null output
+TEST_P(GfxQueueTest, GetQueueInfoNullOutput)
+{
+    GfxQueue queue = nullptr;
+    GfxResult result = gfxDeviceGetQueue(device, &queue);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+
+    result = gfxQueueGetInfo(queue, nullptr);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+// Test: Get queue native handle
+TEST_P(GfxQueueTest, GetNativeHandle)
+{
+    GfxQueue queue = nullptr;
+    GfxResult result = gfxDeviceGetQueue(device, &queue);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+    ASSERT_NE(queue, nullptr);
+
+    void* handle = nullptr;
+    result = gfxQueueGetNativeHandle(queue, &handle);
+    EXPECT_EQ(result, GFX_RESULT_SUCCESS);
+    EXPECT_NE(handle, nullptr);
+}
+
+// Test: Get queue native handle with null queue
+TEST_P(GfxQueueTest, GetNativeHandleNullQueue)
+{
+    void* handle = nullptr;
+    GfxResult result = gfxQueueGetNativeHandle(nullptr, &handle);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+// Test: Get queue native handle with null output
+TEST_P(GfxQueueTest, GetNativeHandleNullOutput)
+{
+    GfxQueue queue = nullptr;
+    GfxResult result = gfxDeviceGetQueue(device, &queue);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+
+    result = gfxQueueGetNativeHandle(queue, nullptr);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
 // ===========================================================================
 // Test Instantiation
 // ===========================================================================

@@ -19,16 +19,19 @@ public:
     GfxResult enumerateInstanceExtensions(uint32_t*, const char**) const override { return GFX_RESULT_SUCCESS; }
     GfxResult createInstance(const GfxInstanceDescriptor*, GfxInstance*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult instanceDestroy(GfxInstance) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult instanceGetNativeHandle(GfxInstance, void**) const override { return GFX_RESULT_SUCCESS; }
     GfxResult instanceRequestAdapter(GfxInstance, const GfxAdapterDescriptor*, GfxAdapter*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult instanceEnumerateAdapters(GfxInstance, uint32_t*, GfxAdapter*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult instanceCreateSurface(GfxInstance, const GfxSurfaceDescriptor*, GfxSurface*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult adapterCreateDevice(GfxAdapter, const GfxDeviceDescriptor*, GfxDevice*) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult adapterGetNativeHandle(GfxAdapter, void**) const override { return GFX_RESULT_SUCCESS; }
     GfxResult adapterGetInfo(GfxAdapter, GfxAdapterInfo*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult adapterGetLimits(GfxAdapter, GfxDeviceLimits*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult adapterEnumerateQueueFamilies(GfxAdapter, uint32_t*, GfxQueueFamilyProperties*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult adapterGetQueueFamilySurfaceSupport(GfxAdapter, uint32_t, GfxSurface, bool*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult adapterEnumerateExtensions(GfxAdapter, uint32_t*, const char**) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceDestroy(GfxDevice) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult deviceGetNativeHandle(GfxDevice, void**) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceGetQueue(GfxDevice, GfxQueue*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceGetQueueByIndex(GfxDevice, uint32_t, uint32_t, GfxQueue*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceCreateSwapchain(GfxDevice, const GfxSwapchainDescriptor*, GfxSwapchain*) const override { return GFX_RESULT_SUCCESS; }
@@ -88,6 +91,8 @@ public:
     GfxResult framebufferDestroy(GfxFramebuffer) const override { return GFX_RESULT_SUCCESS; }
     GfxResult querySetDestroy(GfxQuerySet) const override { return GFX_RESULT_SUCCESS; }
     GfxResult queueSubmit(GfxQueue, const GfxSubmitDescriptor*) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult queueGetInfo(GfxQueue, GfxQueueInfo*) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult queueGetNativeHandle(GfxQueue, void**) const override { return GFX_RESULT_SUCCESS; }
     GfxResult queueWriteBuffer(GfxQueue, GfxBuffer, uint64_t, const void*, uint64_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult queueWriteTexture(GfxQueue, GfxTexture, const GfxOrigin3D*, const GfxExtent3D*, uint32_t, uint32_t, const void*, uint64_t, GfxTextureLayout) const override { return GFX_RESULT_SUCCESS; }
     GfxResult queueWaitIdle(GfxQueue) const override { return GFX_RESULT_SUCCESS; }

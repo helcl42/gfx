@@ -298,6 +298,20 @@ TEST_P(GfxCppInstanceTest, EnumerateInstanceExtensionsNoDuplicates)
     }
 }
 
+TEST_P(GfxCppInstanceTest, GetNativeHandle)
+{
+    gfx::InstanceDescriptor desc{
+        .backend = backend,
+        .enabledExtensions = { gfx::INSTANCE_EXTENSION_DEBUG }
+    };
+
+    auto instance = gfx::createInstance(desc);
+    ASSERT_NE(instance, nullptr);
+
+    void* handle = instance->getNativeHandle();
+    EXPECT_NE(handle, nullptr);
+}
+
 // ===========================================================================
 // Test Instantiation
 // ===========================================================================

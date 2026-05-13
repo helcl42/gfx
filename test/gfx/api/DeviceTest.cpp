@@ -244,6 +244,36 @@ inline std::vector<GfxBackend> GetActiveBackends()
     };
 }
 
+TEST_P(GfxDeviceTest, GetNativeHandle)
+{
+    GfxDeviceDescriptor desc = {};
+    GfxResult result = gfxAdapterCreateDevice(adapter, &desc, &device);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+    ASSERT_NE(device, nullptr);
+
+    void* handle = nullptr;
+    result = gfxDeviceGetNativeHandle(device, &handle);
+    EXPECT_EQ(result, GFX_RESULT_SUCCESS);
+    EXPECT_NE(handle, nullptr);
+}
+
+TEST_P(GfxDeviceTest, GetNativeHandleNullDevice)
+{
+    void* handle = nullptr;
+    GfxResult result = gfxDeviceGetNativeHandle(nullptr, &handle);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_P(GfxDeviceTest, GetNativeHandleNullOutput)
+{
+    GfxDeviceDescriptor desc = {};
+    GfxResult result = gfxAdapterCreateDevice(adapter, &desc, &device);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+
+    result = gfxDeviceGetNativeHandle(device, nullptr);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     AllBackends,
     GfxDeviceTest,

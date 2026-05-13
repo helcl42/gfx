@@ -18,10 +18,11 @@
 
 namespace gfx::backend::vulkan::core {
 
-Queue::Queue(Device* device, VkQueue queue, uint32_t queueFamily)
+Queue::Queue(Device* device, VkQueue queue, uint32_t queueFamily, uint32_t queueIndex)
     : m_queue(queue)
     , m_device(device)
     , m_queueFamily(queueFamily)
+    , m_queueIndex(queueIndex)
 {
 }
 
@@ -43,6 +44,16 @@ VkPhysicalDevice Queue::physicalDevice() const
 uint32_t Queue::family() const
 {
     return m_queueFamily;
+}
+
+uint32_t Queue::index() const
+{
+    return m_queueIndex;
+}
+
+QueueInfo Queue::getInfo() const
+{
+    return { m_queueFamily, m_queueIndex };
 }
 
 VkResult Queue::submit(const SubmitInfo& submitInfo)

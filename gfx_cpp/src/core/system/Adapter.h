@@ -14,6 +14,7 @@ public:
     explicit AdapterImpl(GfxAdapter h);
     ~AdapterImpl() override;
 
+    void* getNativeHandle() const override;
     std::shared_ptr<Device> createDevice(const DeviceDescriptor& descriptor = {}) override;
 
     AdapterInfo getInfo() const override;

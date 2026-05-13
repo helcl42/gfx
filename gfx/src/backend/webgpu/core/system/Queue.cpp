@@ -36,6 +36,11 @@ Device* Queue::getDevice() const
     return m_device;
 }
 
+QueueInfo Queue::getInfo() const
+{
+    return { 0, 0 };
+}
+
 bool Queue::submit(const SubmitInfo& submitInfo)
 {
     // WebGPU doesn't support semaphore-based sync - just submit command buffers
