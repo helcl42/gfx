@@ -125,6 +125,7 @@ typedef struct {
     GfxBackend backend; // Graphics backend selection
     GfxSampleCount msaaSampleCount; // MSAA sample count
     bool vsync; // VSync enabled (FIFO) or disabled (IMMEDIATE)
+    bool prerecord; // Prerecord draw commands into render bundles
 } Settings;
 
 // Per-frame-in-flight resources
@@ -211,6 +212,10 @@ typedef struct {
     float fpsFrameTimeMin;
     float fpsFrameTimeMax;
 
+    // Render bundle (prerecording)
+    GfxCommandEncoder bundleEncoder;
+    bool bundleValid;
+
     // Application settings
     Settings settings;
 } CubeApp;
@@ -268,6 +273,9 @@ static bool init(CubeApp* app);
 static void cleanup(CubeApp* app);
 static void update(CubeApp* app, float deltaTime);
 static void render(CubeApp* app);
+static void recordDrawCommands(CubeApp* app, GfxRenderPassEncoder renderPass, PerFrameResources* frame);
+static bool recordBundle(CubeApp* app);
+static void destroyBundle(CubeApp* app);
 
 #if defined(__ANDROID__)
 // Android-specific callbacks
@@ -2232,6 +2240,9 @@ static void cleanup(CubeApp* app)
         gfxDeviceWaitIdle(app->device);
     }
 
+    // Destroy render bundle
+    destroyBundle(app);
+
     // 5. Destroy render pipeline (depends on render pass and resources)
     destroyRenderPipeline(app);
 
@@ -2283,6 +2294,9 @@ static bool handleResize(CubeApp* app, uint32_t width, uint32_t height)
 
     app->previousWidth = app->windowWidth;
     app->previousHeight = app->windowHeight;
+
+    // Invalidate render bundle on resize
+    destroyBundle(app);
 
     LOG_INFO("Successfully recreated resources for new size");
     return true;
@@ -2338,6 +2352,84 @@ static void update(CubeApp* app, float deltaTime)
     for (int i = 0; i < CUBE_COUNT; ++i) {
         updateCube(app, i);
     }
+}
+
+// Record draw commands into a render bundle for prerecording mode
+// Record draw commands into a render pass encoder (shared by inline and bundle paths)
+static void recordDrawCommands(CubeApp* app, GfxRenderPassEncoder renderPass, PerFrameResources* frame)
+{
+    gfxRenderPassEncoderSetPipeline(renderPass, app->renderPipeline);
+    gfxRenderPassEncoderSetVertexBuffer(renderPass, 0, app->vertexBuffer, 0, app->vertexBufferInfo.size);
+    gfxRenderPassEncoderSetIndexBuffer(renderPass, app->indexBuffer, GFX_INDEX_FORMAT_UINT16, 0, app->indexBufferInfo.size);
+    gfxRenderPassEncoderSetBindGroup(renderPass, 1, app->textureBindGroup, NULL, 0);
+
+    uint32_t indexCount = app->indexBufferInfo.size / sizeof(uint16_t);
+    for (int i = 0; i < CUBE_COUNT; ++i) {
+        gfxRenderPassEncoderSetBindGroup(renderPass, 0, frame->uniformBindGroups[i], NULL, 0);
+        gfxRenderPassEncoderDrawIndexed(renderPass, indexCount, 1, 0, 0, 0);
+    }
+}
+
+static bool recordBundle(CubeApp* app)
+{
+    destroyBundle(app);
+
+    GfxRenderBundleEncoderDescriptor bundleDesc = {
+        .sType = GFX_STRUCTURE_TYPE_RENDER_BUNDLE_ENCODER_DESCRIPTOR,
+        .pNext = NULL,
+        .label = "Cube Render Bundle",
+        .renderPass = app->renderPass
+    };
+
+    GfxResult result = gfxDeviceCreateRenderBundleCommandEncoder(app->device, &bundleDesc, &app->bundleEncoder);
+    if (result != GFX_RESULT_SUCCESS) {
+        LOG_ERROR("Failed to create render bundle command encoder");
+        return false;
+    }
+
+    // Begin render pass on bundle encoder (initializes bundle recording)
+    GfxRenderPassBeginDescriptor beginDesc = {
+        .label = "Bundle Render Pass",
+        .renderPass = app->renderPass,
+        .framebuffer = app->framebuffers[0], // Any framebuffer for compatibility
+        .colorClearValues = NULL,
+        .colorClearValueCount = 0,
+        .depthClearValue = 1.0f,
+        .stencilClearValue = 0
+    };
+
+    GfxRenderPassEncoder renderPass;
+    result = gfxCommandEncoderBeginRenderPass(app->bundleEncoder, &beginDesc, &renderPass);
+    if (result != GFX_RESULT_SUCCESS) {
+        LOG_ERROR("Failed to begin render pass for bundle recording");
+        destroyBundle(app);
+        return false;
+    }
+
+    recordDrawCommands(app, renderPass, &app->frameResources[0]);
+
+    gfxRenderPassEncoderEnd(renderPass);
+
+    // Finish bundle recording
+    result = gfxCommandEncoderEnd(app->bundleEncoder);
+    if (result != GFX_RESULT_SUCCESS) {
+        LOG_ERROR("Failed to end bundle command encoder");
+        destroyBundle(app);
+        return false;
+    }
+
+    app->bundleValid = true;
+    LOG_INFO("Render bundle recorded successfully");
+    return true;
+}
+
+static void destroyBundle(CubeApp* app)
+{
+    if (app->bundleEncoder) {
+        gfxCommandEncoderDestroy(app->bundleEncoder);
+        app->bundleEncoder = NULL;
+    }
+    app->bundleValid = false;
 }
 
 static void render(CubeApp* app)
@@ -2406,14 +2498,12 @@ static void render(CubeApp* app)
         .colorClearValues = &clearColor,
         .colorClearValueCount = 1,
         .depthClearValue = 1.0f,
-        .stencilClearValue = 0
+        .stencilClearValue = 0,
+        .bundleExecution = app->settings.prerecord
     };
 
     GfxRenderPassEncoder renderPass;
     if (gfxCommandEncoderBeginRenderPass(encoder, &beginDesc, &renderPass) == GFX_RESULT_SUCCESS) {
-
-        // Set pipeline
-        gfxRenderPassEncoderSetPipeline(renderPass, app->renderPipeline);
 
         // Set viewport and scissor to fill the entire render target
         GfxViewport viewport = {
@@ -2433,25 +2523,17 @@ static void render(CubeApp* app)
 
         // Only draw if texture is loaded
         if (app->textureUploadComplete) {
-            // Set vertex buffer
-            gfxRenderPassEncoderSetVertexBuffer(renderPass, 0, app->vertexBuffer, 0, app->vertexBufferInfo.size);
-
-            // Set index buffer
-            gfxRenderPassEncoderSetIndexBuffer(renderPass, app->indexBuffer, GFX_INDEX_FORMAT_UINT16, 0, app->indexBufferInfo.size);
-
-            // Calculate index count from buffer size
-            uint32_t indexCount = app->indexBufferInfo.size / sizeof(uint16_t);
-
-            // Bind texture (shared by all cubes)
-            gfxRenderPassEncoderSetBindGroup(renderPass, 1, app->textureBindGroup, NULL, 0);
-
-            // Draw CUBE_COUNT cubes at different positions
-            for (int i = 0; i < CUBE_COUNT; ++i) {
-                // Bind the specific cube's bind group (no dynamic offsets)
-                gfxRenderPassEncoderSetBindGroup(renderPass, 0, frame->uniformBindGroups[i], NULL, 0);
-
-                // Draw indexed
-                gfxRenderPassEncoderDrawIndexed(renderPass, indexCount, 1, 0, 0, 0);
+            if (app->settings.prerecord) {
+                // Prerecorded path: record bundle if needed, then execute it
+                if (!app->bundleValid) {
+                    recordBundle(app);
+                }
+                if (app->bundleValid) {
+                    gfxRenderPassEncoderExecuteBundles(renderPass, &app->bundleEncoder, 1);
+                }
+            } else {
+                // Inline path: record draw commands directly
+                recordDrawCommands(app, renderPass, frame);
             }
         }
 
@@ -2844,6 +2926,7 @@ static void printHelp(const char* programName)
     LOG_INFO("  --backend [vulkan|webgpu]   Select graphics backend");
     LOG_INFO("  --msaa [1|2|4|8]            Select MSAA sample count");
     LOG_INFO("  --vsync [0|1]               VSync: 0=off, 1=on");
+    LOG_INFO("  --prerecord [0|1]           Prerecord draw commands into render bundles");
     LOG_INFO("  --help                      Show this help message");
 }
 
@@ -2856,6 +2939,7 @@ static bool parseArguments(int argc, char** argv, Settings* settings)
 #endif
     settings->msaaSampleCount = GFX_SAMPLE_COUNT_4;
     settings->vsync = true; // VSync on by default
+    settings->prerecord = false;
 
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--backend") == 0 && i + 1 < argc) {
@@ -2873,6 +2957,9 @@ static bool parseArguments(int argc, char** argv, Settings* settings)
             if (!parseVsync(argv[i], &settings->vsync)) {
                 return false;
             }
+        } else if (strcmp(argv[i], "--prerecord") == 0 && i + 1 < argc) {
+            i++;
+            settings->prerecord = (atoi(argv[i]) != 0);
         } else if (strcmp(argv[i], "--help") == 0) {
             printHelp(argv[0]);
             return false;
@@ -2904,6 +2991,9 @@ int main(int argc, char** argv)
     }
 
     LOG_INFO("Press ESC to exit");
+    if (app.settings.prerecord) {
+        LOG_INFO("Prerecording mode: ON (draw commands recorded into render bundles)");
+    }
     LOG_INFO("");
 
     // Run main loop (platform-specific)
