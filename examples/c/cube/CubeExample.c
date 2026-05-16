@@ -2391,10 +2391,10 @@ static bool recordBundle(CubeApp* app)
     GfxRenderPassBeginDescriptor beginDesc = {
         .label = "Bundle Render Pass",
         .renderPass = app->renderPass,
-        .framebuffer = app->framebuffers[0], // Any framebuffer for compatibility
+        .framebuffer = NULL,
         .colorClearValues = NULL,
         .colorClearValueCount = 0,
-        .depthClearValue = 1.0f,
+        .depthClearValue = 0.0f,
         .stencilClearValue = 0
     };
 

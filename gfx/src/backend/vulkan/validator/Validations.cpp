@@ -1,6 +1,7 @@
 #include "Validations.h"
 
 #include "backend/vulkan/converter/Conversions.h"
+#include "backend/vulkan/core/command/CommandEncoder.h"
 #include "backend/vulkan/core/command/RenderPassEncoder.h"
 #include "backend/vulkan/core/query/QuerySet.h"
 #include "backend/vulkan/core/resource/Buffer.h"
@@ -506,14 +507,18 @@ namespace {
         return GFX_RESULT_SUCCESS;
     }
 
-    GfxResult validateRenderPassBeginDescriptor(const GfxRenderPassBeginDescriptor* descriptor)
+    GfxResult validateRenderPassBeginDescriptor(const GfxRenderPassBeginDescriptor* descriptor, bool isBundle)
     {
         if (!descriptor) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        // Validate render pass and framebuffer
-        if (!descriptor->renderPass || !descriptor->framebuffer) {
+        if (!descriptor->renderPass) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+
+        // Framebuffer is required for regular render passes, but not for bundle recording
+        if (!isBundle && !descriptor->framebuffer) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
@@ -1162,7 +1167,8 @@ GfxResult validateCommandEncoderBeginRenderPass(GfxCommandEncoder commandEncoder
     if (!commandEncoder || !outRenderPass) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    return validateRenderPassBeginDescriptor(beginDescriptor);
+    bool isBundle = converter::toNative<core::CommandEncoder>(commandEncoder)->isBundleEncoder();
+    return validateRenderPassBeginDescriptor(beginDescriptor, isBundle);
 }
 
 GfxResult validateCommandEncoderBeginComputePass(GfxCommandEncoder commandEncoder, const GfxComputePassBeginDescriptor* beginDescriptor, GfxComputePassEncoder* outComputePass)
