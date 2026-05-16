@@ -535,6 +535,43 @@ TEST_P(GfxCppCommandEncoderTest, GenerateMipmapsRange)
 }
 
 // ===========================================================================
+// Render Bundle Command Encoder Tests
+// ===========================================================================
+
+TEST_P(GfxCppCommandEncoderTest, CreateRenderBundleCommandEncoderWithNullRenderPass)
+{
+    ASSERT_NE(device, nullptr);
+
+    gfx::RenderBundleCommandEncoderDescriptor desc{
+        .label = "test_bundle",
+        .renderPass = nullptr
+    };
+
+    EXPECT_THROW(device->createRenderBundleCommandEncoder(desc), std::invalid_argument);
+}
+
+TEST_P(GfxCppCommandEncoderTest, CreateRenderBundleCommandEncoder)
+{
+    ASSERT_NE(device, nullptr);
+
+    auto renderPass = device->createRenderPass({ .colorAttachments = { gfx::RenderPassColorAttachment{
+                                                     .target = {
+                                                         .format = gfx::Format::R8G8B8A8Unorm,
+                                                         .sampleCount = gfx::SampleCount::Count1,
+                                                         .ops = { gfx::LoadOp::Clear, gfx::StoreOp::Store },
+                                                         .finalLayout = gfx::TextureLayout::ColorAttachment } } } });
+    ASSERT_NE(renderPass, nullptr);
+
+    gfx::RenderBundleCommandEncoderDescriptor desc{
+        .label = "test_bundle_encoder",
+        .renderPass = renderPass
+    };
+
+    auto bundleEncoder = device->createRenderBundleCommandEncoder(desc);
+    EXPECT_NE(bundleEncoder, nullptr);
+}
+
+// ===========================================================================
 // Test Instantiation
 // ===========================================================================
 

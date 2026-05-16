@@ -46,6 +46,8 @@ public:
 
     std::shared_ptr<CommandEncoder> createCommandEncoder(const CommandEncoderDescriptor& descriptor = {}) override;
 
+    std::shared_ptr<CommandEncoder> createRenderBundleCommandEncoder(const RenderBundleCommandEncoderDescriptor& descriptor) override;
+
     std::shared_ptr<Fence> createFence(const FenceDescriptor& descriptor = {}) override;
 
     std::shared_ptr<Semaphore> createSemaphore(const SemaphoreDescriptor& descriptor = {}) override;

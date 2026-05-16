@@ -1235,6 +1235,12 @@ struct CommandEncoderDescriptor {
     std::string label;
 };
 
+struct RenderBundleCommandEncoderDescriptor {
+    const ChainedStruct* next = nullptr;
+    std::string label;
+    std::shared_ptr<RenderPass> renderPass;
+};
+
 struct DeviceLimits {
     uint64_t minUniformBufferOffsetAlignment = 0;
     uint64_t minStorageBufferOffsetAlignment = 0;
@@ -1394,6 +1400,7 @@ struct RenderPassBeginDescriptor {
     float depthClearValue = 1.0f;
     uint32_t stencilClearValue = 0;
     std::shared_ptr<QuerySet> occlusionQuerySet;
+    bool bundleExecution = false;
 };
 
 struct ComputePassBeginDescriptor {
@@ -1619,6 +1626,7 @@ public:
     virtual void drawIndexedIndirect(std::shared_ptr<Buffer> indirectBuffer, uint64_t indirectOffset) = 0;
     virtual void beginOcclusionQuery(std::shared_ptr<QuerySet> querySet, uint32_t queryIndex) = 0;
     virtual void endOcclusionQuery() = 0;
+    virtual void executeBundles(const std::vector<std::shared_ptr<CommandEncoder>>& bundleEncoders) = 0;
 };
 
 class GFX_CPP_API ComputePassEncoder {
@@ -1725,6 +1733,7 @@ public:
     virtual std::shared_ptr<RenderPass> createRenderPass(const RenderPassCreateDescriptor& descriptor) = 0;
     virtual std::shared_ptr<Framebuffer> createFramebuffer(const FramebufferDescriptor& descriptor) = 0;
     virtual std::shared_ptr<CommandEncoder> createCommandEncoder(const CommandEncoderDescriptor& descriptor = {}) = 0;
+    virtual std::shared_ptr<CommandEncoder> createRenderBundleCommandEncoder(const RenderBundleCommandEncoderDescriptor& descriptor) = 0;
     virtual std::shared_ptr<Fence> createFence(const FenceDescriptor& descriptor = {}) = 0;
     virtual std::shared_ptr<Semaphore> createSemaphore(const SemaphoreDescriptor& descriptor = {}) = 0;
     virtual std::shared_ptr<QuerySet> createQuerySet(const QuerySetDescriptor& descriptor) = 0;

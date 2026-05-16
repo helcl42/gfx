@@ -19,11 +19,13 @@ public:
     RenderPassEncoder& operator=(const RenderPassEncoder&) = delete;
 
     RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass* renderPass, Framebuffer* framebuffer, const RenderPassEncoderBeginInfo& beginInfo);
+    RenderPassEncoder(CommandEncoder* bundleCommandEncoder);
     ~RenderPassEncoder();
 
     VkCommandBuffer handle() const;
     Device* device() const;
     CommandEncoder* commandEncoder() const;
+    bool isBundleMode() const;
 
     void setPipeline(RenderPipeline* pipeline);
     void setBindGroup(uint32_t index, BindGroup* bindGroup, const uint32_t* dynamicOffsets, uint32_t dynamicOffsetCount);
@@ -40,12 +42,15 @@ public:
     void beginOcclusionQuery(VkQueryPool queryPool, uint32_t queryIndex, VkQueryControlFlags flags = 0);
     void endOcclusionQuery();
 
+    void executeBundles(const VkCommandBuffer* commandBuffers, uint32_t count);
+
     bool isOcclusionQueryPoolCompatible(VkQueryPool queryPool) const;
 
 private:
     VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
     Device* m_device = nullptr;
     CommandEncoder* m_commandEncoder = nullptr;
+    bool m_isBundleMode = false;
     VkQueryPool m_activeQueryPool = VK_NULL_HANDLE;
     uint32_t m_activeQueryIndex = 0;
     VkQueryPool m_passOcclusionQueryPool = VK_NULL_HANDLE;

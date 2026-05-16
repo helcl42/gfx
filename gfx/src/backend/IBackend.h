@@ -122,6 +122,7 @@ public:
 
     // CommandEncoder functions
     virtual GfxResult deviceCreateCommandEncoder(GfxDevice device, const GfxCommandEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder) const = 0;
+    virtual GfxResult deviceCreateRenderBundleCommandEncoder(GfxDevice device, const GfxRenderBundleEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder) const = 0;
     virtual GfxResult commandEncoderDestroy(GfxCommandEncoder commandEncoder) const = 0;
     virtual GfxResult commandEncoderBeginRenderPass(GfxCommandEncoder commandEncoder, const GfxRenderPassBeginDescriptor* beginDescriptor, GfxRenderPassEncoder* outRenderPass) const = 0;
     virtual GfxResult commandEncoderBeginComputePass(GfxCommandEncoder commandEncoder, const GfxComputePassBeginDescriptor* beginDescriptor, GfxComputePassEncoder* outComputePass) const = 0;
@@ -153,6 +154,7 @@ public:
     virtual GfxResult renderPassEncoderBeginOcclusionQuery(GfxRenderPassEncoder renderPassEncoder, GfxQuerySet querySet, uint32_t queryIndex) const = 0;
     virtual GfxResult renderPassEncoderEndOcclusionQuery(GfxRenderPassEncoder renderPassEncoder) const = 0;
     virtual GfxResult renderPassEncoderEnd(GfxRenderPassEncoder renderPassEncoder) const = 0;
+    virtual GfxResult renderPassEncoderExecuteBundles(GfxRenderPassEncoder renderPassEncoder, const GfxCommandEncoder* bundleEncoders, uint32_t bundleCount) const = 0;
 
     // ComputePassEncoder functions
     virtual GfxResult computePassEncoderSetPipeline(GfxComputePassEncoder computePassEncoder, GfxComputePipeline pipeline) const = 0;

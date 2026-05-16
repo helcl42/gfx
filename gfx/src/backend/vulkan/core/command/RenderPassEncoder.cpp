@@ -17,6 +17,7 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
     : m_commandBuffer(commandEncoder->handle())
     , m_device(commandEncoder->getDevice())
     , m_commandEncoder(commandEncoder)
+    , m_isBundleMode(false)
     , m_passOcclusionQueryPool(beginInfo.occlusionQueryPool)
     , m_passTimestampQueryPool(beginInfo.timestampQueryPool)
 {
@@ -59,7 +60,7 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
     vkBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     vkBeginInfo.pClearValues = clearValues.data();
 
-    vkCmdBeginRenderPass(m_commandBuffer, &vkBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(m_commandBuffer, &vkBeginInfo, beginInfo.bundleExecution ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS : VK_SUBPASS_CONTENTS_INLINE);
 
     // Write start timestamp if requested
     if (m_passTimestampQueryPool != VK_NULL_HANDLE) {
@@ -67,8 +68,22 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
     }
 }
 
+RenderPassEncoder::RenderPassEncoder(CommandEncoder* bundleCommandEncoder)
+    : m_commandBuffer(bundleCommandEncoder->handle())
+    , m_device(bundleCommandEncoder->getDevice())
+    , m_commandEncoder(bundleCommandEncoder)
+    , m_isBundleMode(true)
+{
+}
+
 RenderPassEncoder::~RenderPassEncoder()
 {
+    if (m_isBundleMode) {
+        // In bundle mode, end the secondary command buffer recording
+        vkEndCommandBuffer(m_commandBuffer);
+        return;
+    }
+
     // Write end timestamp before ending the pass
     if (m_passTimestampQueryPool != VK_NULL_HANDLE) {
         vkCmdWriteTimestamp(m_commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_passTimestampQueryPool, 1);
@@ -90,6 +105,11 @@ Device* RenderPassEncoder::device() const
 CommandEncoder* RenderPassEncoder::commandEncoder() const
 {
     return m_commandEncoder;
+}
+
+bool RenderPassEncoder::isBundleMode() const
+{
+    return m_isBundleMode;
 }
 
 void RenderPassEncoder::setPipeline(RenderPipeline* pipeline)
@@ -161,6 +181,9 @@ void RenderPassEncoder::drawIndexedIndirect(Buffer* buffer, uint64_t offset)
 
 void RenderPassEncoder::beginOcclusionQuery(VkQueryPool queryPool, uint32_t queryIndex, VkQueryControlFlags flags)
 {
+    if (m_isBundleMode) {
+        return; // Occlusion queries not supported in render bundles
+    }
     if (!isOcclusionQueryPoolCompatible(queryPool)) {
         throw std::runtime_error("Occlusion query pool is not compatible with render pass begin descriptor");
     }
@@ -172,6 +195,9 @@ void RenderPassEncoder::beginOcclusionQuery(VkQueryPool queryPool, uint32_t quer
 
 void RenderPassEncoder::endOcclusionQuery()
 {
+    if (m_isBundleMode) {
+        return; // Occlusion queries not supported in render bundles
+    }
     if (m_activeQueryPool != VK_NULL_HANDLE) {
         vkCmdEndQuery(m_commandBuffer, m_activeQueryPool, m_activeQueryIndex);
         m_activeQueryPool = VK_NULL_HANDLE;
@@ -182,6 +208,11 @@ void RenderPassEncoder::endOcclusionQuery()
 bool RenderPassEncoder::isOcclusionQueryPoolCompatible(VkQueryPool queryPool) const
 {
     return m_passOcclusionQueryPool != VK_NULL_HANDLE && queryPool == m_passOcclusionQueryPool;
+}
+
+void RenderPassEncoder::executeBundles(const VkCommandBuffer* commandBuffers, uint32_t count)
+{
+    vkCmdExecuteCommands(m_commandBuffer, count, commandBuffers);
 }
 
 } // namespace gfx::backend::vulkan::core

@@ -40,6 +40,7 @@ GfxResult validateDeviceCreateComputePipeline(GfxDevice device, const GfxCompute
 GfxResult validateDeviceCreateRenderPass(GfxDevice device, const GfxRenderPassDescriptor* descriptor, GfxRenderPass* outRenderPass);
 GfxResult validateDeviceCreateFramebuffer(GfxDevice device, const GfxFramebufferDescriptor* descriptor, GfxFramebuffer* outFramebuffer);
 GfxResult validateDeviceCreateCommandEncoder(GfxDevice device, const GfxCommandEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder);
+GfxResult validateDeviceCreateRenderBundleCommandEncoder(GfxDevice device, const GfxRenderBundleEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder);
 GfxResult validateDeviceCreateFence(GfxDevice device, const GfxFenceDescriptor* descriptor, GfxFence* outFence);
 GfxResult validateDeviceCreateSemaphore(GfxDevice device, const GfxSemaphoreDescriptor* descriptor, GfxSemaphore* outSemaphore);
 GfxResult validateDeviceCreateQuerySet(GfxDevice device, const GfxQuerySetDescriptor* descriptor, GfxQuerySet* outQuerySet);
@@ -127,6 +128,7 @@ GfxResult validateCommandEncoderBegin(GfxCommandEncoder commandEncoder);
 GfxResult validateRenderPassEncoderDraw(GfxRenderPassEncoder renderPassEncoder);
 GfxResult validateRenderPassEncoderDrawIndexed(GfxRenderPassEncoder renderPassEncoder);
 GfxResult validateRenderPassEncoderEnd(GfxRenderPassEncoder renderPassEncoder);
+GfxResult validateRenderPassEncoderExecuteBundles(GfxRenderPassEncoder renderPassEncoder, const GfxCommandEncoder* bundleEncoders, uint32_t bundleCount);
 GfxResult validateComputePassEncoderDispatch(GfxComputePassEncoder computePassEncoder);
 GfxResult validateComputePassEncoderEnd(GfxComputePassEncoder computePassEncoder);
 GfxResult validateFenceDestroy(GfxFence fence);

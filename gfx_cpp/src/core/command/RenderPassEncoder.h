@@ -6,6 +6,7 @@
 #include <gfx/gfx.h>
 
 #include <memory>
+#include <vector>
 
 namespace gfx {
 
@@ -29,6 +30,8 @@ public:
 
     void beginOcclusionQuery(std::shared_ptr<QuerySet> querySet, uint32_t queryIndex) override;
     void endOcclusionQuery() override;
+
+    void executeBundles(const std::vector<std::shared_ptr<CommandEncoder>>& bundleEncoders) override;
 
 private:
     GfxRenderPassEncoder m_handle;

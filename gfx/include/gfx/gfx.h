@@ -888,6 +888,7 @@ typedef enum {
     GFX_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_DESCRIPTOR = 28,
     GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR = 29,
     GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR = 30,
+    GFX_STRUCTURE_TYPE_RENDER_BUNDLE_ENCODER_DESCRIPTOR = 31,
     GFX_STRUCTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } GfxStructureType;
 
@@ -1145,6 +1146,10 @@ typedef struct {
     // Timestamps are written at begin (index 0) and end (index 1) of the pass.
     // On WebGPU this uses WGPURenderPassTimestampWrites; on Vulkan vkCmdWriteTimestamp.
     GfxQuerySet timestampQuerySet;
+
+    // If true, the render pass will only contain executeBundles calls (no inline draw commands).
+    // On Vulkan this uses VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS.
+    bool bundleExecution;
 } GfxRenderPassBeginDescriptor;
 
 typedef struct {
@@ -1152,6 +1157,14 @@ typedef struct {
     const void* pNext;
     const char* label;
 } GfxComputePassBeginDescriptor;
+
+// Render bundle encoder descriptor: describes the render pass compatibility for pre-recorded bundles
+typedef struct {
+    GfxStructureType sType; // Must be GFX_STRUCTURE_TYPE_RENDER_BUNDLE_ENCODER_DESCRIPTOR
+    const void* pNext;
+    const char* label;
+    GfxRenderPass renderPass; // The compatible render pass (sampleCount is derived from this)
+} GfxRenderBundleEncoderDescriptor;
 
 // Copy/Blit descriptors
 typedef struct {
@@ -1884,6 +1897,7 @@ GFX_API GfxResult gfxFramebufferDestroy(GfxFramebuffer framebuffer);
 
 // CommandEncoder functions
 GFX_API GfxResult gfxDeviceCreateCommandEncoder(GfxDevice device, const GfxCommandEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder);
+GFX_API GfxResult gfxDeviceCreateRenderBundleCommandEncoder(GfxDevice device, const GfxRenderBundleEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder);
 GFX_API GfxResult gfxCommandEncoderDestroy(GfxCommandEncoder commandEncoder);
 GFX_API GfxResult gfxCommandEncoderBeginRenderPass(GfxCommandEncoder commandEncoder, const GfxRenderPassBeginDescriptor* beginDescriptor, GfxRenderPassEncoder* outRenderPass);
 GFX_API GfxResult gfxCommandEncoderBeginComputePass(GfxCommandEncoder commandEncoder, const GfxComputePassBeginDescriptor* beginDescriptor, GfxComputePassEncoder* outComputePass);
@@ -1915,6 +1929,7 @@ GFX_API GfxResult gfxRenderPassEncoderDrawIndexedIndirect(GfxRenderPassEncoder r
 GFX_API GfxResult gfxRenderPassEncoderBeginOcclusionQuery(GfxRenderPassEncoder renderPassEncoder, GfxQuerySet querySet, uint32_t queryIndex);
 GFX_API GfxResult gfxRenderPassEncoderEndOcclusionQuery(GfxRenderPassEncoder renderPassEncoder);
 GFX_API GfxResult gfxRenderPassEncoderEnd(GfxRenderPassEncoder renderPassEncoder);
+GFX_API GfxResult gfxRenderPassEncoderExecuteBundles(GfxRenderPassEncoder renderPassEncoder, const GfxCommandEncoder* bundleEncoders, uint32_t bundleCount);
 
 // ComputePassEncoder functions
 GFX_API GfxResult gfxComputePassEncoderSetPipeline(GfxComputePassEncoder computePassEncoder, GfxComputePipeline pipeline);

@@ -435,6 +435,7 @@ struct RenderPassEncoderBeginInfo {
     uint32_t stencilClearValue;
     VkQueryPool occlusionQueryPool = VK_NULL_HANDLE;
     VkQueryPool timestampQueryPool = VK_NULL_HANDLE;
+    bool bundleExecution = false;
 };
 
 struct ComputePassEncoderCreateInfo {

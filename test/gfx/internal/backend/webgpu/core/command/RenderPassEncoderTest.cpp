@@ -70,4 +70,32 @@ TEST_F(WebGPURenderPassEncoderTest, TimestampQuery_ApiExists)
     SUCCEED();
 }
 
+// ============================================================================
+// Bundle Mode Tests
+// ============================================================================
+
+TEST_F(WebGPURenderPassEncoderTest, BundleMode_CreateFromBundleEncoder)
+{
+    auto bundleCommandEncoder = std::make_unique<gfx::backend::webgpu::core::CommandEncoder>(device.get());
+
+    EXPECT_TRUE(bundleCommandEncoder->isBundleEncoder());
+
+    // Without calling beginBundle(), the bundle encoder is not yet created.
+    // Creating a RenderPassEncoder in bundle mode stores the (null) bundle encoder.
+    // isBundleMode() depends on the bundle encoder being created via beginBundle().
+    auto encoder = std::make_unique<gfx::backend::webgpu::core::RenderPassEncoder>(bundleCommandEncoder.get());
+
+    // Handle should be null since we haven't started a regular render pass
+    EXPECT_EQ(encoder->handle(), nullptr);
+}
+
+TEST_F(WebGPURenderPassEncoderTest, BundleMode_HandleIsNull)
+{
+    auto bundleCommandEncoder = std::make_unique<gfx::backend::webgpu::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::webgpu::core::RenderPassEncoder>(bundleCommandEncoder.get());
+
+    // In bundle mode, the WGPURenderPassEncoder handle is null (uses WGPURenderBundleEncoder instead)
+    EXPECT_EQ(encoder->handle(), nullptr);
+}
+
 } // anonymous namespace

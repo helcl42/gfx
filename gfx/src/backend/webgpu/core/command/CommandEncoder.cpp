@@ -1,5 +1,6 @@
 #include "../command/CommandEncoder.h"
 
+#include "../render/RenderPass.h"
 #include "../resource/Buffer.h"
 #include "../resource/Texture.h"
 #include "../system/Device.h"
@@ -10,26 +11,89 @@
 
 namespace gfx::backend::webgpu::core {
 
-CommandEncoder::CommandEncoder(Device* device, const CommandEncoderCreateInfo& createInfo)
-    : m_device(device)
-    , m_finished(false)
-{
-    WGPUCommandEncoderDescriptor desc = WGPU_COMMAND_ENCODER_DESCRIPTOR_INIT;
-    if (createInfo.label) {
-        desc.label = toStringView(createInfo.label);
+namespace {
+
+    WGPUCommandEncoder createEncoder(WGPUDevice device, const char* label = nullptr)
+    {
+        WGPUCommandEncoderDescriptor desc = WGPU_COMMAND_ENCODER_DESCRIPTOR_INIT;
+        if (label) {
+            desc.label = toStringView(label);
+        }
+
+        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &desc);
+        if (!encoder) {
+            throw std::runtime_error("Failed to create WebGPU CommandEncoder");
+        }
+        return encoder;
     }
 
-    m_encoder = wgpuDeviceCreateCommandEncoder(m_device->handle(), &desc);
-    if (!m_encoder) {
-        throw std::runtime_error("Failed to create WebGPU CommandEncoder");
+    void destroyEncoder(WGPUCommandEncoder& encoder)
+    {
+        if (encoder) {
+            wgpuCommandEncoderRelease(encoder);
+            encoder = nullptr;
+        }
     }
+
+    WGPURenderBundleEncoder createBundleEncoder(WGPUDevice device, const RenderPassCreateInfo& passInfo)
+    {
+        WGPURenderBundleEncoderDescriptor desc = WGPU_RENDER_BUNDLE_ENCODER_DESCRIPTOR_INIT;
+
+        std::vector<WGPUTextureFormat> colorFormats;
+        for (const auto& colorAtt : passInfo.colorAttachments) {
+            colorFormats.push_back(colorAtt.format);
+        }
+        desc.colorFormats = colorFormats.data();
+        desc.colorFormatCount = static_cast<uint32_t>(colorFormats.size());
+
+        if (passInfo.depthStencilAttachment.has_value()) {
+            desc.depthStencilFormat = passInfo.depthStencilAttachment->format;
+        } else {
+            desc.depthStencilFormat = WGPUTextureFormat_Undefined;
+        }
+
+        desc.sampleCount = passInfo.sampleCount;
+
+        WGPURenderBundleEncoder encoder = wgpuDeviceCreateRenderBundleEncoder(device, &desc);
+        if (!encoder) {
+            throw std::runtime_error("Failed to create WebGPU render bundle encoder");
+        }
+        return encoder;
+    }
+
+    void destroyBundleEncoder(WGPURenderBundleEncoder& encoder)
+    {
+        if (encoder) {
+            wgpuRenderBundleEncoderRelease(encoder);
+            encoder = nullptr;
+        }
+    }
+
+} // anonymous namespace
+
+CommandEncoder::CommandEncoder(Device* device, const CommandEncoderCreateInfo& createInfo)
+    : m_device(device)
+    , m_isBundleEncoder(false)
+    , m_encoder(createEncoder(device->handle(), createInfo.label))
+{
+}
+
+CommandEncoder::CommandEncoder(Device* device)
+    : m_device(device)
+    , m_isBundleEncoder(true)
+{
 }
 
 CommandEncoder::~CommandEncoder()
 {
-    if (m_encoder) {
-        wgpuCommandEncoderRelease(m_encoder);
+    if (m_renderBundle) {
+        wgpuRenderBundleRelease(m_renderBundle);
     }
+    destroyBundleEncoder(m_bundleEncoder);
+    if (m_commandBuffer) {
+        wgpuCommandBufferRelease(m_commandBuffer);
+    }
+    destroyEncoder(m_encoder);
 }
 
 WGPUCommandEncoder CommandEncoder::handle() const
@@ -37,52 +101,92 @@ WGPUCommandEncoder CommandEncoder::handle() const
     return m_encoder;
 }
 
+WGPUCommandBuffer CommandEncoder::commandBuffer() const
+{
+    return m_commandBuffer;
+}
+
 Device* CommandEncoder::getDevice() const
 {
     return m_device;
 }
 
-void CommandEncoder::markFinished()
+bool CommandEncoder::isBundleEncoder() const
 {
-    m_finished = true;
+    return m_isBundleEncoder;
 }
 
-bool CommandEncoder::isFinished() const
+void CommandEncoder::beginBundle(RenderPass* renderPass)
 {
-    return m_finished;
-}
-
-// Recreate the encoder if it has been finished
-bool CommandEncoder::recreateIfNeeded()
-{
-    if (!m_finished) {
-        return true; // Already valid
+    destroyBundleEncoder(m_bundleEncoder);
+    if (m_renderBundle) {
+        wgpuRenderBundleRelease(m_renderBundle);
+        m_renderBundle = nullptr;
     }
 
-    // Release old encoder
+    m_bundleEncoder = createBundleEncoder(m_device->handle(), renderPass->getCreateInfo());
+}
+
+void CommandEncoder::end()
+{
+    if (m_isBundleEncoder) {
+        if (!m_bundleEncoder) {
+            return;
+        }
+        WGPURenderBundleDescriptor bundleDesc = WGPU_RENDER_BUNDLE_DESCRIPTOR_INIT;
+        m_renderBundle = wgpuRenderBundleEncoderFinish(m_bundleEncoder, &bundleDesc);
+        destroyBundleEncoder(m_bundleEncoder);
+    } else {
+        if (!m_encoder) {
+            return;
+        }
+        WGPUCommandBufferDescriptor cmdDesc = WGPU_COMMAND_BUFFER_DESCRIPTOR_INIT;
+        m_commandBuffer = wgpuCommandEncoderFinish(m_encoder, &cmdDesc);
+        destroyEncoder(m_encoder);
+    }
+}
+
+WGPURenderBundleEncoder CommandEncoder::getBundleEncoder() const
+{
+    return m_bundleEncoder;
+}
+
+WGPURenderBundle CommandEncoder::getRenderBundle() const
+{
+    return m_renderBundle;
+}
+
+void CommandEncoder::begin()
+{
     if (m_encoder) {
-        wgpuCommandEncoderRelease(m_encoder);
-        m_encoder = nullptr;
+        return; // Already have an active encoder
     }
 
-    // Create new encoder
-    WGPUCommandEncoderDescriptor desc = WGPU_COMMAND_ENCODER_DESCRIPTOR_INIT;
-    m_encoder = wgpuDeviceCreateCommandEncoder(m_device->handle(), &desc);
-    if (!m_encoder) {
-        return false;
+    // Release previous command buffer if any
+    if (m_commandBuffer) {
+        wgpuCommandBufferRelease(m_commandBuffer);
+        m_commandBuffer = nullptr;
     }
 
-    m_finished = false;
-    return true;
+    m_encoder = createEncoder(m_device->handle());
+}
+
+void CommandEncoder::reset()
+{
+    // Release old state
+    if (m_commandBuffer) {
+        wgpuCommandBufferRelease(m_commandBuffer);
+        m_commandBuffer = nullptr;
+    }
+    destroyEncoder(m_encoder);
+
+    m_encoder = createEncoder(m_device->handle());
 }
 
 // Copy operations
 void CommandEncoder::copyBufferToBuffer(Buffer* source, uint64_t sourceOffset, Buffer* destination, uint64_t destinationOffset, uint64_t size)
 {
-    wgpuCommandEncoderCopyBufferToBuffer(m_encoder,
-        source->handle(), sourceOffset,
-        destination->handle(), destinationOffset,
-        size);
+    wgpuCommandEncoderCopyBufferToBuffer(m_encoder, source->handle(), sourceOffset, destination->handle(), destinationOffset, size);
 }
 
 void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, Texture* destination, const WGPUOrigin3D& origin, const WGPUExtent3D& extent, uint32_t mipLevel)

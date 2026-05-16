@@ -48,15 +48,9 @@ bool Queue::submit(const SubmitInfo& submitInfo)
         if (submitInfo.commandEncoders[i]) {
             auto* encoderPtr = submitInfo.commandEncoders[i];
 
-            WGPUCommandBufferDescriptor cmdDesc = WGPU_COMMAND_BUFFER_DESCRIPTOR_INIT;
-            WGPUCommandBuffer cmdBuffer = wgpuCommandEncoderFinish(encoderPtr->handle(), &cmdDesc);
-
+            WGPUCommandBuffer cmdBuffer = encoderPtr->commandBuffer();
             if (cmdBuffer) {
                 wgpuQueueSubmit(m_queue, 1, &cmdBuffer);
-                wgpuCommandBufferRelease(cmdBuffer);
-
-                // Mark encoder as finished so it will be recreated on next Begin()
-                encoderPtr->markFinished();
             } else {
                 return false;
             }

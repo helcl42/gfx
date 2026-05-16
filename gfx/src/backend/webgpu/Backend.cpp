@@ -400,6 +400,11 @@ GfxResult Backend::deviceCreateCommandEncoder(GfxDevice device, const GfxCommand
     return m_commandComponent.deviceCreateCommandEncoder(device, descriptor, outEncoder);
 }
 
+GfxResult Backend::deviceCreateRenderBundleCommandEncoder(GfxDevice device, const GfxRenderBundleEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder) const
+{
+    return m_commandComponent.deviceCreateRenderBundleCommandEncoder(device, descriptor, outEncoder);
+}
+
 GfxResult Backend::commandEncoderDestroy(GfxCommandEncoder commandEncoder) const
 {
     return m_commandComponent.commandEncoderDestroy(commandEncoder);
@@ -544,6 +549,11 @@ GfxResult Backend::renderPassEncoderEndOcclusionQuery(GfxRenderPassEncoder rende
 GfxResult Backend::renderPassEncoderEnd(GfxRenderPassEncoder renderPassEncoder) const
 {
     return m_commandComponent.renderPassEncoderEnd(renderPassEncoder);
+}
+
+GfxResult Backend::renderPassEncoderExecuteBundles(GfxRenderPassEncoder renderPassEncoder, const GfxCommandEncoder* bundleEncoders, uint32_t bundleCount) const
+{
+    return m_commandComponent.renderPassEncoderExecuteBundles(renderPassEncoder, bundleEncoders, bundleCount);
 }
 
 // ComputePassEncoder functions

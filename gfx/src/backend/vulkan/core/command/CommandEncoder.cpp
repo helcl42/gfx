@@ -1,5 +1,6 @@
 #include "CommandEncoder.h"
 
+#include "../render/RenderPass.h"
 #include "../resource/Buffer.h"
 #include "../resource/Texture.h"
 #include "../system/Device.h"
@@ -10,42 +11,61 @@
 
 namespace gfx::backend::vulkan::core {
 
-CommandEncoder::CommandEncoder(Device* device)
+namespace {
+
+    VkCommandPool createCommandPool(VkDevice device, uint32_t queueFamilyIndex)
+    {
+        VkCommandPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        poolInfo.queueFamilyIndex = queueFamilyIndex;
+
+        VkCommandPool pool = VK_NULL_HANDLE;
+        VkResult result = vkCreateCommandPool(device, &poolInfo, nullptr, &pool);
+        if (result != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create command pool");
+        }
+        return pool;
+    }
+
+    void destroyCommandPool(VkDevice device, VkCommandPool& pool)
+    {
+        if (pool != VK_NULL_HANDLE) {
+            vkDestroyCommandPool(device, pool, nullptr);
+            pool = VK_NULL_HANDLE;
+        }
+    }
+
+    VkCommandBuffer allocateCommandBuffer(VkDevice device, VkCommandPool pool, VkCommandBufferLevel level)
+    {
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = pool;
+        allocInfo.level = level;
+        allocInfo.commandBufferCount = 1;
+
+        VkCommandBuffer buffer = VK_NULL_HANDLE;
+        VkResult result = vkAllocateCommandBuffers(device, &allocInfo, &buffer);
+        if (result != VK_SUCCESS) {
+            destroyCommandPool(device, pool);
+            throw std::runtime_error("Failed to allocate command buffer");
+        }
+        return buffer;
+    }
+
+} // anonymous namespace
+
+CommandEncoder::CommandEncoder(Device* device, bool bundle)
     : m_device(device)
+    , m_commandPool(createCommandPool(device->handle(), device->getQueue()->family()))
+    , m_commandBuffer(allocateCommandBuffer(device->handle(), m_commandPool, bundle ? VK_COMMAND_BUFFER_LEVEL_SECONDARY : VK_COMMAND_BUFFER_LEVEL_PRIMARY))
+    , m_isBundleEncoder(bundle)
 {
-    // Create command pool
-    VkCommandPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolInfo.queueFamilyIndex = device->getQueue()->family();
-
-    VkResult result = vkCreateCommandPool(m_device->handle(), &poolInfo, nullptr, &m_commandPool);
-    if (result != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create command pool");
-    }
-
-    // Allocate command buffer
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = m_commandPool;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 1;
-
-    result = vkAllocateCommandBuffers(m_device->handle(), &allocInfo, &m_commandBuffer);
-    if (result != VK_SUCCESS) {
-        vkDestroyCommandPool(m_device->handle(), m_commandPool, nullptr);
-        throw std::runtime_error("Failed to allocate command buffer");
-    }
-
-    // Begin recording
-    begin();
 }
 
 CommandEncoder::~CommandEncoder()
 {
-    if (m_commandPool != VK_NULL_HANDLE) {
-        vkDestroyCommandPool(m_device->handle(), m_commandPool, nullptr);
-    }
+    destroyCommandPool(m_device->handle(), m_commandPool);
 }
 
 VkCommandBuffer CommandEncoder::handle() const
@@ -73,6 +93,11 @@ void CommandEncoder::setCurrentPipelineLayout(VkPipelineLayout layout)
     m_currentPipelineLayout = layout;
 }
 
+bool CommandEncoder::isBundleEncoder() const
+{
+    return m_isBundleEncoder;
+}
+
 void CommandEncoder::begin()
 {
     if (!m_isRecording) {
@@ -83,6 +108,27 @@ void CommandEncoder::begin()
         vkBeginCommandBuffer(m_commandBuffer, &beginInfo);
         m_isRecording = true;
     }
+}
+
+void CommandEncoder::beginBundle(RenderPass* renderPass)
+{
+    end();
+
+    vkResetCommandBuffer(m_commandBuffer, 0);
+
+    VkCommandBufferInheritanceInfo inheritance{};
+    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+    inheritance.renderPass = renderPass->handle();
+    inheritance.subpass = 0;
+    inheritance.framebuffer = VK_NULL_HANDLE;
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT | VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+    beginInfo.pInheritanceInfo = &inheritance;
+
+    vkBeginCommandBuffer(m_commandBuffer, &beginInfo);
+    m_isRecording = true;
 }
 
 void CommandEncoder::end()
@@ -190,9 +236,7 @@ void CommandEncoder::pipelineBarrier(const MemoryBarrier* memoryBarriers, uint32
     vkCmdPipelineBarrier(m_commandBuffer, srcStage, dstStage, 0, static_cast<uint32_t>(memBarriers.size()), memBarriers.empty() ? nullptr : memBarriers.data(), static_cast<uint32_t>(bufferMemoryBarriers.size()), bufferMemoryBarriers.empty() ? nullptr : bufferMemoryBarriers.data(), static_cast<uint32_t>(imageBarriers.size()), imageBarriers.empty() ? nullptr : imageBarriers.data());
 }
 
-void CommandEncoder::copyBufferToBuffer(Buffer* source, uint64_t sourceOffset,
-    Buffer* destination, uint64_t destinationOffset,
-    uint64_t size)
+void CommandEncoder::copyBufferToBuffer(Buffer* source, uint64_t sourceOffset, Buffer* destination, uint64_t destinationOffset, uint64_t size)
 {
     VkBufferCopy copyRegion{};
     copyRegion.srcOffset = sourceOffset;
@@ -242,8 +286,7 @@ void CommandEncoder::copyTextureToBuffer(Texture* source, VkOffset3D origin, uin
     region.imageOffset = origin;
     region.imageExtent = extent;
 
-    vkCmdCopyImageToBuffer(m_commandBuffer, source->handle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        destination->handle(), 1, &region);
+    vkCmdCopyImageToBuffer(m_commandBuffer, source->handle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination->handle(), 1, &region);
 
     // Transition image layout to final layout
     source->transitionLayout(this, finalLayout, mipLevel, 1, 0, 1);
@@ -319,17 +362,13 @@ void CommandEncoder::blitTextureToTexture(Texture* source, VkOffset3D sourceOrig
     region.srcSubresource.baseArrayLayer = is3DTexture ? 0 : sourceOrigin.z;
     region.srcSubresource.layerCount = layerCount;
     region.srcOffsets[0] = { sourceOrigin.x, sourceOrigin.y, is3DTexture ? sourceOrigin.z : 0 };
-    region.srcOffsets[1] = { static_cast<int32_t>(sourceOrigin.x + sourceExtent.width),
-        static_cast<int32_t>(sourceOrigin.y + sourceExtent.height),
-        is3DTexture ? static_cast<int32_t>(sourceOrigin.z + srcDepth) : 1 };
+    region.srcOffsets[1] = { static_cast<int32_t>(sourceOrigin.x + sourceExtent.width), static_cast<int32_t>(sourceOrigin.y + sourceExtent.height), is3DTexture ? static_cast<int32_t>(sourceOrigin.z + srcDepth) : 1 };
     region.dstSubresource.aspectMask = getImageAspectMask(destination->getFormat());
     region.dstSubresource.mipLevel = destinationMipLevel;
     region.dstSubresource.baseArrayLayer = is3DTexture ? 0 : destinationOrigin.z;
     region.dstSubresource.layerCount = layerCount;
     region.dstOffsets[0] = { destinationOrigin.x, destinationOrigin.y, is3DTexture ? destinationOrigin.z : 0 };
-    region.dstOffsets[1] = { static_cast<int32_t>(destinationOrigin.x + destinationExtent.width),
-        static_cast<int32_t>(destinationOrigin.y + destinationExtent.height),
-        is3DTexture ? static_cast<int32_t>(destinationOrigin.z + dstDepth) : 1 };
+    region.dstOffsets[1] = { static_cast<int32_t>(destinationOrigin.x + destinationExtent.width), static_cast<int32_t>(destinationOrigin.y + destinationExtent.height), is3DTexture ? static_cast<int32_t>(destinationOrigin.z + dstDepth) : 1 };
 
     vkCmdBlitImage(m_commandBuffer, source->handle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination->handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, filter);
 

@@ -1599,6 +1599,13 @@ core::RenderPassCreateInfo gfxRenderPassDescriptorToRenderPassCreateInfo(const G
         createInfo.colorAttachments.push_back(attachment);
     }
 
+    // Store sample count from first color attachment (all must match)
+    if (descriptor->colorAttachmentCount > 0) {
+        createInfo.sampleCount = static_cast<uint32_t>(descriptor->colorAttachments[0].target.sampleCount);
+    } else if (descriptor->depthStencilAttachment) {
+        createInfo.sampleCount = static_cast<uint32_t>(descriptor->depthStencilAttachment->target.sampleCount);
+    }
+
     // Convert depth/stencil attachment ops if present
     if (descriptor->depthStencilAttachment) {
         const GfxRenderPassDepthStencilAttachment& depthAtt = *descriptor->depthStencilAttachment;

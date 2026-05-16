@@ -142,6 +142,82 @@ TEST_P(RenderPassEncoderImplTest, SetViewportAndScissor)
     encoder->end();
 }
 
+TEST_P(RenderPassEncoderImplTest, ExecuteBundles)
+{
+    DeviceImpl deviceWrapper(device);
+
+    // Create render pass
+    RenderPassCreateDescriptor renderPassDesc{
+        .colorAttachments = { RenderPassColorAttachment{
+            .target = {
+                .format = Format::R8G8B8A8Unorm,
+                .sampleCount = SampleCount::Count1,
+                .ops = { LoadOp::Clear, StoreOp::Store },
+                .finalLayout = TextureLayout::ColorAttachment } } }
+    };
+    auto renderPass = deviceWrapper.createRenderPass(renderPassDesc);
+    ASSERT_NE(renderPass, nullptr);
+
+    // Create texture, view, framebuffer
+    auto texture = deviceWrapper.createTexture({ .type = TextureType::Texture2D,
+        .size = { 256, 256, 1 },
+        .arrayLayerCount = 1,
+        .mipLevelCount = 1,
+        .sampleCount = SampleCount::Count1,
+        .format = Format::R8G8B8A8Unorm,
+        .usage = TextureUsage::RenderAttachment });
+    ASSERT_NE(texture, nullptr);
+
+    auto textureView = texture->createView({ .viewType = TextureViewType::View2D,
+        .format = Format::R8G8B8A8Unorm });
+    ASSERT_NE(textureView, nullptr);
+
+    auto framebuffer = deviceWrapper.createFramebuffer({ .renderPass = renderPass,
+        .colorAttachments = { FramebufferColorAttachment{ .view = textureView } },
+        .extent = { 256, 256 } });
+    ASSERT_NE(framebuffer, nullptr);
+
+    // Create bundle encoder
+    auto bundleEncoder = deviceWrapper.createRenderBundleCommandEncoder({ .label = "Test Bundle",
+        .renderPass = renderPass });
+    ASSERT_NE(bundleEncoder, nullptr);
+
+    // Begin render pass on bundle encoder to initialize the bundle recording
+    {
+        RenderPassBeginDescriptor bundleRpDesc{
+            .framebuffer = framebuffer,
+            .colorClearValues = { Color{ 0.0f, 0.0f, 0.0f, 1.0f } }
+        };
+        auto bundleRenderPass = bundleEncoder->beginRenderPass(bundleRpDesc);
+        ASSERT_NE(bundleRenderPass, nullptr);
+        // No draw commands for this test — render pass encoder releases on scope exit
+    }
+
+    // End bundle recording (finishes the render bundle)
+    bundleEncoder->end();
+
+    // Create command encoder and begin render pass with bundle execution
+    auto encoder = deviceWrapper.createCommandEncoder({});
+    ASSERT_NE(encoder, nullptr);
+    encoder->begin();
+
+    {
+        RenderPassBeginDescriptor rpBeginDesc{
+            .framebuffer = framebuffer,
+            .colorClearValues = { Color{ 0.0f, 0.0f, 0.0f, 1.0f } },
+            .bundleExecution = true
+        };
+
+        auto renderPassEncoder = encoder->beginRenderPass(rpBeginDesc);
+        ASSERT_NE(renderPassEncoder, nullptr);
+
+        // Execute the bundle
+        renderPassEncoder->executeBundles({ bundleEncoder });
+    } // Render pass encoder ends here (RAII)
+
+    encoder->end();
+}
+
 // ============================================================================
 // Null/Error Handling Tests - Skipped (test C API, not C++ implementation)
 // ============================================================================

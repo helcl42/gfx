@@ -8,6 +8,7 @@ namespace gfx::backend::webgpu::core {
 class Device;
 class Buffer;
 class Texture;
+class RenderPass;
 
 class CommandEncoder {
 public:
@@ -16,15 +17,22 @@ public:
     CommandEncoder& operator=(const CommandEncoder&) = delete;
 
     CommandEncoder(Device* device, const CommandEncoderCreateInfo& createInfo);
+    CommandEncoder(Device* device);
     ~CommandEncoder();
 
     WGPUCommandEncoder handle() const;
+    WGPUCommandBuffer commandBuffer() const;
     Device* getDevice() const;
 
-    void markFinished();
-    bool isFinished() const;
-    // Recreate the encoder if it has been finished
-    bool recreateIfNeeded();
+    bool isBundleEncoder() const;
+
+    void begin();
+    void beginBundle(RenderPass* renderPass);
+    void end();
+    void reset();
+
+    WGPURenderBundleEncoder getBundleEncoder() const;
+    WGPURenderBundle getRenderBundle() const;
 
     // Copy operations
     void copyBufferToBuffer(Buffer* source, uint64_t sourceOffset, Buffer* destination, uint64_t destinationOffset, uint64_t size);
@@ -40,8 +48,11 @@ public:
 
 private:
     Device* m_device = nullptr; // Non-owning pointer
+    bool m_isBundleEncoder = false;
     WGPUCommandEncoder m_encoder = nullptr;
-    bool m_finished = false;
+    WGPUCommandBuffer m_commandBuffer = nullptr;
+    WGPURenderBundleEncoder m_bundleEncoder = nullptr;
+    WGPURenderBundle m_renderBundle = nullptr;
 };
 
 } // namespace gfx::backend::webgpu::core

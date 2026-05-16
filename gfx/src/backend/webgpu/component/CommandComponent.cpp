@@ -11,6 +11,7 @@
 #include "../core/command/RenderPassEncoder.h"
 #include "../core/compute/ComputePipeline.h"
 #include "../core/query/QuerySet.h"
+#include "../core/render/RenderPass.h"
 #include "../core/render/RenderPipeline.h"
 #include "../core/resource/BindGroup.h"
 #include "../core/resource/Buffer.h"
@@ -41,6 +42,19 @@ GfxResult CommandComponent::deviceCreateCommandEncoder(GfxDevice device, const G
     }
 }
 
+GfxResult CommandComponent::deviceCreateRenderBundleCommandEncoder(GfxDevice device, const GfxRenderBundleEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder) const
+{
+    GfxResult validationResult = validator::validateDeviceCreateRenderBundleCommandEncoder(device, descriptor, outEncoder);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* dev = converter::toNative<core::Device>(device);
+    auto* encoder = new core::CommandEncoder(dev);
+    *outEncoder = converter::toGfx<GfxCommandEncoder>(encoder);
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult CommandComponent::commandEncoderDestroy(GfxCommandEncoder commandEncoder) const
 {
     GfxResult validationResult = validator::validateCommandEncoderDestroy(commandEncoder);
@@ -61,10 +75,17 @@ GfxResult CommandComponent::commandEncoderBeginRenderPass(GfxCommandEncoder comm
 
     auto* encoderPtr = converter::toNative<core::CommandEncoder>(commandEncoder);
     auto* renderPass = converter::toNative<core::RenderPass>(beginDescriptor->renderPass);
-    auto* framebuffer = converter::toNative<core::Framebuffer>(beginDescriptor->framebuffer);
-    auto beginInfo = converter::gfxRenderPassBeginDescriptorToBeginInfo(beginDescriptor);
-    auto* renderPassEncoder = new core::RenderPassEncoder(encoderPtr, renderPass, framebuffer, beginInfo);
-    *outRenderPass = converter::toGfx<GfxRenderPassEncoder>(renderPassEncoder);
+
+    if (encoderPtr->isBundleEncoder()) {
+        encoderPtr->beginBundle(renderPass);
+        auto* renderPassEncoder = new core::RenderPassEncoder(encoderPtr);
+        *outRenderPass = converter::toGfx<GfxRenderPassEncoder>(renderPassEncoder);
+    } else {
+        auto* framebuffer = converter::toNative<core::Framebuffer>(beginDescriptor->framebuffer);
+        auto beginInfo = converter::gfxRenderPassBeginDescriptorToBeginInfo(beginDescriptor);
+        auto* renderPassEncoder = new core::RenderPassEncoder(encoderPtr, renderPass, framebuffer, beginInfo);
+        *outRenderPass = converter::toGfx<GfxRenderPassEncoder>(renderPassEncoder);
+    }
     return GFX_RESULT_SUCCESS;
 }
 
@@ -273,7 +294,8 @@ GfxResult CommandComponent::commandEncoderEnd(GfxCommandEncoder commandEncoder) 
         return validationResult;
     }
 
-    (void)commandEncoder; // Parameter unused - handled in queueSubmit
+    auto* encoderPtr = converter::toNative<core::CommandEncoder>(commandEncoder);
+    encoderPtr->end();
     return GFX_RESULT_SUCCESS;
 }
 
@@ -285,12 +307,7 @@ GfxResult CommandComponent::commandEncoderBegin(GfxCommandEncoder commandEncoder
     }
 
     auto* encoderPtr = converter::toNative<core::CommandEncoder>(commandEncoder);
-
-    // WebGPU encoders can't be reused after Finish() - recreate if needed
-    if (!encoderPtr->recreateIfNeeded()) {
-        gfx::common::Logger::instance().logError("[WebGPU ERROR] Failed to recreate command encoder");
-        return GFX_RESULT_ERROR_UNKNOWN;
-    }
+    encoderPtr->reset();
     return GFX_RESULT_SUCCESS;
 }
 
@@ -459,6 +476,23 @@ GfxResult CommandComponent::renderPassEncoderEnd(GfxRenderPassEncoder renderPass
 
     auto* encoderPtr = converter::toNative<core::RenderPassEncoder>(renderPassEncoder);
     delete encoderPtr;
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult CommandComponent::renderPassEncoderExecuteBundles(GfxRenderPassEncoder renderPassEncoder, const GfxCommandEncoder* bundleEncoders, uint32_t bundleCount) const
+{
+    GfxResult validationResult = validator::validateRenderPassEncoderExecuteBundles(renderPassEncoder, bundleEncoders, bundleCount);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* rpe = converter::toNative<core::RenderPassEncoder>(renderPassEncoder);
+    std::vector<WGPURenderBundle> wgpuBundles(bundleCount);
+    for (uint32_t i = 0; i < bundleCount; ++i) {
+        auto* encoder = converter::toNative<core::CommandEncoder>(bundleEncoders[i]);
+        wgpuBundles[i] = encoder->getRenderBundle();
+    }
+    rpe->executeBundles(wgpuBundles.data(), bundleCount);
     return GFX_RESULT_SUCCESS;
 }
 

@@ -243,6 +243,62 @@ TEST_P(GfxCppRenderPassEncoderTest, BeginRenderPassAndEnd)
 }
 
 // ===========================================================================
+// ExecuteBundles Tests
+// ===========================================================================
+
+TEST_P(GfxCppRenderPassEncoderTest, ExecuteBundlesWithEmptyVector)
+{
+    ASSERT_NE(device, nullptr);
+
+    auto encoder = device->createCommandEncoder({});
+    ASSERT_NE(encoder, nullptr);
+
+    auto renderPass = device->createRenderPass({ .colorAttachments = { gfx::RenderPassColorAttachment{
+                                                     .target = {
+                                                         .format = gfx::Format::R8G8B8A8Unorm,
+                                                         .sampleCount = gfx::SampleCount::Count1,
+                                                         .ops = { gfx::LoadOp::Clear, gfx::StoreOp::Store },
+                                                         .finalLayout = gfx::TextureLayout::ColorAttachment } } } });
+    ASSERT_NE(renderPass, nullptr);
+
+    auto texture = device->createTexture({ .type = gfx::TextureType::Texture2D, .size = { 256, 256, 1 }, .format = gfx::Format::R8G8B8A8Unorm, .usage = gfx::TextureUsage::RenderAttachment });
+    auto view = texture->createView({ .viewType = gfx::TextureViewType::View2D, .format = gfx::Format::R8G8B8A8Unorm });
+    auto framebuffer = device->createFramebuffer({ .renderPass = renderPass, .colorAttachments = { gfx::FramebufferColorAttachment{ .view = view } }, .extent = { 256, 256 } });
+
+    auto renderPassEncoder = encoder->beginRenderPass({ .framebuffer = framebuffer, .bundleExecution = true });
+    ASSERT_NE(renderPassEncoder, nullptr);
+
+    // Empty bundle list should throw
+    EXPECT_THROW(renderPassEncoder->executeBundles({}), std::invalid_argument);
+}
+
+TEST_P(GfxCppRenderPassEncoderTest, ExecuteBundlesWithNullEncoder)
+{
+    ASSERT_NE(device, nullptr);
+
+    auto encoder = device->createCommandEncoder({});
+    ASSERT_NE(encoder, nullptr);
+
+    auto renderPass = device->createRenderPass({ .colorAttachments = { gfx::RenderPassColorAttachment{
+                                                     .target = {
+                                                         .format = gfx::Format::R8G8B8A8Unorm,
+                                                         .sampleCount = gfx::SampleCount::Count1,
+                                                         .ops = { gfx::LoadOp::Clear, gfx::StoreOp::Store },
+                                                         .finalLayout = gfx::TextureLayout::ColorAttachment } } } });
+    ASSERT_NE(renderPass, nullptr);
+
+    auto texture = device->createTexture({ .type = gfx::TextureType::Texture2D, .size = { 256, 256, 1 }, .format = gfx::Format::R8G8B8A8Unorm, .usage = gfx::TextureUsage::RenderAttachment });
+    auto view = texture->createView({ .viewType = gfx::TextureViewType::View2D, .format = gfx::Format::R8G8B8A8Unorm });
+    auto framebuffer = device->createFramebuffer({ .renderPass = renderPass, .colorAttachments = { gfx::FramebufferColorAttachment{ .view = view } }, .extent = { 256, 256 } });
+
+    auto renderPassEncoder = encoder->beginRenderPass({ .framebuffer = framebuffer, .bundleExecution = true });
+    ASSERT_NE(renderPassEncoder, nullptr);
+
+    // Null encoder in the list should throw
+    EXPECT_THROW(renderPassEncoder->executeBundles({ nullptr }), std::invalid_argument);
+}
+
+// ===========================================================================
 // Test Instantiation
 // ===========================================================================
 

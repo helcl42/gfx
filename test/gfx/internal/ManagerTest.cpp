@@ -46,6 +46,7 @@ public:
     GfxResult deviceCreateRenderPipeline(GfxDevice, const GfxRenderPipelineDescriptor*, GfxRenderPipeline*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceCreateComputePipeline(GfxDevice, const GfxComputePipelineDescriptor*, GfxComputePipeline*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceCreateCommandEncoder(GfxDevice, const GfxCommandEncoderDescriptor*, GfxCommandEncoder*) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult deviceCreateRenderBundleCommandEncoder(GfxDevice, const GfxRenderBundleEncoderDescriptor*, GfxCommandEncoder*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceCreateRenderPass(GfxDevice, const GfxRenderPassDescriptor*, GfxRenderPass*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceCreateFramebuffer(GfxDevice, const GfxFramebufferDescriptor*, GfxFramebuffer*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceCreateFence(GfxDevice, const GfxFenceDescriptor*, GfxFence*) const override { return GFX_RESULT_SUCCESS; }
@@ -125,6 +126,7 @@ public:
     GfxResult renderPassEncoderEnd(GfxRenderPassEncoder) const override { return GFX_RESULT_SUCCESS; }
     GfxResult renderPassEncoderBeginOcclusionQuery(GfxRenderPassEncoder, GfxQuerySet, uint32_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult renderPassEncoderEndOcclusionQuery(GfxRenderPassEncoder) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult renderPassEncoderExecuteBundles(GfxRenderPassEncoder, const GfxCommandEncoder*, uint32_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult computePassEncoderSetPipeline(GfxComputePassEncoder, GfxComputePipeline) const override { return GFX_RESULT_SUCCESS; }
     GfxResult computePassEncoderSetBindGroup(GfxComputePassEncoder, uint32_t, GfxBindGroup, const uint32_t*, uint32_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult computePassEncoderDispatch(GfxComputePassEncoder, uint32_t, uint32_t, uint32_t) const override { return GFX_RESULT_SUCCESS; }

@@ -131,6 +131,7 @@ public:
 
     // CommandEncoder functions
     GfxResult deviceCreateCommandEncoder(GfxDevice device, const GfxCommandEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder) const override;
+    GfxResult deviceCreateRenderBundleCommandEncoder(GfxDevice device, const GfxRenderBundleEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder) const override;
     GfxResult commandEncoderDestroy(GfxCommandEncoder commandEncoder) const override;
     GfxResult commandEncoderBeginRenderPass(GfxCommandEncoder commandEncoder, const GfxRenderPassBeginDescriptor* beginDescriptor, GfxRenderPassEncoder* outRenderPass) const override;
     GfxResult commandEncoderBeginComputePass(GfxCommandEncoder commandEncoder, const GfxComputePassBeginDescriptor* beginDescriptor, GfxComputePassEncoder* outComputePass) const override;
@@ -162,6 +163,7 @@ public:
     GfxResult renderPassEncoderBeginOcclusionQuery(GfxRenderPassEncoder renderPassEncoder, GfxQuerySet querySet, uint32_t queryIndex) const override;
     GfxResult renderPassEncoderEndOcclusionQuery(GfxRenderPassEncoder renderPassEncoder) const override;
     GfxResult renderPassEncoderEnd(GfxRenderPassEncoder renderPassEncoder) const override;
+    GfxResult renderPassEncoderExecuteBundles(GfxRenderPassEncoder renderPassEncoder, const GfxCommandEncoder* bundleEncoders, uint32_t bundleCount) const override;
 
     // ComputePassEncoder functions
     GfxResult computePassEncoderSetPipeline(GfxComputePassEncoder computePassEncoder, GfxComputePipeline pipeline) const override;

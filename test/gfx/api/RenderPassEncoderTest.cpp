@@ -165,6 +165,17 @@ TEST_P(GfxRenderPassEncoderTest, EndWithNullEncoder)
 }
 
 // ===========================================================================
+// ExecuteBundles NULL parameter validation tests
+// ===========================================================================
+
+TEST_P(GfxRenderPassEncoderTest, ExecuteBundlesWithNullEncoder)
+{
+    GfxCommandEncoder bundle = nullptr;
+    GfxResult result = gfxRenderPassEncoderExecuteBundles(nullptr, &bundle, 1);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+// ===========================================================================
 // Test Instantiation
 // ===========================================================================
 

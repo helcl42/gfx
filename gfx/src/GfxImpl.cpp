@@ -1027,6 +1027,27 @@ DESTROY_FUNC(Framebuffer, framebuffer)
 
 DEVICE_CREATE_FUNC(CommandEncoder, CommandEncoder)
 
+GfxResult gfxDeviceCreateRenderBundleCommandEncoder(GfxDevice device, const GfxRenderBundleEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder)
+{
+    if (!device || !outEncoder) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(device);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+
+    GfxBackend backendType = gfx::backend::BackendManager::instance().getBackendType(device);
+    GfxCommandEncoder nativeEncoder = nullptr;
+    GfxResult result = backend->deviceCreateRenderBundleCommandEncoder(device, descriptor, &nativeEncoder);
+    if (result != GFX_RESULT_SUCCESS) {
+        return result;
+    }
+
+    *outEncoder = gfx::backend::BackendManager::instance().wrap(backendType, nativeEncoder);
+    return GFX_RESULT_SUCCESS;
+}
+
 DESTROY_FUNC(CommandEncoder, commandEncoder)
 
 GfxResult gfxCommandEncoderBeginRenderPass(GfxCommandEncoder encoder, const GfxRenderPassBeginDescriptor* beginDescriptor, GfxRenderPassEncoder* outEncoder)
@@ -1387,6 +1408,18 @@ GfxResult gfxRenderPassEncoderEnd(GfxRenderPassEncoder encoder)
         return GFX_RESULT_ERROR_NOT_FOUND;
     }
     return backend->renderPassEncoderEnd(encoder);
+}
+
+GfxResult gfxRenderPassEncoderExecuteBundles(GfxRenderPassEncoder encoder, const GfxCommandEncoder* bundleEncoders, uint32_t bundleCount)
+{
+    if (!encoder) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(encoder);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->renderPassEncoderExecuteBundles(encoder, bundleEncoders, bundleCount);
 }
 
 // ============================================================================

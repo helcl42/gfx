@@ -1,4 +1,5 @@
 #include "RenderPassEncoder.h"
+#include "CommandEncoder.h"
 
 #include "../query/QuerySet.h"
 #include "../render/RenderPipeline.h"
@@ -170,6 +171,31 @@ void RenderPassEncoderImpl::endOcclusionQuery()
     GfxResult result = gfxRenderPassEncoderEndOcclusionQuery(m_handle);
     if (result != GFX_RESULT_SUCCESS) {
         throw std::runtime_error("Failed to end occlusion query");
+    }
+}
+
+void RenderPassEncoderImpl::executeBundles(const std::vector<std::shared_ptr<CommandEncoder>>& bundleEncoders)
+{
+    if (bundleEncoders.empty()) {
+        throw std::invalid_argument("Bundle encoders cannot be empty");
+    }
+
+    std::vector<GfxCommandEncoder> handles;
+    handles.reserve(bundleEncoders.size());
+    for (const auto& encoder : bundleEncoders) {
+        if (!encoder) {
+            throw std::invalid_argument("Bundle encoder cannot be null");
+        }
+        auto impl = std::dynamic_pointer_cast<CommandEncoderImpl>(encoder);
+        if (!impl) {
+            throw std::runtime_error("Invalid command encoder type");
+        }
+        handles.push_back(impl->getHandle());
+    }
+
+    GfxResult result = gfxRenderPassEncoderExecuteBundles(m_handle, handles.data(), static_cast<uint32_t>(handles.size()));
+    if (result != GFX_RESULT_SUCCESS) {
+        throw std::runtime_error("Failed to execute bundles");
     }
 }
 

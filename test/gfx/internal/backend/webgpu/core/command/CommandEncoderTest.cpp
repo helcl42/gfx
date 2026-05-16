@@ -59,34 +59,25 @@ TEST_F(WebGPUCommandEncoderTest, GetDevice_ReturnsCorrectDevice)
     EXPECT_EQ(encoder->getDevice(), device.get());
 }
 
-TEST_F(WebGPUCommandEncoderTest, IsFinished_InitiallyFalse)
+TEST_F(WebGPUCommandEncoderTest, End_ProducesCommandBuffer)
 {
     gfx::backend::webgpu::core::CommandEncoderCreateInfo createInfo{};
     auto encoder = std::make_unique<gfx::backend::webgpu::core::CommandEncoder>(device.get(), createInfo);
 
-    EXPECT_FALSE(encoder->isFinished());
+    encoder->end();
+    EXPECT_NE(encoder->commandBuffer(), nullptr);
+    EXPECT_EQ(encoder->handle(), nullptr);
 }
 
-TEST_F(WebGPUCommandEncoderTest, MarkFinished_SetsFinishedFlag)
+TEST_F(WebGPUCommandEncoderTest, Reset_WorksAfterRecording)
 {
     gfx::backend::webgpu::core::CommandEncoderCreateInfo createInfo{};
     auto encoder = std::make_unique<gfx::backend::webgpu::core::CommandEncoder>(device.get(), createInfo);
 
-    encoder->markFinished();
-    EXPECT_TRUE(encoder->isFinished());
-}
-
-TEST_F(WebGPUCommandEncoderTest, RecreateIfNeeded_RecreatesAfterFinished)
-{
-    gfx::backend::webgpu::core::CommandEncoderCreateInfo createInfo{};
-    auto encoder = std::make_unique<gfx::backend::webgpu::core::CommandEncoder>(device.get(), createInfo);
-
-    encoder->markFinished();
-    EXPECT_TRUE(encoder->isFinished());
-
-    bool recreated = encoder->recreateIfNeeded();
-    EXPECT_TRUE(recreated);
-    EXPECT_FALSE(encoder->isFinished());
+    encoder->end();
+    encoder->reset();
+    EXPECT_NE(encoder->handle(), nullptr);
+    EXPECT_EQ(encoder->commandBuffer(), nullptr);
 }
 
 TEST_F(WebGPUCommandEncoderTest, CopyBufferToBuffer_WorksCorrectly)
@@ -186,6 +177,40 @@ TEST_F(WebGPUCommandEncoderTest, MultipleCommandEncoders_CanCoexist)
     EXPECT_NE(encoder1->handle(), nullptr);
     EXPECT_NE(encoder2->handle(), nullptr);
     EXPECT_NE(encoder1->handle(), encoder2->handle());
+}
+
+// ============================================================================
+// Bundle Encoder Tests
+// ============================================================================
+
+TEST_F(WebGPUCommandEncoderTest, CreateBundleEncoder_CreatesSuccessfully)
+{
+    auto encoder = std::make_unique<gfx::backend::webgpu::core::CommandEncoder>(device.get());
+
+    EXPECT_TRUE(encoder->isBundleEncoder());
+    EXPECT_EQ(encoder->handle(), nullptr); // No WGPUCommandEncoder for bundle mode
+}
+
+TEST_F(WebGPUCommandEncoderTest, BundleEncoder_IsBundleEncoder_ReturnsTrue)
+{
+    auto encoder = std::make_unique<gfx::backend::webgpu::core::CommandEncoder>(device.get());
+
+    EXPECT_TRUE(encoder->isBundleEncoder());
+}
+
+TEST_F(WebGPUCommandEncoderTest, RegularEncoder_IsBundleEncoder_ReturnsFalse)
+{
+    gfx::backend::webgpu::core::CommandEncoderCreateInfo createInfo{};
+    auto encoder = std::make_unique<gfx::backend::webgpu::core::CommandEncoder>(device.get(), createInfo);
+
+    EXPECT_FALSE(encoder->isBundleEncoder());
+}
+
+TEST_F(WebGPUCommandEncoderTest, BundleEncoder_GetDevice_ReturnsCorrectDevice)
+{
+    auto encoder = std::make_unique<gfx::backend::webgpu::core::CommandEncoder>(device.get());
+
+    EXPECT_EQ(encoder->getDevice(), device.get());
 }
 
 } // anonymous namespace

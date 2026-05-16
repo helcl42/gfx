@@ -450,6 +450,39 @@ TEST_P(GfxCommandEncoderTest, PipelineBarrierEmpty)
 }
 
 // ===========================================================================
+// Render Bundle Command Encoder Tests
+// ===========================================================================
+
+TEST_P(GfxCommandEncoderTest, CreateRenderBundleCommandEncoderWithNullDevice)
+{
+    GfxCommandEncoder encoder = nullptr;
+    GfxRenderBundleEncoderDescriptor desc = {};
+    desc.sType = GFX_STRUCTURE_TYPE_RENDER_BUNDLE_ENCODER_DESCRIPTOR;
+    desc.label = "test_bundle_encoder";
+
+    GfxResult result = gfxDeviceCreateRenderBundleCommandEncoder(nullptr, &desc, &encoder);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_P(GfxCommandEncoderTest, CreateRenderBundleCommandEncoderWithNullDescriptor)
+{
+    GfxCommandEncoder encoder = nullptr;
+
+    GfxResult result = gfxDeviceCreateRenderBundleCommandEncoder(device, nullptr, &encoder);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_P(GfxCommandEncoderTest, CreateRenderBundleCommandEncoderWithNullOutput)
+{
+    GfxRenderBundleEncoderDescriptor desc = {};
+    desc.sType = GFX_STRUCTURE_TYPE_RENDER_BUNDLE_ENCODER_DESCRIPTOR;
+    desc.label = "test_bundle_encoder";
+
+    GfxResult result = gfxDeviceCreateRenderBundleCommandEncoder(device, &desc, nullptr);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+// ===========================================================================
 // Test Instantiation
 // ===========================================================================
 

@@ -17,6 +17,7 @@ public:
     RenderPassEncoder& operator=(const RenderPassEncoder&) = delete;
 
     RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass* renderPass, Framebuffer* framebuffer, const RenderPassEncoderBeginInfo& beginInfo);
+    RenderPassEncoder(CommandEncoder* bundleCommandEncoder);
     ~RenderPassEncoder();
 
     void setPipeline(WGPURenderPipeline pipeline);
@@ -35,12 +36,16 @@ public:
     void beginOcclusionQuery(WGPUQuerySet querySet, uint32_t queryIndex);
     void endOcclusionQuery();
 
+    void executeBundles(const WGPURenderBundle* bundles, uint32_t count);
+
     bool isOcclusionQuerySetCompatible(WGPUQuerySet querySet) const;
+    bool isBundleMode() const;
 
     WGPURenderPassEncoder handle() const;
 
 private:
     WGPURenderPassEncoder m_encoder = nullptr;
+    WGPURenderBundleEncoder m_bundleEncoder = nullptr;
     bool m_ended = false;
     WGPUQuerySet m_occlusionQuerySet = nullptr;
 };

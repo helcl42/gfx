@@ -894,6 +894,15 @@ void convertCommandEncoderDescriptor(const CommandEncoderDescriptor& descriptor,
     outDesc.label = descriptor.label.c_str();
 }
 
+void convertRenderBundleCommandEncoderDescriptor(const RenderBundleCommandEncoderDescriptor& descriptor, GfxRenderPass renderPassHandle, GfxRenderBundleEncoderDescriptor& outDesc)
+{
+    outDesc = {};
+    outDesc.sType = GFX_STRUCTURE_TYPE_RENDER_BUNDLE_ENCODER_DESCRIPTOR;
+    outDesc.pNext = NULL;
+    outDesc.label = descriptor.label.c_str();
+    outDesc.renderPass = renderPassHandle;
+}
+
 void convertFenceDescriptor(const FenceDescriptor& descriptor, GfxFenceDescriptor& outDesc)
 {
     outDesc = {};
@@ -1126,6 +1135,8 @@ void convertRenderPassBeginDescriptor(const RenderPassBeginDescriptor& descripto
         }
         outDesc.occlusionQuerySet = querySetImpl->getHandle();
     }
+
+    outDesc.bundleExecution = descriptor.bundleExecution;
 }
 
 void convertComputePassBeginDescriptor(const ComputePassBeginDescriptor& descriptor, GfxComputePassBeginDescriptor& outDesc)

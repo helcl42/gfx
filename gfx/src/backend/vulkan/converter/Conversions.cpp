@@ -1936,6 +1936,8 @@ core::RenderPassEncoderBeginInfo gfxRenderPassBeginDescriptorToBeginInfo(const G
         beginInfo.timestampQueryPool = querySet->handle();
     }
 
+    beginInfo.bundleExecution = descriptor->bundleExecution;
+
     return beginInfo;
 }
 

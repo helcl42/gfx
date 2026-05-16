@@ -343,6 +343,27 @@ std::shared_ptr<CommandEncoder> DeviceImpl::createCommandEncoder(const CommandEn
     return std::make_shared<CommandEncoderImpl>(encoder);
 }
 
+std::shared_ptr<CommandEncoder> DeviceImpl::createRenderBundleCommandEncoder(const RenderBundleCommandEncoderDescriptor& descriptor)
+{
+    if (!descriptor.renderPass) {
+        throw std::invalid_argument("Render pass cannot be null");
+    }
+    auto renderPassImpl = std::dynamic_pointer_cast<RenderPassImpl>(descriptor.renderPass);
+    if (!renderPassImpl) {
+        throw std::runtime_error("Invalid render pass type");
+    }
+
+    GfxRenderBundleEncoderDescriptor cDesc;
+    convertRenderBundleCommandEncoderDescriptor(descriptor, renderPassImpl->getHandle(), cDesc);
+
+    GfxCommandEncoder encoder = nullptr;
+    GfxResult result = gfxDeviceCreateRenderBundleCommandEncoder(m_handle, &cDesc, &encoder);
+    if (result != GFX_RESULT_SUCCESS || !encoder) {
+        throw std::runtime_error("Failed to create render bundle command encoder");
+    }
+    return std::make_shared<CommandEncoderImpl>(encoder);
+}
+
 std::shared_ptr<Fence> DeviceImpl::createFence(const FenceDescriptor& descriptor)
 {
     GfxFenceDescriptor cDesc;

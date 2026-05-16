@@ -268,6 +268,46 @@ TEST_P(CommandEncoderImplTest, BeginComputePass)
 }
 
 // ============================================================================
+// Render Bundle Command Encoder Tests
+// ============================================================================
+
+TEST_P(CommandEncoderImplTest, CreateRenderBundleCommandEncoder)
+{
+    DeviceImpl deviceWrapper(device);
+
+    RenderPassCreateDescriptor renderPassDesc{
+        .colorAttachments = { RenderPassColorAttachment{
+            .target = {
+                .format = Format::R8G8B8A8Unorm,
+                .sampleCount = SampleCount::Count1,
+                .ops = { LoadOp::Clear, StoreOp::Store },
+                .finalLayout = TextureLayout::ColorAttachment } } }
+    };
+    auto renderPass = deviceWrapper.createRenderPass(renderPassDesc);
+    ASSERT_NE(renderPass, nullptr);
+
+    RenderBundleCommandEncoderDescriptor bundleDesc{
+        .label = "Test Bundle Encoder",
+        .renderPass = renderPass
+    };
+
+    auto bundleEncoder = deviceWrapper.createRenderBundleCommandEncoder(bundleDesc);
+    EXPECT_NE(bundleEncoder, nullptr);
+}
+
+TEST_P(CommandEncoderImplTest, CreateRenderBundleCommandEncoder_NullRenderPass_Throws)
+{
+    DeviceImpl deviceWrapper(device);
+
+    RenderBundleCommandEncoderDescriptor bundleDesc{
+        .label = "Test Bundle Encoder",
+        .renderPass = nullptr
+    };
+
+    EXPECT_THROW(deviceWrapper.createRenderBundleCommandEncoder(bundleDesc), std::invalid_argument);
+}
+
+// ============================================================================
 // Null/Error Handling Tests - Skipped (test C API, not C++ implementation)
 // ============================================================================
 

@@ -414,6 +414,7 @@ struct RenderPassDepthStencilAttachment {
 struct RenderPassCreateInfo {
     std::vector<RenderPassColorAttachment> colorAttachments;
     std::optional<RenderPassDepthStencilAttachment> depthStencilAttachment;
+    uint32_t sampleCount = 1;
 };
 
 struct FramebufferCreateInfo {

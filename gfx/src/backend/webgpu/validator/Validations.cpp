@@ -914,6 +914,14 @@ GfxResult validateDeviceCreateCommandEncoder(GfxDevice device, const GfxCommandE
     return GFX_RESULT_SUCCESS;
 }
 
+GfxResult validateDeviceCreateRenderBundleCommandEncoder(GfxDevice device, const GfxRenderBundleEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder)
+{
+    if (!device || !descriptor || !outEncoder) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult validateDeviceCreateFence(GfxDevice device, const GfxFenceDescriptor* descriptor, GfxFence* outFence)
 {
     if (!device || !outFence) {
@@ -1615,6 +1623,14 @@ GfxResult validateRenderPassEncoderDrawIndexed(GfxRenderPassEncoder renderPassEn
 GfxResult validateRenderPassEncoderEnd(GfxRenderPassEncoder renderPassEncoder)
 {
     if (!renderPassEncoder) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult validateRenderPassEncoderExecuteBundles(GfxRenderPassEncoder renderPassEncoder, const GfxCommandEncoder* bundleEncoders, uint32_t bundleCount)
+{
+    if (!renderPassEncoder || !bundleEncoders || bundleCount == 0) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     return GFX_RESULT_SUCCESS;

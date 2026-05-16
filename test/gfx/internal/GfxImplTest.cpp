@@ -25,12 +25,14 @@ public:
 
     // Instance functions
     MOCK_METHOD(GfxResult, instanceDestroy, (GfxInstance), (const, override));
+    MOCK_METHOD(GfxResult, instanceGetNativeHandle, (GfxInstance, void**), (const, override));
     MOCK_METHOD(GfxResult, instanceRequestAdapter, (GfxInstance, const GfxAdapterDescriptor*, GfxAdapter*), (const, override));
     MOCK_METHOD(GfxResult, instanceEnumerateAdapters, (GfxInstance, uint32_t*, GfxAdapter*), (const, override));
     MOCK_METHOD(GfxResult, instanceCreateSurface, (GfxInstance, const GfxSurfaceDescriptor*, GfxSurface*), (const, override));
 
     // Adapter functions
     MOCK_METHOD(GfxResult, adapterCreateDevice, (GfxAdapter, const GfxDeviceDescriptor*, GfxDevice*), (const, override));
+    MOCK_METHOD(GfxResult, adapterGetNativeHandle, (GfxAdapter, void**), (const, override));
     MOCK_METHOD(GfxResult, adapterGetInfo, (GfxAdapter, GfxAdapterInfo*), (const, override));
     MOCK_METHOD(GfxResult, adapterGetLimits, (GfxAdapter, GfxDeviceLimits*), (const, override));
     MOCK_METHOD(GfxResult, adapterEnumerateQueueFamilies, (GfxAdapter, uint32_t*, GfxQueueFamilyProperties*), (const, override));
@@ -39,6 +41,7 @@ public:
 
     // Device functions
     MOCK_METHOD(GfxResult, deviceDestroy, (GfxDevice), (const, override));
+    MOCK_METHOD(GfxResult, deviceGetNativeHandle, (GfxDevice, void**), (const, override));
     MOCK_METHOD(GfxResult, deviceGetQueue, (GfxDevice, GfxQueue*), (const, override));
     MOCK_METHOD(GfxResult, deviceGetQueueByIndex, (GfxDevice, uint32_t, uint32_t, GfxQueue*), (const, override));
     MOCK_METHOD(GfxResult, deviceCreateSwapchain, (GfxDevice, const GfxSwapchainDescriptor*, GfxSwapchain*), (const, override));
@@ -53,6 +56,7 @@ public:
     MOCK_METHOD(GfxResult, deviceCreateRenderPipeline, (GfxDevice, const GfxRenderPipelineDescriptor*, GfxRenderPipeline*), (const, override));
     MOCK_METHOD(GfxResult, deviceCreateComputePipeline, (GfxDevice, const GfxComputePipelineDescriptor*, GfxComputePipeline*), (const, override));
     MOCK_METHOD(GfxResult, deviceCreateCommandEncoder, (GfxDevice, const GfxCommandEncoderDescriptor*, GfxCommandEncoder*), (const, override));
+    MOCK_METHOD(GfxResult, deviceCreateRenderBundleCommandEncoder, (GfxDevice, const GfxRenderBundleEncoderDescriptor*, GfxCommandEncoder*), (const, override));
     MOCK_METHOD(GfxResult, deviceCreateRenderPass, (GfxDevice, const GfxRenderPassDescriptor*, GfxRenderPass*), (const, override));
     MOCK_METHOD(GfxResult, deviceCreateFramebuffer, (GfxDevice, const GfxFramebufferDescriptor*, GfxFramebuffer*), (const, override));
     MOCK_METHOD(GfxResult, deviceCreateFence, (GfxDevice, const GfxFenceDescriptor*, GfxFence*), (const, override));
@@ -60,6 +64,7 @@ public:
     MOCK_METHOD(GfxResult, deviceCreateQuerySet, (GfxDevice, const GfxQuerySetDescriptor*, GfxQuerySet*), (const, override));
     MOCK_METHOD(GfxResult, deviceWaitIdle, (GfxDevice), (const, override));
     MOCK_METHOD(GfxResult, deviceGetLimits, (GfxDevice, GfxDeviceLimits*), (const, override));
+    MOCK_METHOD(GfxResult, deviceSupportsShaderFormat, (GfxDevice, GfxShaderSourceType, bool*), (const, override));
 
     // Surface functions
     MOCK_METHOD(GfxResult, surfaceDestroy, (GfxSurface), (const, override));
@@ -148,6 +153,7 @@ public:
     MOCK_METHOD(GfxResult, renderPassEncoderEnd, (GfxRenderPassEncoder), (const, override));
     MOCK_METHOD(GfxResult, renderPassEncoderBeginOcclusionQuery, (GfxRenderPassEncoder, GfxQuerySet, uint32_t), (const, override));
     MOCK_METHOD(GfxResult, renderPassEncoderEndOcclusionQuery, (GfxRenderPassEncoder), (const, override));
+    MOCK_METHOD(GfxResult, renderPassEncoderExecuteBundles, (GfxRenderPassEncoder, const GfxCommandEncoder*, uint32_t), (const, override));
 
     // ComputePassEncoder functions
     MOCK_METHOD(GfxResult, computePassEncoderSetPipeline, (GfxComputePassEncoder, GfxComputePipeline), (const, override));
@@ -158,6 +164,8 @@ public:
 
     // Queue functions
     MOCK_METHOD(GfxResult, queueSubmit, (GfxQueue, const GfxSubmitDescriptor*), (const, override));
+    MOCK_METHOD(GfxResult, queueGetInfo, (GfxQueue, GfxQueueInfo*), (const, override));
+    MOCK_METHOD(GfxResult, queueGetNativeHandle, (GfxQueue, void**), (const, override));
     MOCK_METHOD(GfxResult, queueWriteBuffer, (GfxQueue, GfxBuffer, uint64_t, const void*, uint64_t), (const, override));
     MOCK_METHOD(GfxResult, queueWriteTexture, (GfxQueue, GfxTexture, const GfxOrigin3D*, const GfxExtent3D*, uint32_t, uint32_t, const void*, uint64_t, GfxTextureLayout), (const, override));
     MOCK_METHOD(GfxResult, queueWaitIdle, (GfxQueue), (const, override));
@@ -1467,6 +1475,52 @@ TEST_F(GfxImplTest, SemaphoreGetValue_NullSemaphore_ReturnsError)
 {
     uint64_t value;
     ASSERT_EQ(gfxSemaphoreGetValue(nullptr, &value), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+// ============================================================================
+// Render Bundle Command Encoder Tests
+// ============================================================================
+
+TEST_F(GfxImplTest, DeviceCreateRenderBundleCommandEncoder_NullDevice_ReturnsError)
+{
+    GfxCommandEncoder encoder;
+    GfxRenderBundleEncoderDescriptor desc = {};
+    desc.sType = GFX_STRUCTURE_TYPE_RENDER_BUNDLE_ENCODER_DESCRIPTOR;
+    ASSERT_EQ(gfxDeviceCreateRenderBundleCommandEncoder(nullptr, &desc, &encoder), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_F(GfxImplTest, DeviceCreateRenderBundleCommandEncoder_NullOutput_ReturnsError)
+{
+    GfxRenderBundleEncoderDescriptor desc = {};
+    desc.sType = GFX_STRUCTURE_TYPE_RENDER_BUNDLE_ENCODER_DESCRIPTOR;
+    GfxDevice bogus = reinterpret_cast<GfxDevice>(0xDEADBEEF);
+    ASSERT_EQ(gfxDeviceCreateRenderBundleCommandEncoder(bogus, &desc, nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_F(GfxImplTest, DeviceCreateRenderBundleCommandEncoder_InvalidDevice_ReturnsError)
+{
+    GfxCommandEncoder encoder;
+    GfxRenderBundleEncoderDescriptor desc = {};
+    desc.sType = GFX_STRUCTURE_TYPE_RENDER_BUNDLE_ENCODER_DESCRIPTOR;
+    GfxDevice bogus = reinterpret_cast<GfxDevice>(0xDEADBEEF);
+    ASSERT_EQ(gfxDeviceCreateRenderBundleCommandEncoder(bogus, &desc, &encoder), GFX_RESULT_ERROR_NOT_FOUND);
+}
+
+// ============================================================================
+// RenderPassEncoder ExecuteBundles Tests
+// ============================================================================
+
+TEST_F(GfxImplTest, RenderPassEncoderExecuteBundles_NullEncoder_ReturnsError)
+{
+    GfxCommandEncoder bundle = nullptr;
+    ASSERT_EQ(gfxRenderPassEncoderExecuteBundles(nullptr, &bundle, 1), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_F(GfxImplTest, RenderPassEncoderExecuteBundles_InvalidEncoder_ReturnsError)
+{
+    GfxRenderPassEncoder bogus = reinterpret_cast<GfxRenderPassEncoder>(0xDEADBEEF);
+    GfxCommandEncoder bundle = nullptr;
+    ASSERT_EQ(gfxRenderPassEncoderExecuteBundles(bogus, &bundle, 1), GFX_RESULT_ERROR_NOT_FOUND);
 }
 
 } // namespace gfx::backend::test

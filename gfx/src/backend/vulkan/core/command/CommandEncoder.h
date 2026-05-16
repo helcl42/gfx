@@ -6,13 +6,14 @@
 namespace gfx::backend::vulkan::core {
 
 class Device;
+class RenderPass;
 
 class CommandEncoder {
 public:
     CommandEncoder(const CommandEncoder&) = delete;
     CommandEncoder& operator=(const CommandEncoder&) = delete;
 
-    CommandEncoder(Device* device);
+    CommandEncoder(Device* device, bool bundle = false);
     ~CommandEncoder();
 
     VkCommandBuffer handle() const;
@@ -21,7 +22,10 @@ public:
     VkPipelineLayout currentPipelineLayout() const;
     void setCurrentPipelineLayout(VkPipelineLayout layout);
 
+    bool isBundleEncoder() const;
+
     void begin();
+    void beginBundle(RenderPass* renderPass);
     void end();
     void reset();
 
@@ -38,9 +42,10 @@ public:
     void resolveQuerySet(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, VkBuffer buffer, uint64_t destinationOffset);
 
 private:
-    VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
-    VkCommandPool m_commandPool = VK_NULL_HANDLE;
     Device* m_device = nullptr;
+    VkCommandPool m_commandPool = VK_NULL_HANDLE;
+    VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
+    bool m_isBundleEncoder = false;
     bool m_isRecording = false;
     VkPipelineLayout m_currentPipelineLayout = VK_NULL_HANDLE;
 };
