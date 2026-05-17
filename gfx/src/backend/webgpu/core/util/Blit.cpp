@@ -281,7 +281,7 @@ void Blit::execute2D(WGPUCommandEncoder commandEncoder, WGPUTexture srcTexture, 
     srcViewDesc.dimension = WGPUTextureViewDimension_2D;
     srcViewDesc.baseMipLevel = srcMipLevel;
     srcViewDesc.mipLevelCount = 1;
-    srcViewDesc.baseArrayLayer = 0;
+    srcViewDesc.baseArrayLayer = srcOrigin.z;
     srcViewDesc.arrayLayerCount = 1;
     WGPUTextureView srcView = wgpuTextureCreateView(srcTexture, &srcViewDesc);
 
@@ -334,7 +334,7 @@ void Blit::execute2D(WGPUCommandEncoder commandEncoder, WGPUTexture srcTexture, 
     dstViewDesc.dimension = WGPUTextureViewDimension_2D;
     dstViewDesc.baseMipLevel = dstMipLevel;
     dstViewDesc.mipLevelCount = 1;
-    dstViewDesc.baseArrayLayer = 0;
+    dstViewDesc.baseArrayLayer = dstOrigin.z;
     dstViewDesc.arrayLayerCount = 1;
     WGPUTextureView dstView = wgpuTextureCreateView(dstTexture, &dstViewDesc);
 
