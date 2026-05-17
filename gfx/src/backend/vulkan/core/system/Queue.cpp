@@ -272,6 +272,12 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
 
     // Execute copy command
     CommandExecutor executor(this);
+    // Reset tracked layout to UNDEFINED before each subresource write — the single
+    // m_currentLayout may not reflect this subresource's actual layout (e.g., texture
+    // array layers uploaded sequentially). UNDEFINED is always valid as oldLayout since
+    // writeTexture overwrites the entire subresource contents.
+    texture->setLayout(VK_IMAGE_LAYOUT_UNDEFINED);
+
     executor.execute([&](VkCommandBuffer cmd) {
         // Transition image to transfer dst optimal
         texture->transitionLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevel, 1, arrayLayer, 1);
@@ -288,8 +294,7 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
         region.imageOffset = origin;
         region.imageExtent = extent;
 
-        vkCmdCopyBufferToImage(cmd, stagingBuffer, texture->handle(),
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        vkCmdCopyBufferToImage(cmd, stagingBuffer, texture->handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
         // Transition image to final layout
         texture->transitionLayout(cmd, finalLayout, mipLevel, 1, arrayLayer, 1);
