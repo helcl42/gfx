@@ -376,7 +376,9 @@
 // DLL Export/Import Macros for Windows
 // ============================================================================
 
-#if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(GFX_STATIC)
+#define GFX_API
+#elif defined(_WIN32) || defined(__CYGWIN__)
 #ifdef GFX_BUILDING_DLL
 // Building the DLL - export symbols
 #ifdef __GNUC__
