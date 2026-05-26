@@ -3,6 +3,7 @@
 #include "../system/Adapter.h"
 #include "../system/Instance.h"
 
+#include <algorithm>
 #include <stdexcept>
 
 namespace gfx::backend::vulkan::core {
@@ -202,9 +203,22 @@ std::vector<VkSurfaceFormatKHR> Surface::getSupportedFormats(Adapter* adapter) c
         return {};
     }
 
-    std::vector<VkSurfaceFormatKHR> formats(formatCount);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(adapter->handle(), m_surface, &formatCount, formats.data());
-    return formats;
+    std::vector<VkSurfaceFormatKHR> allFormats(formatCount);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(adapter->handle(), m_surface, &formatCount, allFormats.data());
+
+    std::vector<VkSurfaceFormatKHR> uniqueFormats;
+    uniqueFormats.reserve(allFormats.size());
+    for (const auto& sf : allFormats) {
+        if (sf.format == VK_FORMAT_UNDEFINED) {
+            continue;
+        }
+        auto it = std::find_if(uniqueFormats.begin(), uniqueFormats.end(),
+            [&](const VkSurfaceFormatKHR& existing) { return existing.format == sf.format; });
+        if (it == uniqueFormats.end()) {
+            uniqueFormats.push_back(sf);
+        }
+    }
+    return uniqueFormats;
 }
 
 std::vector<VkPresentModeKHR> Surface::getSupportedPresentModes(Adapter* adapter) const

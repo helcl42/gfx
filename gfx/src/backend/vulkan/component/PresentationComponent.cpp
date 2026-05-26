@@ -79,13 +79,23 @@ GfxResult PresentationComponent::surfaceEnumerateSupportedFormats(GfxSurface sur
     auto* surf = converter::toNative<core::Surface>(surface);
     auto* adap = converter::toNative<core::Adapter>(adapter);
     auto surfaceFormats = surf->getSupportedFormats(adap);
-    uint32_t count = static_cast<uint32_t>(surfaceFormats.size());
 
-    // Convert to GfxFormat
+    // Convert to GfxFormat, filtering out unmapped formats
+    std::vector<GfxFormat> gfxFormats;
+    gfxFormats.reserve(surfaceFormats.size());
+    for (const auto& sf : surfaceFormats) {
+        GfxFormat gfxFmt = converter::vkFormatToGfxFormat(sf.format);
+        if (gfxFmt != GFX_FORMAT_UNDEFINED) {
+            gfxFormats.push_back(gfxFmt);
+        }
+    }
+
+    uint32_t count = static_cast<uint32_t>(gfxFormats.size());
+
     if (formats) {
         uint32_t copyCount = std::min(count, *formatCount);
         for (uint32_t i = 0; i < copyCount; ++i) {
-            formats[i] = converter::vkFormatToGfxFormat(surfaceFormats[i].format);
+            formats[i] = gfxFormats[i];
         }
     }
 
