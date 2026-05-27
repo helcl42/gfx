@@ -82,9 +82,10 @@ gfx/
 
 ### Quick Start
 ```bash
-# Clone repository with submodules (Dawn WebGPU)
-git clone --recurse-submodules https://github.com/helcl42/gfx.git
+# Clone repository and initialize Dawn submodule (shallow)
+git clone https://github.com/helcl42/gfx.git
 cd gfx
+git submodule update --init --depth 1
 
 # Configure and build (Dawn dependencies auto-fetched on first build)
 cmake -B build
