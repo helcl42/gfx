@@ -1651,7 +1651,7 @@ core::RenderPipelineCreateInfo gfxDescriptorToRenderPipelineCreateInfo(const Gfx
     // Vertex state
     auto* vertShader = converter::toNative<core::Shader>(descriptor->vertex->module);
     createInfo.vertex.module = vertShader->handle();
-    createInfo.vertex.entryPoint = vertShader->entryPoint();
+    createInfo.vertex.entryPoint = (descriptor->vertex->entryPoint && descriptor->vertex->entryPoint[0] != '\0') ? descriptor->vertex->entryPoint : vertShader->entryPoint();
 
     for (uint32_t i = 0; i < descriptor->vertex->bufferCount; ++i) {
         const auto& bufferLayout = descriptor->vertex->buffers[i];
@@ -1679,7 +1679,7 @@ core::RenderPipelineCreateInfo gfxDescriptorToRenderPipelineCreateInfo(const Gfx
     if (descriptor->fragment) {
         auto* fragShader = converter::toNative<core::Shader>(descriptor->fragment->module);
         createInfo.fragment.module = fragShader->handle();
-        createInfo.fragment.entryPoint = fragShader->entryPoint();
+        createInfo.fragment.entryPoint = (descriptor->fragment->entryPoint && descriptor->fragment->entryPoint[0] != '\0') ? descriptor->fragment->entryPoint : fragShader->entryPoint();
 
         for (uint32_t i = 0; i < descriptor->fragment->targetCount; ++i) {
             const auto& target = descriptor->fragment->targets[i];
@@ -1756,7 +1756,7 @@ core::ComputePipelineCreateInfo gfxDescriptorToComputePipelineCreateInfo(const G
     // Compute shader
     auto* computeShader = converter::toNative<core::Shader>(descriptor->compute);
     createInfo.module = computeShader->handle();
-    createInfo.entryPoint = computeShader->entryPoint();
+    createInfo.entryPoint = (descriptor->entryPoint && descriptor->entryPoint[0] != '\0') ? descriptor->entryPoint : computeShader->entryPoint();
 
     return createInfo;
 }
