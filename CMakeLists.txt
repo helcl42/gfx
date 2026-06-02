@@ -475,7 +475,7 @@ if(BUILD_VULKAN_BACKEND)
 
     # VMA include directory
     if(VMA_INCLUDE_DIR)
-        target_include_directories(gfx PRIVATE ${VMA_INCLUDE_DIR})
+        target_include_directories(gfx PUBLIC ${VMA_INCLUDE_DIR})
     endif()
     
     # For iOS, MoltenVK requires additional frameworks
@@ -808,7 +808,7 @@ if(BUILD_TESTS AND NOT BUILD_FOR_WEB)
             target_link_libraries(gfx_objects PUBLIC ${Vulkan_LIBRARY})
             target_compile_definitions(gfx_objects PUBLIC GFX_ENABLE_VULKAN=1)
 if(VMA_INCLUDE_DIR)
-                target_include_directories(gfx_objects PRIVATE ${VMA_INCLUDE_DIR})
+                target_include_directories(gfx_objects PUBLIC ${VMA_INCLUDE_DIR})
             endif()
             if(BUILD_WEBGPU_BACKEND AND TARGET Vulkan::Headers)
                 target_link_libraries(gfx_objects PUBLIC Vulkan::Headers)
