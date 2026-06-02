@@ -6,11 +6,16 @@ namespace gfx::backend::vulkan::core {
 
 Allocator::Allocator(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device)
 {
+    VmaVulkanFunctions vulkanFunctions{};
+    vulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+    vulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+
     VmaAllocatorCreateInfo allocatorInfo{};
     allocatorInfo.instance = instance;
     allocatorInfo.physicalDevice = physicalDevice;
     allocatorInfo.device = device;
     allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_1;
+    allocatorInfo.pVulkanFunctions = &vulkanFunctions;
 
     VkResult result = vmaCreateAllocator(&allocatorInfo, &m_allocator);
     if (result != VK_SUCCESS) {
