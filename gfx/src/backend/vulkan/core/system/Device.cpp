@@ -1,7 +1,10 @@
 #include "Device.h"
 
 #include "Adapter.h"
+#include "Instance.h"
 #include "Queue.h"
+
+#include "../util/VmaAllocator.h"
 
 #include <gfx/gfx.h>
 
@@ -227,10 +230,21 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
 
         m_queues[key] = std::move(queue);
     }
+
+    // Create VMA allocator
+    m_allocator = std::make_unique<Allocator>(
+        m_adapter->getInstance()->handle(),
+        m_adapter->handle(),
+        m_device);
 }
 
 Device::~Device()
 {
+    // Destroy queues first (they may reference device)
+    m_queues.clear();
+    // Destroy VMA allocator before destroying the Vulkan device
+    m_allocator.reset();
+
     if (m_device != VK_NULL_HANDLE) {
         vkDestroyDevice(m_device, nullptr);
     }
@@ -261,6 +275,11 @@ Queue* Device::getQueueByIndex(uint32_t queueFamilyIndex, uint32_t queueIndex)
 Adapter* Device::getAdapter()
 {
     return m_adapter;
+}
+
+Allocator* Device::getAllocator()
+{
+    return m_allocator.get();
 }
 
 const VkPhysicalDeviceProperties& Device::getProperties() const

@@ -10,6 +10,7 @@
 #include "../sync/Semaphore.h"
 #include "../util/CommandExecutor.h"
 #include "../util/Utils.h"
+#include "../util/VmaAllocator.h"
 
 #include "common/Logger.h"
 
@@ -150,53 +151,22 @@ void Queue::writeBuffer(Buffer* buffer, uint64_t offset, const void* data, uint6
         memcpy(mapped, data, size);
         buffer->unmap();
     } else {
-        // Buffer is not host-visible (device-local), use staging buffer
-        VkDevice vkDevice = device();
+        // Buffer is not host-visible (device-local), use VMA staging buffer
+        Allocator* allocator = m_device->getAllocator();
 
-        // Create staging buffer
         VkBufferCreateInfo stagingInfo{};
         stagingInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         stagingInfo.size = size;
         stagingInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         stagingInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        VkBuffer stagingBuffer;
-        if (vkCreateBuffer(vkDevice, &stagingInfo, nullptr, &stagingBuffer) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create staging buffer for writeBuffer");
-        }
-
-        // Allocate staging buffer memory (host-visible)
-        VkMemoryRequirements memReq;
-        vkGetBufferMemoryRequirements(vkDevice, stagingBuffer, &memReq);
-
-        const VkPhysicalDeviceMemoryProperties& memProps = m_device->getAdapter()->getMemoryProperties();
-
-        VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        uint32_t memTypeIndex = findMemoryType(memProps, memReq.memoryTypeBits, flags);
-
-        if (memTypeIndex == UINT32_MAX) {
-            vkDestroyBuffer(vkDevice, stagingBuffer, nullptr);
-            throw std::runtime_error("Failed to find suitable memory type for staging buffer");
-        }
-
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memReq.size;
-        allocInfo.memoryTypeIndex = memTypeIndex;
-
-        VkDeviceMemory stagingMemory;
-        if (vkAllocateMemory(vkDevice, &allocInfo, nullptr, &stagingMemory) != VK_SUCCESS) {
-            vkDestroyBuffer(vkDevice, stagingBuffer, nullptr);
-            throw std::runtime_error("Failed to allocate staging buffer memory");
-        }
-
-        vkBindBufferMemory(vkDevice, stagingBuffer, stagingMemory, 0);
+        auto staging = allocator->createBuffer(stagingInfo, VMA_MEMORY_USAGE_CPU_ONLY,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         // Map and copy data to staging buffer
-        void* stagingMapped;
-        vkMapMemory(vkDevice, stagingMemory, 0, size, 0, &stagingMapped);
+        void* stagingMapped = allocator->mapMemory(staging.allocation);
         memcpy(stagingMapped, data, size);
-        vkUnmapMemory(vkDevice, stagingMemory);
+        allocator->unmapMemory(staging.allocation);
 
         // Execute copy command
         CommandExecutor executor(this);
@@ -205,12 +175,11 @@ void Queue::writeBuffer(Buffer* buffer, uint64_t offset, const void* data, uint6
             copyRegion.srcOffset = 0;
             copyRegion.dstOffset = offset;
             copyRegion.size = size;
-            vkCmdCopyBuffer(cmd, stagingBuffer, buffer->handle(), 1, &copyRegion);
+            vkCmdCopyBuffer(cmd, staging.buffer, buffer->handle(), 1, &copyRegion);
         });
 
         // Cleanup
-        vkFreeMemory(vkDevice, stagingMemory, nullptr);
-        vkDestroyBuffer(vkDevice, stagingBuffer, nullptr);
+        allocator->destroyBuffer(staging);
     }
 }
 
@@ -218,57 +187,27 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
     uint32_t arrayLayer, const void* data, uint64_t dataSize,
     const VkExtent3D& extent, VkImageLayout finalLayout)
 {
-    VkDevice device = texture->device();
+    Allocator* allocator = m_device->getAllocator();
 
-    // Create staging buffer
+    // Create staging buffer via VMA
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = dataSize;
     bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    VkBuffer stagingBuffer = VK_NULL_HANDLE;
-    VkResult result = vkCreateBuffer(device, &bufferInfo, nullptr, &stagingBuffer);
-    if (result != VK_SUCCESS) {
-        gfx::common::Logger::instance().logError("Failed to create staging buffer for texture upload");
-        return;
-    }
-
-    // Get memory requirements and allocate
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device, stagingBuffer, &memRequirements);
-
-    const VkPhysicalDeviceMemoryProperties& memProperties = m_device->getAdapter()->getMemoryProperties();
-
-    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    uint32_t memoryTypeIndex = findMemoryType(memProperties, memRequirements.memoryTypeBits, properties);
-
-    if (memoryTypeIndex == UINT32_MAX) {
-        gfx::common::Logger::instance().logError("Failed to find suitable memory type for staging buffer");
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        return;
-    }
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memoryTypeIndex;
-
-    VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
-    result = vkAllocateMemory(device, &allocInfo, nullptr, &stagingMemory);
-    if (result != VK_SUCCESS) {
-        gfx::common::Logger::instance().logError("Failed to allocate staging buffer memory");
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        return;
-    }
-
-    vkBindBufferMemory(device, stagingBuffer, stagingMemory, 0);
+    auto staging = allocator->createBuffer(bufferInfo, VMA_MEMORY_USAGE_CPU_ONLY,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     // Copy data to staging buffer
-    void* mappedData = nullptr;
-    vkMapMemory(device, stagingMemory, 0, dataSize, 0, &mappedData);
+    void* mappedData = allocator->mapMemory(staging.allocation);
+    if (!mappedData) {
+        gfx::common::Logger::instance().logError("Failed to map staging buffer for texture upload");
+        allocator->destroyBuffer(staging);
+        return;
+    }
     memcpy(mappedData, data, dataSize);
-    vkUnmapMemory(device, stagingMemory);
+    allocator->unmapMemory(staging.allocation);
 
     // Execute copy command
     CommandExecutor executor(this);
@@ -294,15 +233,14 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
         region.imageOffset = origin;
         region.imageExtent = extent;
 
-        vkCmdCopyBufferToImage(cmd, stagingBuffer, texture->handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        vkCmdCopyBufferToImage(cmd, staging.buffer, texture->handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
         // Transition image to final layout
         texture->transitionLayout(cmd, finalLayout, mipLevel, 1, arrayLayer, 1);
     });
 
     // Cleanup
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingMemory, nullptr);
+    allocator->destroyBuffer(staging);
 }
 
 } // namespace gfx::backend::vulkan::core

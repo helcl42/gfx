@@ -8,11 +8,32 @@
 
 namespace gfx::backend::vulkan::core {
 
-// Owning constructor - creates and manages VkBuffer and memory
+// Helper to convert GFX memory property flags to VMA usage
+static VmaMemoryUsage toVmaUsage(VkMemoryPropertyFlags memProps)
+{
+    if ((memProps & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) && !(memProps & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
+        return VMA_MEMORY_USAGE_GPU_ONLY;
+    }
+    if ((memProps & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) && (memProps & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+        // Could be staging (CPU to GPU) or readback (GPU to CPU)
+        if (memProps & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+            return VMA_MEMORY_USAGE_CPU_TO_GPU;
+        }
+        if (memProps & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) {
+            return VMA_MEMORY_USAGE_GPU_TO_CPU;
+        }
+        return VMA_MEMORY_USAGE_CPU_TO_GPU;
+    }
+    if (memProps & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+        return VMA_MEMORY_USAGE_CPU_ONLY;
+    }
+    return VMA_MEMORY_USAGE_AUTO;
+}
+
+// Owning constructor - creates and manages VkBuffer via VMA
 Buffer::Buffer(Device* device, const BufferCreateInfo& createInfo)
     : m_device(device)
     , m_ownsResources(true)
-    , m_memory(VK_NULL_HANDLE)
     , m_info(createBufferInfo(createInfo))
 {
     VkBufferCreateInfo bufferInfo{};
@@ -21,39 +42,10 @@ Buffer::Buffer(Device* device, const BufferCreateInfo& createInfo)
     bufferInfo.usage = m_info.usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    VkResult result = vkCreateBuffer(m_device->handle(), &bufferInfo, nullptr, &m_buffer);
-    if (result != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create buffer");
-    }
-
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_device->handle(), m_buffer, &memRequirements);
-
-    // Find memory type
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_device->getAdapter()->handle(), &memProperties);
-
-    // Memory properties must be explicitly provided (validated at API level)
-    VkMemoryPropertyFlags desiredProperties = createInfo.memoryProperties;
-    uint32_t memoryTypeIndex = findMemoryType(memProperties, memRequirements.memoryTypeBits, desiredProperties);
-
-    if (memoryTypeIndex == UINT32_MAX) {
-        vkDestroyBuffer(m_device->handle(), m_buffer, nullptr);
-        throw std::runtime_error("Failed to find suitable memory type");
-    }
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memoryTypeIndex;
-
-    result = vkAllocateMemory(m_device->handle(), &allocInfo, nullptr, &m_memory);
-    if (result != VK_SUCCESS) {
-        vkDestroyBuffer(m_device->handle(), m_buffer, nullptr);
-        throw std::runtime_error("Failed to allocate buffer memory");
-    }
-
-    vkBindBufferMemory(m_device->handle(), m_buffer, m_memory, 0);
+    VmaMemoryUsage vmaUsage = toVmaUsage(createInfo.memoryProperties);
+    auto alloc = m_device->getAllocator()->createBuffer(bufferInfo, vmaUsage, createInfo.memoryProperties);
+    m_buffer = alloc.buffer;
+    m_allocation = alloc.allocation;
 }
 
 // Non-owning constructor - wraps an existing VkBuffer
@@ -61,20 +53,16 @@ Buffer::Buffer(Device* device, VkBuffer buffer, const BufferImportInfo& importIn
     : m_device(device)
     , m_ownsResources(false)
     , m_buffer(buffer)
-    , m_memory(VK_NULL_HANDLE)
+    , m_allocation(VK_NULL_HANDLE)
     , m_info(createBufferInfo(importInfo))
 {
 }
 
 Buffer::~Buffer()
 {
-    if (m_ownsResources) {
-        if (m_memory != VK_NULL_HANDLE) {
-            vkFreeMemory(m_device->handle(), m_memory, nullptr);
-        }
-        if (m_buffer != VK_NULL_HANDLE) {
-            vkDestroyBuffer(m_device->handle(), m_buffer, nullptr);
-        }
+    if (m_ownsResources && m_buffer != VK_NULL_HANDLE) {
+        Allocator::BufferAllocation alloc{ m_buffer, m_allocation };
+        m_device->getAllocator()->destroyBuffer(alloc);
     }
 }
 
@@ -97,12 +85,11 @@ void* Buffer::map(uint64_t offset, uint64_t size)
         return nullptr;
     }
 
-    void* data;
-    VkResult result = vkMapMemory(m_device->handle(), m_memory, offset, mapSize, 0, &data);
-    if (result != VK_SUCCESS) {
+    void* data = m_device->getAllocator()->mapMemory(m_allocation);
+    if (!data) {
         return nullptr;
     }
-    return data;
+    return static_cast<char*>(data) + offset;
 }
 
 void Buffer::unmap()
@@ -111,7 +98,7 @@ void Buffer::unmap()
         return;
     }
 
-    vkUnmapMemory(m_device->handle(), m_memory);
+    m_device->getAllocator()->unmapMemory(m_allocation);
     m_asyncMappedPointer = nullptr;
     m_asyncMapped = false;
 }
@@ -150,13 +137,7 @@ void Buffer::flushMappedRange(uint64_t offset, uint64_t size)
         return; // Not host-visible, cannot flush
     }
 
-    VkMappedMemoryRange range{};
-    range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    range.memory = m_memory;
-    range.offset = offset;
-    range.size = size;
-
-    vkFlushMappedMemoryRanges(m_device->handle(), 1, &range);
+    m_device->getAllocator()->flushAllocation(m_allocation, offset, size);
 }
 
 void Buffer::invalidateMappedRange(uint64_t offset, uint64_t size)
@@ -170,13 +151,7 @@ void Buffer::invalidateMappedRange(uint64_t offset, uint64_t size)
         return; // Not host-visible, cannot invalidate
     }
 
-    VkMappedMemoryRange range{};
-    range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    range.memory = m_memory;
-    range.offset = offset;
-    range.size = size;
-
-    vkInvalidateMappedMemoryRanges(m_device->handle(), 1, &range);
+    m_device->getAllocator()->invalidateAllocation(m_allocation, offset, size);
 }
 
 VkBuffer Buffer::handle() const

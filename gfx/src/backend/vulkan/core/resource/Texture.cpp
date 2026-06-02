@@ -9,7 +9,7 @@
 
 namespace gfx::backend::vulkan::core {
 
-// Owning constructor - creates and manages VkImage and memory
+// Owning constructor - creates and manages VkImage via VMA
 Texture::Texture(Device* device, const TextureCreateInfo& createInfo)
     : m_device(device)
     , m_ownsResources(true)
@@ -30,31 +30,9 @@ Texture::Texture(Device* device, const TextureCreateInfo& createInfo)
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.samples = m_info.sampleCount;
 
-    VkResult result = vkCreateImage(m_device->handle(), &imageInfo, nullptr, &m_image);
-    if (result != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create image");
-    }
-
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(m_device->handle(), m_image, &memRequirements);
-
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_device->getAdapter()->handle(), &memProperties);
-
-    uint32_t memoryTypeIndex = findMemoryType(memProperties, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memoryTypeIndex;
-
-    result = vkAllocateMemory(m_device->handle(), &allocInfo, nullptr, &m_memory);
-    if (result != VK_SUCCESS) {
-        vkDestroyImage(m_device->handle(), m_image, nullptr);
-        throw std::runtime_error("Failed to allocate image memory");
-    }
-
-    vkBindImageMemory(m_device->handle(), m_image, m_memory, 0);
+    auto alloc = m_device->getAllocator()->createImage(imageInfo, VMA_MEMORY_USAGE_GPU_ONLY, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    m_image = alloc.image;
+    m_allocation = alloc.allocation;
 }
 
 // Non-owning constructor - wraps an existing VkImage (e.g., from swapchain)
@@ -77,13 +55,9 @@ Texture::Texture(Device* device, VkImage image, const TextureImportInfo& importI
 
 Texture::~Texture()
 {
-    if (m_ownsResources) {
-        if (m_memory != VK_NULL_HANDLE) {
-            vkFreeMemory(m_device->handle(), m_memory, nullptr);
-        }
-        if (m_image != VK_NULL_HANDLE) {
-            vkDestroyImage(m_device->handle(), m_image, nullptr);
-        }
+    if (m_ownsResources && m_image != VK_NULL_HANDLE) {
+        Allocator::ImageAllocation alloc{ m_image, m_allocation };
+        m_device->getAllocator()->destroyImage(alloc);
     }
 }
 

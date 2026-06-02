@@ -9,6 +9,7 @@
 namespace gfx::backend::vulkan::core {
 
 class Adapter;
+class Allocator;
 class Queue;
 
 class Device {
@@ -25,6 +26,7 @@ public:
     Queue* getQueue();
     Queue* getQueueByIndex(uint32_t queueFamilyIndex, uint32_t queueIndex);
     Adapter* getAdapter();
+    Allocator* getAllocator();
     const VkPhysicalDeviceProperties& getProperties() const;
 
     bool supportsShaderFormat(ShaderSourceType format) const;
@@ -41,6 +43,7 @@ private:
     VkDevice m_device = VK_NULL_HANDLE;
     Adapter* m_adapter = nullptr; // Non-owning pointer
     bool m_timestampQueryEnabled = false;
+    std::unique_ptr<Allocator> m_allocator;
 
     // Map of (queueFamilyIndex << 16 | queueIndex) -> Queue
     std::unordered_map<uint64_t, std::unique_ptr<Queue>> m_queues;

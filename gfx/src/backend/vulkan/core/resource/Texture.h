@@ -2,6 +2,7 @@
 #define GFX_VULKAN_TEXTURE_H
 
 #include "../CoreTypes.h"
+#include "../util/VmaAllocator.h"
 
 namespace gfx::backend::vulkan::core {
 
@@ -48,7 +49,7 @@ private:
     bool m_ownsResources = true;
     TextureInfo m_info{};
     VkImage m_image = VK_NULL_HANDLE;
-    VkDeviceMemory m_memory = VK_NULL_HANDLE;
+    VmaAllocation m_allocation = VK_NULL_HANDLE;
     VkImageLayout m_currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 };
 

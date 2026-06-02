@@ -2,6 +2,7 @@
 #define GFX_VULKAN_BUFFER_H
 
 #include "../CoreTypes.h"
+#include "../util/VmaAllocator.h"
 
 namespace gfx::backend::vulkan::core {
 
@@ -38,7 +39,7 @@ private:
     Device* m_device = nullptr;
     bool m_ownsResources = true;
     VkBuffer m_buffer = VK_NULL_HANDLE;
-    VkDeviceMemory m_memory = VK_NULL_HANDLE;
+    VmaAllocation m_allocation = VK_NULL_HANDLE;
     BufferInfo m_info{};
     void* m_asyncMappedPointer = nullptr;
     bool m_asyncMapped = false;

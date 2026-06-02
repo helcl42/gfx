@@ -289,6 +289,20 @@ if(BUILD_WEBGPU_BACKEND)
     endif()
 endif()
 
+# Vulkan Memory Allocator (VMA) - header-only library for efficient GPU memory management
+if(BUILD_VULKAN_BACKEND AND NOT BUILD_FOR_WEB)
+    include(FetchContent)
+    FetchContent_Declare(
+        VulkanMemoryAllocator
+        GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+        GIT_TAG v3.3.0
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(VulkanMemoryAllocator)
+    set(VMA_INCLUDE_DIR "${vulkanmemoryallocator_SOURCE_DIR}/include")
+    message(STATUS "VMA include dir: ${VMA_INCLUDE_DIR}")
+endif()
+
 # Google Test
 if(BUILD_TESTS)
     if(BUILD_WEBGPU_BACKEND AND WEBGPU_FOUND)
@@ -372,6 +386,8 @@ if(BUILD_VULKAN_BACKEND)
         # Util
         gfx/src/backend/vulkan/core/util/CommandExecutor.cpp
         gfx/src/backend/vulkan/core/util/Utils.cpp
+gfx/src/backend/vulkan/core/util/VmaImpl.cpp
+        gfx/src/backend/vulkan/core/util/VmaAllocator.cpp
     )
 endif()
 
@@ -454,6 +470,11 @@ target_include_directories(gfx
 if(BUILD_VULKAN_BACKEND)
     target_link_libraries(gfx PUBLIC ${Vulkan_LIBRARY})
     target_compile_definitions(gfx PUBLIC GFX_ENABLE_VULKAN=1)
+
+    # VMA include directory
+    if(VMA_INCLUDE_DIR)
+        target_include_directories(gfx PRIVATE ${VMA_INCLUDE_DIR})
+    endif()
     
     # For iOS, MoltenVK requires additional frameworks
     if(IOS)
