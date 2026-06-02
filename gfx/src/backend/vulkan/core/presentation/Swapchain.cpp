@@ -83,7 +83,22 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
     vkCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     vkCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     vkCreateInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+
+    // Choose a supported composite alpha mode (prefer opaque, fall back to first available)
+    const VkCompositeAlphaFlagBitsKHR preferredAlphaModes[] = {
+        VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+        VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+        VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+    };
     vkCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    for (const auto alphaMode : preferredAlphaModes) {
+        if (capabilities.supportedCompositeAlpha & alphaMode) {
+            vkCreateInfo.compositeAlpha = alphaMode;
+            break;
+        }
+    }
+
     vkCreateInfo.presentMode = m_info.presentMode;
     vkCreateInfo.clipped = VK_TRUE;
 
