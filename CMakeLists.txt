@@ -388,7 +388,7 @@ if(BUILD_VULKAN_BACKEND)
         # Util
         gfx/src/backend/vulkan/core/util/CommandExecutor.cpp
         gfx/src/backend/vulkan/core/util/Utils.cpp
-gfx/src/backend/vulkan/core/util/VmaImpl.cpp
+        gfx/src/backend/vulkan/core/util/VmaImpl.cpp
         gfx/src/backend/vulkan/core/util/VmaAllocator.cpp
     )
 endif()
