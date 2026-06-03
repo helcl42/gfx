@@ -73,17 +73,14 @@ function(compile_wgsl_shader target shader_source)
     get_filename_component(shader_ext ${shader_source} EXT)
     # Remove .wgsl extension and add .spv
     string(REGEX REPLACE "\\.wgsl$" "" shader_base "${shader_name}${shader_ext}")
-    # Make output path unique per input file by using full source path hash or relative path
-    file(RELATIVE_PATH shader_rel_path ${CMAKE_CURRENT_SOURCE_DIR} ${shader_source})
-    string(REPLACE "/" "_" shader_unique_name "${shader_rel_path}")
-    string(REGEX REPLACE "\\.wgsl$" "" shader_unique_base "${shader_unique_name}")
-    set(shader_output "${CMAKE_CURRENT_BINARY_DIR}/${shader_unique_base}.spv")
+    # Make output path unique per target to avoid collisions in parallel builds
+    set(shader_output "${CMAKE_CURRENT_BINARY_DIR}/${target}_${shader_base}.spv")
     
     add_custom_command(
         OUTPUT ${shader_output}
         COMMAND $<TARGET_FILE:tint_cmd_tint_cmd> ${shader_source} -o ${shader_output} --format spirv --entry-point main
         DEPENDS ${shader_source} tint_cmd_tint_cmd
-        COMMENT "Compiling WGSL shader: ${shader_name}${shader_ext} -> ${shader_unique_base}.spv"
+        COMMENT "Compiling WGSL shader: ${shader_base}.wgsl -> ${target}_${shader_base}.spv"
         VERBATIM
     )
     
@@ -358,10 +355,10 @@ else()
             ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/shaders/cube_textured.frag.wgsl
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.frag.wgsl
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/c_cube_shaders_cube_textured.vert.spv
+            ${CMAKE_CURRENT_BINARY_DIR}/cube_example_c_cube_textured.vert.spv
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.vert.spv
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/c_cube_shaders_cube_textured.frag.spv
+            ${CMAKE_CURRENT_BINARY_DIR}/cube_example_c_cube_textured.frag.spv
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.frag.spv
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/textures
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -394,10 +391,10 @@ else()
             ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/shaders/cube_textured.frag.wgsl
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.frag.wgsl
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/c_cube_shaders_cube_textured.vert.spv
+            ${CMAKE_CURRENT_BINARY_DIR}/cube_example_c_threaded_cube_textured.vert.spv
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.vert.spv
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/c_cube_shaders_cube_textured.frag.spv
+            ${CMAKE_CURRENT_BINARY_DIR}/cube_example_c_threaded_cube_textured.frag.spv
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.frag.spv
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/textures
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -429,10 +426,10 @@ else()
             ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/shaders/cube.frag.wgsl
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.frag.wgsl
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/cpp_cube_shaders_cube.vert.spv
+            ${CMAKE_CURRENT_BINARY_DIR}/cube_example_cpp_threaded_cube.vert.spv
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.vert.spv
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/cpp_cube_shaders_cube.frag.spv
+            ${CMAKE_CURRENT_BINARY_DIR}/cube_example_cpp_threaded_cube.frag.spv
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.frag.spv
         COMMENT "Copying WGSL and SPIR-V shaders for C++ threaded example"
     )
@@ -446,7 +443,7 @@ else()
             target_link_options(cube_example_cpp PRIVATE -fsanitize=address)
         endif()
         
-        # Compile WGSL shaders to SPIR-V for C++ wrapper example (uses its own simpler shaders)
+        # Compile WGSL shaders to SPIR-V for C++ wrapper example
         compile_wgsl_shader(cube_example_cpp ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/shaders/cube.vert.wgsl)
         compile_wgsl_shader(cube_example_cpp ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/shaders/cube.frag.wgsl)
         
@@ -460,10 +457,10 @@ else()
                 ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/shaders/cube.frag.wgsl
                 ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.frag.wgsl
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${CMAKE_CURRENT_BINARY_DIR}/cpp_cube_shaders_cube.vert.spv
+                ${CMAKE_CURRENT_BINARY_DIR}/cube_example_cpp_cube.vert.spv
                 ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.vert.spv
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${CMAKE_CURRENT_BINARY_DIR}/cpp_cube_shaders_cube.frag.spv
+                ${CMAKE_CURRENT_BINARY_DIR}/cube_example_cpp_cube.frag.spv
                 ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.frag.spv
             COMMENT "Copying WGSL and SPIR-V shaders for C++ wrapper example"
         )
@@ -494,13 +491,13 @@ else()
             ${CMAKE_CURRENT_SOURCE_DIR}/c/compute/shaders/postprocess.frag.wgsl
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/postprocess.frag.wgsl
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/c_compute_shaders_generate.comp.spv
+            ${CMAKE_CURRENT_BINARY_DIR}/compute_example_c_generate.comp.spv
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/generate.comp.spv
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/c_compute_shaders_fullscreen.vert.spv
+            ${CMAKE_CURRENT_BINARY_DIR}/compute_example_c_fullscreen.vert.spv
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/fullscreen.vert.spv
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/c_compute_shaders_postprocess.frag.spv
+            ${CMAKE_CURRENT_BINARY_DIR}/compute_example_c_postprocess.frag.spv
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/postprocess.frag.spv
         COMMENT "Copying WGSL and SPIR-V shaders"
     )
