@@ -32,6 +32,9 @@ uint32_t findMemoryType(const VkPhysicalDeviceMemoryProperties& memProperties, u
 // Convert VkResult to human-readable string
 const char* vkResultToString(VkResult result);
 
+// Get bytes per pixel for a given Vulkan format (uncompressed formats only)
+uint32_t getVkFormatBytesPerPixel(VkFormat format);
+
 } // namespace gfx::backend::vulkan::core
 
 #endif // GFX_VULKAN_CORE_UTILS_H

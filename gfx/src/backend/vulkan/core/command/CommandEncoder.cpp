@@ -246,19 +246,19 @@ void CommandEncoder::copyBufferToBuffer(Buffer* source, uint64_t sourceOffset, B
     vkCmdCopyBuffer(m_commandBuffer, source->handle(), destination->handle(), 1, &copyRegion);
 }
 
-void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, Texture* destination, VkOffset3D origin, VkExtent3D extent, uint32_t mipLevel, VkImageLayout finalLayout)
+void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, Texture* destination, VkOffset3D origin, VkExtent3D extent, uint32_t mipLevel, uint32_t arrayLayer, uint32_t bytesPerRow, VkImageLayout finalLayout)
 {
     // Transition image layout to transfer dst optimal
-    destination->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevel, 1, 0, 1);
+    destination->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevel, 1, arrayLayer, 1);
 
     // Copy buffer to image
     VkBufferImageCopy region{};
     region.bufferOffset = sourceOffset;
-    region.bufferRowLength = 0;
+    region.bufferRowLength = (bytesPerRow == 0) ? 0 : bytesPerRow / getVkFormatBytesPerPixel(destination->getFormat());
     region.bufferImageHeight = 0;
     region.imageSubresource.aspectMask = getImageAspectMask(destination->getFormat());
     region.imageSubresource.mipLevel = mipLevel;
-    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.baseArrayLayer = arrayLayer;
     region.imageSubresource.layerCount = 1;
     region.imageOffset = origin;
     region.imageExtent = extent;
@@ -266,22 +266,22 @@ void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, 
     vkCmdCopyBufferToImage(m_commandBuffer, source->handle(), destination->handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
     // Transition image layout to final layout
-    destination->transitionLayout(this, finalLayout, mipLevel, 1, 0, 1);
+    destination->transitionLayout(this, finalLayout, mipLevel, 1, arrayLayer, 1);
 }
 
-void CommandEncoder::copyTextureToBuffer(Texture* source, VkOffset3D origin, uint32_t mipLevel, Buffer* destination, uint64_t destinationOffset, VkExtent3D extent, VkImageLayout finalLayout)
+void CommandEncoder::copyTextureToBuffer(Texture* source, VkOffset3D origin, uint32_t mipLevel, uint32_t arrayLayer, Buffer* destination, uint64_t destinationOffset, VkExtent3D extent, uint32_t bytesPerRow, VkImageLayout finalLayout)
 {
     // Transition image layout to transfer src optimal
-    source->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevel, 1, 0, 1);
+    source->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevel, 1, arrayLayer, 1);
 
     // Copy image to buffer
     VkBufferImageCopy region{};
     region.bufferOffset = destinationOffset;
-    region.bufferRowLength = 0;
+    region.bufferRowLength = (bytesPerRow == 0) ? 0 : bytesPerRow / getVkFormatBytesPerPixel(source->getFormat());
     region.bufferImageHeight = 0;
     region.imageSubresource.aspectMask = getImageAspectMask(source->getFormat());
     region.imageSubresource.mipLevel = mipLevel;
-    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.baseArrayLayer = arrayLayer;
     region.imageSubresource.layerCount = 1;
     region.imageOffset = origin;
     region.imageExtent = extent;
@@ -289,39 +289,31 @@ void CommandEncoder::copyTextureToBuffer(Texture* source, VkOffset3D origin, uin
     vkCmdCopyImageToBuffer(m_commandBuffer, source->handle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination->handle(), 1, &region);
 
     // Transition image layout to final layout
-    source->transitionLayout(this, finalLayout, mipLevel, 1, 0, 1);
+    source->transitionLayout(this, finalLayout, mipLevel, 1, arrayLayer, 1);
 }
 
-void CommandEncoder::copyTextureToTexture(Texture* source, VkOffset3D sourceOrigin, uint32_t sourceMipLevel, VkImageLayout srcFinalLayout, Texture* destination, VkOffset3D destinationOrigin, uint32_t destinationMipLevel, VkImageLayout dstFinalLayout, VkExtent3D extent)
+void CommandEncoder::copyTextureToTexture(Texture* source, VkOffset3D sourceOrigin, uint32_t sourceMipLevel, uint32_t sourceArrayLayer, VkImageLayout srcFinalLayout, Texture* destination, VkOffset3D destinationOrigin, uint32_t destinationMipLevel, uint32_t destinationArrayLayer, VkImageLayout dstFinalLayout, VkExtent3D extent)
 {
-    // For 2D textures and arrays, extent.depth represents layer count
-    // For 3D textures, it represents actual depth
-    uint32_t layerCount = extent.depth;
-    uint32_t copyDepth = extent.depth;
-
     VkExtent3D srcSize = source->getSize();
     bool is3DTexture = (srcSize.depth > 1);
 
-    if (!is3DTexture) {
-        copyDepth = 1;
-    } else {
-        layerCount = 1;
-    }
+    uint32_t layerCount = is3DTexture ? 1 : extent.depth;
+    uint32_t copyDepth = is3DTexture ? extent.depth : 1;
 
     // Transition images to transfer layouts
-    source->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, sourceMipLevel, 1, sourceOrigin.z, layerCount);
-    destination->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, destinationMipLevel, 1, destinationOrigin.z, layerCount);
+    source->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, sourceMipLevel, 1, sourceArrayLayer, layerCount);
+    destination->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, destinationMipLevel, 1, destinationArrayLayer, layerCount);
 
     // Copy image to image
     VkImageCopy region{};
     region.srcSubresource.aspectMask = getImageAspectMask(source->getFormat());
     region.srcSubresource.mipLevel = sourceMipLevel;
-    region.srcSubresource.baseArrayLayer = is3DTexture ? 0 : sourceOrigin.z;
+    region.srcSubresource.baseArrayLayer = is3DTexture ? 0 : sourceArrayLayer;
     region.srcSubresource.layerCount = layerCount;
     region.srcOffset = { sourceOrigin.x, sourceOrigin.y, is3DTexture ? sourceOrigin.z : 0 };
     region.dstSubresource.aspectMask = getImageAspectMask(destination->getFormat());
     region.dstSubresource.mipLevel = destinationMipLevel;
-    region.dstSubresource.baseArrayLayer = is3DTexture ? 0 : destinationOrigin.z;
+    region.dstSubresource.baseArrayLayer = is3DTexture ? 0 : destinationArrayLayer;
     region.dstSubresource.layerCount = layerCount;
     region.dstOffset = { destinationOrigin.x, destinationOrigin.y, is3DTexture ? destinationOrigin.z : 0 };
     region.extent = { extent.width, extent.height, copyDepth };
@@ -329,43 +321,34 @@ void CommandEncoder::copyTextureToTexture(Texture* source, VkOffset3D sourceOrig
     vkCmdCopyImage(m_commandBuffer, source->handle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination->handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
     // Transition images to final layouts
-    source->transitionLayout(this, srcFinalLayout, sourceMipLevel, 1, sourceOrigin.z, layerCount);
-    destination->transitionLayout(this, dstFinalLayout, destinationMipLevel, 1, destinationOrigin.z, layerCount);
+    source->transitionLayout(this, srcFinalLayout, sourceMipLevel, 1, sourceArrayLayer, layerCount);
+    destination->transitionLayout(this, dstFinalLayout, destinationMipLevel, 1, destinationArrayLayer, layerCount);
 }
 
-void CommandEncoder::blitTextureToTexture(Texture* source, VkOffset3D sourceOrigin, VkExtent3D sourceExtent, uint32_t sourceMipLevel, VkImageLayout srcFinalLayout, Texture* destination, VkOffset3D destinationOrigin, VkExtent3D destinationExtent, uint32_t destinationMipLevel, VkImageLayout dstFinalLayout, VkFilter filter)
+void CommandEncoder::blitTextureToTexture(Texture* source, VkOffset3D sourceOrigin, VkExtent3D sourceExtent, uint32_t sourceMipLevel, uint32_t sourceArrayLayer, VkImageLayout srcFinalLayout, Texture* destination, VkOffset3D destinationOrigin, VkExtent3D destinationExtent, uint32_t destinationMipLevel, uint32_t destinationArrayLayer, VkImageLayout dstFinalLayout, VkFilter filter)
 {
-    // For 2D textures and arrays, extent.depth represents layer count
-    // For 3D textures, it represents actual depth
-    uint32_t layerCount = sourceExtent.depth;
-    uint32_t srcDepth = sourceExtent.depth;
-    uint32_t dstDepth = destinationExtent.depth;
-
     VkExtent3D srcSize = source->getSize();
     bool is3DTexture = (srcSize.depth > 1);
 
-    if (!is3DTexture) {
-        srcDepth = 1;
-        dstDepth = 1;
-    } else {
-        layerCount = 1;
-    }
+    uint32_t layerCount = is3DTexture ? 1 : sourceExtent.depth;
+    uint32_t srcDepth = is3DTexture ? sourceExtent.depth : 1;
+    uint32_t dstDepth = is3DTexture ? destinationExtent.depth : 1;
 
     // Transition images to transfer layouts
-    source->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, sourceMipLevel, 1, sourceOrigin.z, layerCount);
-    destination->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, destinationMipLevel, 1, destinationOrigin.z, layerCount);
+    source->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, sourceMipLevel, 1, sourceArrayLayer, layerCount);
+    destination->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, destinationMipLevel, 1, destinationArrayLayer, layerCount);
 
     // Blit image to image with scaling and filtering
     VkImageBlit region{};
     region.srcSubresource.aspectMask = getImageAspectMask(source->getFormat());
     region.srcSubresource.mipLevel = sourceMipLevel;
-    region.srcSubresource.baseArrayLayer = is3DTexture ? 0 : sourceOrigin.z;
+    region.srcSubresource.baseArrayLayer = is3DTexture ? 0 : sourceArrayLayer;
     region.srcSubresource.layerCount = layerCount;
     region.srcOffsets[0] = { sourceOrigin.x, sourceOrigin.y, is3DTexture ? sourceOrigin.z : 0 };
     region.srcOffsets[1] = { static_cast<int32_t>(sourceOrigin.x + sourceExtent.width), static_cast<int32_t>(sourceOrigin.y + sourceExtent.height), is3DTexture ? static_cast<int32_t>(sourceOrigin.z + srcDepth) : 1 };
     region.dstSubresource.aspectMask = getImageAspectMask(destination->getFormat());
     region.dstSubresource.mipLevel = destinationMipLevel;
-    region.dstSubresource.baseArrayLayer = is3DTexture ? 0 : destinationOrigin.z;
+    region.dstSubresource.baseArrayLayer = is3DTexture ? 0 : destinationArrayLayer;
     region.dstSubresource.layerCount = layerCount;
     region.dstOffsets[0] = { destinationOrigin.x, destinationOrigin.y, is3DTexture ? destinationOrigin.z : 0 };
     region.dstOffsets[1] = { static_cast<int32_t>(destinationOrigin.x + destinationExtent.width), static_cast<int32_t>(destinationOrigin.y + destinationExtent.height), is3DTexture ? static_cast<int32_t>(destinationOrigin.z + dstDepth) : 1 };
@@ -373,8 +356,8 @@ void CommandEncoder::blitTextureToTexture(Texture* source, VkOffset3D sourceOrig
     vkCmdBlitImage(m_commandBuffer, source->handle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination->handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, filter);
 
     // Transition images to final layouts
-    source->transitionLayout(this, srcFinalLayout, sourceMipLevel, 1, sourceOrigin.z, layerCount);
-    destination->transitionLayout(this, dstFinalLayout, destinationMipLevel, 1, destinationOrigin.z, layerCount);
+    source->transitionLayout(this, srcFinalLayout, sourceMipLevel, 1, sourceArrayLayer, layerCount);
+    destination->transitionLayout(this, dstFinalLayout, destinationMipLevel, 1, destinationArrayLayer, layerCount);
 }
 
 void CommandEncoder::writeTimestamp(VkQueryPool queryPool, uint32_t queryIndex)

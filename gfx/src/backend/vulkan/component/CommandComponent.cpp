@@ -133,7 +133,7 @@ GfxResult CommandComponent::commandEncoderCopyBufferToTexture(GfxCommandEncoder 
     VkExtent3D vkExtent = converter::gfxExtent3DToVkExtent3D(&descriptor->extent);
     VkImageLayout vkLayout = converter::gfxLayoutToVkImageLayout(descriptor->finalLayout);
 
-    enc->copyBufferToTexture(srcBuf, descriptor->sourceOffset, dstTex, vkOrigin, vkExtent, descriptor->mipLevel, vkLayout);
+    enc->copyBufferToTexture(srcBuf, descriptor->sourceOffset, dstTex, vkOrigin, vkExtent, descriptor->mipLevel, descriptor->arrayLayer, descriptor->bytesPerRow, vkLayout);
 
     return GFX_RESULT_SUCCESS;
 }
@@ -153,7 +153,7 @@ GfxResult CommandComponent::commandEncoderCopyTextureToBuffer(GfxCommandEncoder 
     VkExtent3D vkExtent = converter::gfxExtent3DToVkExtent3D(&descriptor->extent);
     VkImageLayout vkLayout = converter::gfxLayoutToVkImageLayout(descriptor->finalLayout);
 
-    enc->copyTextureToBuffer(srcTex, vkOrigin, descriptor->mipLevel, dstBuf, descriptor->destinationOffset, vkExtent, vkLayout);
+    enc->copyTextureToBuffer(srcTex, vkOrigin, descriptor->mipLevel, descriptor->arrayLayer, dstBuf, descriptor->destinationOffset, vkExtent, descriptor->bytesPerRow, vkLayout);
 
     return GFX_RESULT_SUCCESS;
 }
@@ -175,8 +175,8 @@ GfxResult CommandComponent::commandEncoderCopyTextureToTexture(GfxCommandEncoder
     VkImageLayout vkSrcLayout = converter::gfxLayoutToVkImageLayout(descriptor->sourceFinalLayout);
     VkImageLayout vkDstLayout = converter::gfxLayoutToVkImageLayout(descriptor->destinationFinalLayout);
 
-    enc->copyTextureToTexture(srcTex, vkSrcOrigin, descriptor->sourceMipLevel, vkSrcLayout,
-        dstTex, vkDstOrigin, descriptor->destinationMipLevel, vkDstLayout,
+    enc->copyTextureToTexture(srcTex, vkSrcOrigin, descriptor->sourceMipLevel, descriptor->sourceArrayLayer, vkSrcLayout,
+        dstTex, vkDstOrigin, descriptor->destinationMipLevel, descriptor->destinationArrayLayer, vkDstLayout,
         vkExtent);
     return GFX_RESULT_SUCCESS;
 }
@@ -200,8 +200,8 @@ GfxResult CommandComponent::commandEncoderBlitTextureToTexture(GfxCommandEncoder
     VkImageLayout vkSrcLayout = converter::gfxLayoutToVkImageLayout(descriptor->sourceFinalLayout);
     VkImageLayout vkDstLayout = converter::gfxLayoutToVkImageLayout(descriptor->destinationFinalLayout);
 
-    enc->blitTextureToTexture(srcTex, vkSrcOrigin, vkSrcExtent, descriptor->sourceMipLevel, vkSrcLayout,
-        dstTex, vkDstOrigin, vkDstExtent, descriptor->destinationMipLevel, vkDstLayout,
+    enc->blitTextureToTexture(srcTex, vkSrcOrigin, vkSrcExtent, descriptor->sourceMipLevel, descriptor->sourceArrayLayer, vkSrcLayout,
+        dstTex, vkDstOrigin, vkDstExtent, descriptor->destinationMipLevel, descriptor->destinationArrayLayer, vkDstLayout,
         vkFilter);
     return GFX_RESULT_SUCCESS;
 }

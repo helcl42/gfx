@@ -36,10 +36,10 @@ public:
 
     // Copy operations
     void copyBufferToBuffer(Buffer* source, uint64_t sourceOffset, Buffer* destination, uint64_t destinationOffset, uint64_t size);
-    void copyBufferToTexture(Buffer* source, uint64_t sourceOffset, Texture* destination, const WGPUOrigin3D& origin, const WGPUExtent3D& extent, uint32_t mipLevel);
-    void copyTextureToBuffer(Texture* source, const WGPUOrigin3D& origin, uint32_t mipLevel, Buffer* destination, uint64_t destinationOffset, const WGPUExtent3D& extent);
-    void copyTextureToTexture(Texture* source, const WGPUOrigin3D& sourceOrigin, uint32_t sourceMipLevel, Texture* destination, const WGPUOrigin3D& destinationOrigin, uint32_t destinationMipLevel, const WGPUExtent3D& extent);
-    void blitTextureToTexture(Texture* source, const WGPUOrigin3D& sourceOrigin, const WGPUExtent3D& sourceExtent, uint32_t sourceMipLevel, Texture* destination, const WGPUOrigin3D& destinationOrigin, const WGPUExtent3D& destinationExtent, uint32_t destinationMipLevel, WGPUFilterMode filter);
+    void copyBufferToTexture(Buffer* source, uint64_t sourceOffset, Texture* destination, const WGPUOrigin3D& origin, const WGPUExtent3D& extent, uint32_t mipLevel, uint32_t arrayLayer, uint32_t bytesPerRow);
+    void copyTextureToBuffer(Texture* source, const WGPUOrigin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, Buffer* destination, uint64_t destinationOffset, const WGPUExtent3D& extent, uint32_t bytesPerRow);
+    void copyTextureToTexture(Texture* source, const WGPUOrigin3D& sourceOrigin, uint32_t sourceMipLevel, uint32_t sourceArrayLayer, Texture* destination, const WGPUOrigin3D& destinationOrigin, uint32_t destinationMipLevel, uint32_t destinationArrayLayer, const WGPUExtent3D& extent);
+    void blitTextureToTexture(Texture* source, const WGPUOrigin3D& sourceOrigin, const WGPUExtent3D& sourceExtent, uint32_t sourceMipLevel, uint32_t sourceArrayLayer, Texture* destination, const WGPUOrigin3D& destinationOrigin, const WGPUExtent3D& destinationExtent, uint32_t destinationMipLevel, uint32_t destinationArrayLayer, WGPUFilterMode filter);
 
     // Query operations
     void writeTimestamp(WGPUQuerySet querySet, uint32_t queryIndex);

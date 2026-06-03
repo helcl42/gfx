@@ -189,71 +189,78 @@ void CommandEncoder::copyBufferToBuffer(Buffer* source, uint64_t sourceOffset, B
     wgpuCommandEncoderCopyBufferToBuffer(m_encoder, source->handle(), sourceOffset, destination->handle(), destinationOffset, size);
 }
 
-void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, Texture* destination, const WGPUOrigin3D& origin, const WGPUExtent3D& extent, uint32_t mipLevel)
+void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, Texture* destination, const WGPUOrigin3D& origin, const WGPUExtent3D& extent, uint32_t mipLevel, uint32_t arrayLayer, uint32_t bytesPerRow)
 {
-    uint32_t bytesPerRow = calculateBytesPerRow(destination->getFormat(), extent.width);
+    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? calculateBytesPerRow(destination->getFormat(), extent.width) : bytesPerRow;
 
     WGPUTexelCopyBufferInfo sourceInfo = WGPU_TEXEL_COPY_BUFFER_INFO_INIT;
     sourceInfo.buffer = source->handle();
     sourceInfo.layout.offset = sourceOffset;
-    sourceInfo.layout.bytesPerRow = bytesPerRow;
+    sourceInfo.layout.bytesPerRow = effectiveBytesPerRow;
 
     WGPUTexelCopyTextureInfo destInfo = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
     destInfo.texture = destination->handle();
     destInfo.mipLevel = mipLevel;
     destInfo.origin = origin;
+    destInfo.origin.z = arrayLayer;
 
     wgpuCommandEncoderCopyBufferToTexture(m_encoder, &sourceInfo, &destInfo, &extent);
 }
 
-void CommandEncoder::copyTextureToBuffer(Texture* source, const WGPUOrigin3D& origin, uint32_t mipLevel, Buffer* destination, uint64_t destinationOffset, const WGPUExtent3D& extent)
+void CommandEncoder::copyTextureToBuffer(Texture* source, const WGPUOrigin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, Buffer* destination, uint64_t destinationOffset, const WGPUExtent3D& extent, uint32_t bytesPerRow)
 {
-    uint32_t bytesPerRow = calculateBytesPerRow(source->getFormat(), extent.width);
+    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? calculateBytesPerRow(source->getFormat(), extent.width) : bytesPerRow;
 
     WGPUTexelCopyTextureInfo sourceInfo = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
     sourceInfo.texture = source->handle();
     sourceInfo.mipLevel = mipLevel;
     sourceInfo.origin = origin;
+    sourceInfo.origin.z = arrayLayer;
 
     WGPUTexelCopyBufferInfo destInfo = WGPU_TEXEL_COPY_BUFFER_INFO_INIT;
     destInfo.buffer = destination->handle();
     destInfo.layout.offset = destinationOffset;
-    destInfo.layout.bytesPerRow = bytesPerRow;
+    destInfo.layout.bytesPerRow = effectiveBytesPerRow;
 
     wgpuCommandEncoderCopyTextureToBuffer(m_encoder, &sourceInfo, &destInfo, &extent);
 }
 
-void CommandEncoder::copyTextureToTexture(Texture* source, const WGPUOrigin3D& sourceOrigin, uint32_t sourceMipLevel, Texture* destination, const WGPUOrigin3D& destinationOrigin, uint32_t destinationMipLevel, const WGPUExtent3D& extent)
+void CommandEncoder::copyTextureToTexture(Texture* source, const WGPUOrigin3D& sourceOrigin, uint32_t sourceMipLevel, uint32_t sourceArrayLayer, Texture* destination, const WGPUOrigin3D& destinationOrigin, uint32_t destinationMipLevel, uint32_t destinationArrayLayer, const WGPUExtent3D& extent)
 {
-    // For 2D textures and arrays, depth represents layer count
-    // For 3D textures, it represents actual depth
-    WGPUOrigin3D srcOrigin = sourceOrigin;
-    WGPUOrigin3D dstOrigin = destinationOrigin;
-    if (source->getDimension() != WGPUTextureDimension_3D) {
-        srcOrigin.z = 0;
-        dstOrigin.z = 0;
-    }
-
     WGPUTexelCopyTextureInfo sourceInfo = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
     sourceInfo.texture = source->handle();
     sourceInfo.mipLevel = sourceMipLevel;
-    sourceInfo.origin = srcOrigin;
+    sourceInfo.origin = sourceOrigin;
+    if (source->getDimension() != WGPUTextureDimension_3D) {
+        sourceInfo.origin.z = sourceArrayLayer;
+    }
 
     WGPUTexelCopyTextureInfo destInfo = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
     destInfo.texture = destination->handle();
     destInfo.mipLevel = destinationMipLevel;
-    destInfo.origin = dstOrigin;
+    destInfo.origin = destinationOrigin;
+    if (destination->getDimension() != WGPUTextureDimension_3D) {
+        destInfo.origin.z = destinationArrayLayer;
+    }
 
     wgpuCommandEncoderCopyTextureToTexture(m_encoder, &sourceInfo, &destInfo, &extent);
 }
 
-void CommandEncoder::blitTextureToTexture(Texture* source, const WGPUOrigin3D& sourceOrigin, const WGPUExtent3D& sourceExtent, uint32_t sourceMipLevel, Texture* destination, const WGPUOrigin3D& destinationOrigin, const WGPUExtent3D& destinationExtent, uint32_t destinationMipLevel, WGPUFilterMode filter)
+void CommandEncoder::blitTextureToTexture(Texture* source, const WGPUOrigin3D& sourceOrigin, const WGPUExtent3D& sourceExtent, uint32_t sourceMipLevel, uint32_t sourceArrayLayer, Texture* destination, const WGPUOrigin3D& destinationOrigin, const WGPUExtent3D& destinationExtent, uint32_t destinationMipLevel, uint32_t destinationArrayLayer, WGPUFilterMode filter)
 {
     // Get the Blit helper from the device
     Blit* blit = m_device->getBlit();
+
+    WGPUOrigin3D srcOrigin = sourceOrigin;
+    WGPUOrigin3D dstOrigin = destinationOrigin;
+    if (source->getDimension() != WGPUTextureDimension_3D) {
+        srcOrigin.z = sourceArrayLayer;
+        dstOrigin.z = destinationArrayLayer;
+    }
+
     blit->execute(m_encoder,
-        source->handle(), sourceOrigin, sourceExtent, sourceMipLevel,
-        destination->handle(), destinationOrigin, destinationExtent, destinationMipLevel,
+        source->handle(), srcOrigin, sourceExtent, sourceMipLevel,
+        destination->handle(), dstOrigin, destinationExtent, destinationMipLevel,
         filter);
 }
 

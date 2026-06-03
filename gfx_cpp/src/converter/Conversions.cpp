@@ -476,10 +476,12 @@ void convertCopyBufferToTextureDescriptor(const CopyBufferToTextureDescriptor& i
 
     output.source = srcImpl->getHandle();
     output.sourceOffset = input.sourceOffset;
+    output.bytesPerRow = input.bytesPerRow;
     output.destination = dstImpl->getHandle();
     output.origin = cppOrigin3DToCOrigin3D(input.origin);
     output.extent = cppExtent3DToCExtent3D(input.extent);
     output.mipLevel = input.mipLevel;
+    output.arrayLayer = input.arrayLayer;
     output.finalLayout = cppLayoutToCLayout(input.finalLayout);
 }
 
@@ -497,8 +499,10 @@ void convertCopyTextureToBufferDescriptor(const CopyTextureToBufferDescriptor& i
     output.source = srcImpl->getHandle();
     output.origin = cppOrigin3DToCOrigin3D(input.origin);
     output.mipLevel = input.mipLevel;
+    output.arrayLayer = input.arrayLayer;
     output.destination = dstImpl->getHandle();
     output.destinationOffset = input.destinationOffset;
+    output.bytesPerRow = input.bytesPerRow;
     output.extent = cppExtent3DToCExtent3D(input.extent);
     output.finalLayout = cppLayoutToCLayout(input.finalLayout);
 }
@@ -517,10 +521,12 @@ void convertCopyTextureToTextureDescriptor(const CopyTextureToTextureDescriptor&
     output.source = srcImpl->getHandle();
     output.sourceOrigin = cppOrigin3DToCOrigin3D(input.sourceOrigin);
     output.sourceMipLevel = input.sourceMipLevel;
+    output.sourceArrayLayer = input.sourceArrayLayer;
     output.sourceFinalLayout = cppLayoutToCLayout(input.sourceFinalLayout);
     output.destination = dstImpl->getHandle();
     output.destinationOrigin = cppOrigin3DToCOrigin3D(input.destinationOrigin);
     output.destinationMipLevel = input.destinationMipLevel;
+    output.destinationArrayLayer = input.destinationArrayLayer;
     output.destinationFinalLayout = cppLayoutToCLayout(input.destinationFinalLayout);
     output.extent = cppExtent3DToCExtent3D(input.extent);
 }
@@ -540,11 +546,13 @@ void convertBlitTextureToTextureDescriptor(const BlitTextureToTextureDescriptor&
     output.sourceOrigin = cppOrigin3DToCOrigin3D(input.sourceOrigin);
     output.sourceExtent = cppExtent3DToCExtent3D(input.sourceExtent);
     output.sourceMipLevel = input.sourceMipLevel;
+    output.sourceArrayLayer = input.sourceArrayLayer;
     output.sourceFinalLayout = cppLayoutToCLayout(input.sourceFinalLayout);
     output.destination = dstImpl->getHandle();
     output.destinationOrigin = cppOrigin3DToCOrigin3D(input.destinationOrigin);
     output.destinationExtent = cppExtent3DToCExtent3D(input.destinationExtent);
     output.destinationMipLevel = input.destinationMipLevel;
+    output.destinationArrayLayer = input.destinationArrayLayer;
     output.destinationFinalLayout = cppLayoutToCLayout(input.destinationFinalLayout);
     output.filter = cppFilterModeToCFilterMode(input.filter);
 }

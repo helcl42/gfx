@@ -59,7 +59,7 @@ void QueueImpl::writeBuffer(std::shared_ptr<Buffer> buffer, uint64_t offset, con
     gfxQueueWriteBuffer(m_handle, impl->getHandle(), offset, data, size);
 }
 
-void QueueImpl::writeTexture(std::shared_ptr<Texture> texture, const Origin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, const Extent3D& extent, TextureLayout finalLayout)
+void QueueImpl::writeTexture(std::shared_ptr<Texture> texture, const Origin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, const Extent3D& extent, uint32_t bytesPerRow, TextureLayout finalLayout)
 {
     auto impl = std::dynamic_pointer_cast<TextureImpl>(texture);
     if (!impl) {
@@ -68,7 +68,7 @@ void QueueImpl::writeTexture(std::shared_ptr<Texture> texture, const Origin3D& o
     GfxOrigin3D cOrigin = cppOrigin3DToCOrigin3D(origin);
     GfxExtent3D cExtent = cppExtent3DToCExtent3D(extent);
     GfxTextureLayout cFinalLayout = cppLayoutToCLayout(finalLayout);
-    gfxQueueWriteTexture(m_handle, impl->getHandle(), &cOrigin, &cExtent, mipLevel, arrayLayer, data, dataSize, cFinalLayout);
+    gfxQueueWriteTexture(m_handle, impl->getHandle(), &cOrigin, &cExtent, mipLevel, arrayLayer, data, dataSize, bytesPerRow, cFinalLayout);
 }
 
 void QueueImpl::waitIdle()

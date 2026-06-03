@@ -185,7 +185,7 @@ void Queue::writeBuffer(Buffer* buffer, uint64_t offset, const void* data, uint6
 
 void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mipLevel,
     uint32_t arrayLayer, const void* data, uint64_t dataSize,
-    const VkExtent3D& extent, VkImageLayout finalLayout)
+    const VkExtent3D& extent, uint32_t bytesPerRow, VkImageLayout finalLayout)
 {
     Allocator* allocator = m_device->getAllocator();
 
@@ -224,7 +224,7 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
         // Copy buffer to image
         VkBufferImageCopy region{};
         region.bufferOffset = 0;
-        region.bufferRowLength = 0; // Tightly packed
+        region.bufferRowLength = (bytesPerRow == 0) ? 0 : bytesPerRow / getVkFormatBytesPerPixel(texture->getFormat());
         region.bufferImageHeight = 0;
         region.imageSubresource.aspectMask = getImageAspectMask(texture->getFormat());
         region.imageSubresource.mipLevel = mipLevel;

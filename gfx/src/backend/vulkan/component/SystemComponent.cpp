@@ -383,7 +383,7 @@ GfxResult SystemComponent::queueWriteBuffer(GfxQueue queue, GfxBuffer buffer, ui
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult SystemComponent::queueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, GfxTextureLayout finalLayout) const
+GfxResult SystemComponent::queueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, uint32_t bytesPerRow, GfxTextureLayout finalLayout) const
 {
     GfxResult validationResult = validator::validateQueueWriteTexture(queue, texture, origin, extent, data);
     if (validationResult != GFX_RESULT_SUCCESS) {
@@ -397,7 +397,7 @@ GfxResult SystemComponent::queueWriteTexture(GfxQueue queue, GfxTexture texture,
     VkExtent3D vkExtent = converter::gfxExtent3DToVkExtent3D(extent);
     VkImageLayout vkLayout = converter::gfxLayoutToVkImageLayout(finalLayout);
 
-    q->writeTexture(tex, vkOrigin, mipLevel, arrayLayer, data, dataSize, vkExtent, vkLayout);
+    q->writeTexture(tex, vkOrigin, mipLevel, arrayLayer, data, dataSize, vkExtent, bytesPerRow, vkLayout);
 
     return GFX_RESULT_SUCCESS;
 }

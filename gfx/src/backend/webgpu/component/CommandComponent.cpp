@@ -132,7 +132,7 @@ GfxResult CommandComponent::commandEncoderCopyBufferToTexture(GfxCommandEncoder 
     WGPUOrigin3D wgpuOrigin = converter::gfxOrigin3DToWGPUOrigin3D(&descriptor->origin);
     WGPUExtent3D wgpuExtent = converter::gfxExtent3DToWGPUExtent3D(&descriptor->extent);
 
-    encoderPtr->copyBufferToTexture(srcPtr, descriptor->sourceOffset, dstPtr, wgpuOrigin, wgpuExtent, descriptor->mipLevel);
+    encoderPtr->copyBufferToTexture(srcPtr, descriptor->sourceOffset, dstPtr, wgpuOrigin, wgpuExtent, descriptor->mipLevel, descriptor->arrayLayer, descriptor->bytesPerRow);
 
     (void)descriptor->finalLayout; // WebGPU handles layout transitions automatically
     return GFX_RESULT_SUCCESS;
@@ -152,7 +152,7 @@ GfxResult CommandComponent::commandEncoderCopyTextureToBuffer(GfxCommandEncoder 
     WGPUOrigin3D wgpuOrigin = converter::gfxOrigin3DToWGPUOrigin3D(&descriptor->origin);
     WGPUExtent3D wgpuExtent = converter::gfxExtent3DToWGPUExtent3D(&descriptor->extent);
 
-    encoderPtr->copyTextureToBuffer(srcPtr, wgpuOrigin, descriptor->mipLevel, dstPtr, descriptor->destinationOffset, wgpuExtent);
+    encoderPtr->copyTextureToBuffer(srcPtr, wgpuOrigin, descriptor->mipLevel, descriptor->arrayLayer, dstPtr, descriptor->destinationOffset, wgpuExtent, descriptor->bytesPerRow);
 
     (void)descriptor->finalLayout; // WebGPU handles layout transitions automatically
     return GFX_RESULT_SUCCESS;
@@ -173,7 +173,7 @@ GfxResult CommandComponent::commandEncoderCopyTextureToTexture(GfxCommandEncoder
     WGPUOrigin3D wgpuDstOrigin = converter::gfxOrigin3DToWGPUOrigin3D(&descriptor->destinationOrigin);
     WGPUExtent3D wgpuExtent = converter::gfxExtent3DToWGPUExtent3D(&descriptor->extent);
 
-    encoderPtr->copyTextureToTexture(srcPtr, wgpuSrcOrigin, descriptor->sourceMipLevel, dstPtr, wgpuDstOrigin, descriptor->destinationMipLevel, wgpuExtent);
+    encoderPtr->copyTextureToTexture(srcPtr, wgpuSrcOrigin, descriptor->sourceMipLevel, descriptor->sourceArrayLayer, dstPtr, wgpuDstOrigin, descriptor->destinationMipLevel, descriptor->destinationArrayLayer, wgpuExtent);
 
     (void)descriptor->sourceFinalLayout; // WebGPU handles layout transitions automatically
     (void)descriptor->destinationFinalLayout;
@@ -197,7 +197,7 @@ GfxResult CommandComponent::commandEncoderBlitTextureToTexture(GfxCommandEncoder
     WGPUExtent3D wgpuDstExtent = converter::gfxExtent3DToWGPUExtent3D(&descriptor->destinationExtent);
     WGPUFilterMode wgpuFilter = converter::gfxFilterModeToWGPU(descriptor->filter);
 
-    encoder->blitTextureToTexture(srcTexture, wgpuSrcOrigin, wgpuSrcExtent, descriptor->sourceMipLevel, dstTexture, wgpuDstOrigin, wgpuDstExtent, descriptor->destinationMipLevel, wgpuFilter);
+    encoder->blitTextureToTexture(srcTexture, wgpuSrcOrigin, wgpuSrcExtent, descriptor->sourceMipLevel, descriptor->sourceArrayLayer, dstTexture, wgpuDstOrigin, wgpuDstExtent, descriptor->destinationMipLevel, descriptor->destinationArrayLayer, wgpuFilter);
 
     // WebGPU handles layout transitions automatically
     (void)descriptor->sourceFinalLayout;

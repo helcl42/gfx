@@ -95,7 +95,7 @@ public:
     GfxResult queueGetInfo(GfxQueue, GfxQueueInfo*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult queueGetNativeHandle(GfxQueue, void**) const override { return GFX_RESULT_SUCCESS; }
     GfxResult queueWriteBuffer(GfxQueue, GfxBuffer, uint64_t, const void*, uint64_t) const override { return GFX_RESULT_SUCCESS; }
-    GfxResult queueWriteTexture(GfxQueue, GfxTexture, const GfxOrigin3D*, const GfxExtent3D*, uint32_t, uint32_t, const void*, uint64_t, GfxTextureLayout) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult queueWriteTexture(GfxQueue, GfxTexture, const GfxOrigin3D*, const GfxExtent3D*, uint32_t, uint32_t, const void*, uint64_t, uint32_t, GfxTextureLayout) const override { return GFX_RESULT_SUCCESS; }
     GfxResult queueWaitIdle(GfxQueue) const override { return GFX_RESULT_SUCCESS; }
     GfxResult commandEncoderDestroy(GfxCommandEncoder) const override { return GFX_RESULT_SUCCESS; }
     GfxResult commandEncoderBeginRenderPass(GfxCommandEncoder, const GfxRenderPassBeginDescriptor*, GfxRenderPassEncoder*) const override { return GFX_RESULT_SUCCESS; }

@@ -197,7 +197,7 @@ TEST_F(VulkanCommandEncoderTest, CopyBufferToTexture_WorksCorrectly)
     encoder->begin();
     VkOffset3D origin = { 0, 0, 0 };
     VkExtent3D extent = { 256, 256, 1 };
-    EXPECT_NO_THROW(encoder->copyBufferToTexture(buffer.get(), 0, texture.get(), origin, extent, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL));
+    EXPECT_NO_THROW(encoder->copyBufferToTexture(buffer.get(), 0, texture.get(), origin, extent, 0, 0, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL));
     encoder->end();
 }
 
@@ -224,7 +224,7 @@ TEST_F(VulkanCommandEncoderTest, CopyTextureToBuffer_WorksCorrectly)
     encoder->begin();
     VkOffset3D origin = { 0, 0, 0 };
     VkExtent3D extent = { 256, 256, 1 };
-    EXPECT_NO_THROW(encoder->copyTextureToBuffer(texture.get(), origin, 0, buffer.get(), 0, extent, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL));
+    EXPECT_NO_THROW(encoder->copyTextureToBuffer(texture.get(), origin, 0, 0, buffer.get(), 0, extent, 0, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL));
     encoder->end();
 }
 
@@ -257,7 +257,7 @@ TEST_F(VulkanCommandEncoderTest, CopyTextureToTexture_WorksCorrectly)
     encoder->begin();
     VkOffset3D origin = { 0, 0, 0 };
     VkExtent3D extent = { 256, 256, 1 };
-    EXPECT_NO_THROW(encoder->copyTextureToTexture(srcTexture.get(), origin, 0, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstTexture.get(), origin, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, extent));
+    EXPECT_NO_THROW(encoder->copyTextureToTexture(srcTexture.get(), origin, 0, 0, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstTexture.get(), origin, 0, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, extent));
     encoder->end();
 }
 
@@ -291,7 +291,7 @@ TEST_F(VulkanCommandEncoderTest, BlitTextureToTexture_WorksCorrectly)
     VkOffset3D origin = { 0, 0, 0 };
     VkExtent3D srcExtent = { 256, 256, 1 };
     VkExtent3D dstExtent = { 128, 128, 1 };
-    EXPECT_NO_THROW(encoder->blitTextureToTexture(srcTexture.get(), origin, srcExtent, 0, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstTexture.get(), origin, dstExtent, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_FILTER_LINEAR));
+    EXPECT_NO_THROW(encoder->blitTextureToTexture(srcTexture.get(), origin, srcExtent, 0, 0, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstTexture.get(), origin, dstExtent, 0, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_FILTER_LINEAR));
     encoder->end();
 }
 

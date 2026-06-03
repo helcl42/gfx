@@ -1420,10 +1420,12 @@ struct CopyBufferToBufferDescriptor {
 struct CopyBufferToTextureDescriptor {
     std::shared_ptr<Buffer> source;
     uint64_t sourceOffset = 0;
+    uint32_t bytesPerRow = 0;
     std::shared_ptr<Texture> destination;
     Origin3D origin = {};
     Extent3D extent = {};
     uint32_t mipLevel = 0;
+    uint32_t arrayLayer = 0;
     TextureLayout finalLayout = TextureLayout::Undefined;
 };
 
@@ -1431,8 +1433,10 @@ struct CopyTextureToBufferDescriptor {
     std::shared_ptr<Texture> source;
     Origin3D origin = {};
     uint32_t mipLevel = 0;
+    uint32_t arrayLayer = 0;
     std::shared_ptr<Buffer> destination;
     uint64_t destinationOffset = 0;
+    uint32_t bytesPerRow = 0;
     Extent3D extent = {};
     TextureLayout finalLayout = TextureLayout::Undefined;
 };
@@ -1441,10 +1445,12 @@ struct CopyTextureToTextureDescriptor {
     std::shared_ptr<Texture> source;
     Origin3D sourceOrigin = {};
     uint32_t sourceMipLevel = 0;
+    uint32_t sourceArrayLayer = 0;
     TextureLayout sourceFinalLayout = TextureLayout::Undefined;
     std::shared_ptr<Texture> destination;
     Origin3D destinationOrigin = {};
     uint32_t destinationMipLevel = 0;
+    uint32_t destinationArrayLayer = 0;
     TextureLayout destinationFinalLayout = TextureLayout::Undefined;
     Extent3D extent = {};
 };
@@ -1454,11 +1460,13 @@ struct BlitTextureToTextureDescriptor {
     Origin3D sourceOrigin = {};
     Extent3D sourceExtent = {};
     uint32_t sourceMipLevel = 0;
+    uint32_t sourceArrayLayer = 0;
     TextureLayout sourceFinalLayout = TextureLayout::Undefined;
     std::shared_ptr<Texture> destination;
     Origin3D destinationOrigin = {};
     Extent3D destinationExtent = {};
     uint32_t destinationMipLevel = 0;
+    uint32_t destinationArrayLayer = 0;
     TextureLayout destinationFinalLayout = TextureLayout::Undefined;
     FilterMode filter = FilterMode::Nearest;
 };
@@ -1699,7 +1707,7 @@ public:
     virtual void* getNativeHandle() const = 0;
     virtual Result submit(const SubmitDescriptor& submitDescriptor) = 0;
     virtual void writeBuffer(std::shared_ptr<Buffer> buffer, uint64_t offset, const void* data, uint64_t size) = 0;
-    virtual void writeTexture(std::shared_ptr<Texture> texture, const Origin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, const Extent3D& extent, TextureLayout finalLayout) = 0;
+    virtual void writeTexture(std::shared_ptr<Texture> texture, const Origin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, const Extent3D& extent, uint32_t bytesPerRow, TextureLayout finalLayout) = 0;
     virtual void waitIdle() = 0;
 
     template <typename T>

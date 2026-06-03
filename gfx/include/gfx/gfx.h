@@ -1180,10 +1180,12 @@ typedef struct {
 typedef struct {
     GfxBuffer source;
     uint64_t sourceOffset;
+    uint32_t bytesPerRow;
     GfxTexture destination;
     GfxOrigin3D origin;
     GfxExtent3D extent;
     uint32_t mipLevel;
+    uint32_t arrayLayer;
     GfxTextureLayout finalLayout;
 } GfxCopyBufferToTextureDescriptor;
 
@@ -1191,8 +1193,10 @@ typedef struct {
     GfxTexture source;
     GfxOrigin3D origin;
     uint32_t mipLevel;
+    uint32_t arrayLayer;
     GfxBuffer destination;
     uint64_t destinationOffset;
+    uint32_t bytesPerRow;
     GfxExtent3D extent;
     GfxTextureLayout finalLayout;
 } GfxCopyTextureToBufferDescriptor;
@@ -1201,10 +1205,12 @@ typedef struct {
     GfxTexture source;
     GfxOrigin3D sourceOrigin;
     uint32_t sourceMipLevel;
+    uint32_t sourceArrayLayer;
     GfxTextureLayout sourceFinalLayout;
     GfxTexture destination;
     GfxOrigin3D destinationOrigin;
     uint32_t destinationMipLevel;
+    uint32_t destinationArrayLayer;
     GfxTextureLayout destinationFinalLayout;
     GfxExtent3D extent;
 } GfxCopyTextureToTextureDescriptor;
@@ -1214,11 +1220,13 @@ typedef struct {
     GfxOrigin3D sourceOrigin;
     GfxExtent3D sourceExtent;
     uint32_t sourceMipLevel;
+    uint32_t sourceArrayLayer;
     GfxTextureLayout sourceFinalLayout;
     GfxTexture destination;
     GfxOrigin3D destinationOrigin;
     GfxExtent3D destinationExtent;
     uint32_t destinationMipLevel;
+    uint32_t destinationArrayLayer;
     GfxTextureLayout destinationFinalLayout;
     GfxFilterMode filter;
 } GfxBlitTextureToTextureDescriptor;
@@ -1817,7 +1825,7 @@ GFX_API GfxResult gfxQueueSubmit(GfxQueue queue, const GfxSubmitDescriptor* subm
 GFX_API GfxResult gfxQueueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo);
 GFX_API GfxResult gfxQueueGetNativeHandle(GfxQueue queue, void** outHandle);
 GFX_API GfxResult gfxQueueWriteBuffer(GfxQueue queue, GfxBuffer buffer, uint64_t offset, const void* data, uint64_t size);
-GFX_API GfxResult gfxQueueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, GfxTextureLayout finalLayout);
+GFX_API GfxResult gfxQueueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, uint32_t bytesPerRow, GfxTextureLayout finalLayout);
 GFX_API GfxResult gfxQueueWaitIdle(GfxQueue queue);
 
 // Surface functions

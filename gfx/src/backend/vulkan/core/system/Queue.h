@@ -31,7 +31,7 @@ public:
     void writeBuffer(Buffer* buffer, uint64_t offset, const void* data, uint64_t size);
 
     // Write data directly to a texture using staging buffer
-    void writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, const VkExtent3D& extent, VkImageLayout finalLayout);
+    void writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, const VkExtent3D& extent, uint32_t bytesPerRow, VkImageLayout finalLayout);
 
 private:
     VkQueue m_queue = VK_NULL_HANDLE;
