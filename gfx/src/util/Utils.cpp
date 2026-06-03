@@ -194,6 +194,9 @@ void* getMetalLayerFromCocoaWindow(void* cocoaWindow)
     setContentsScale(metalLayer, sel_getUid("setContentsScale:"), scaleFactor);
 
     return (void*)metalLayer;
+#elif defined(GFX_HAS_UIKIT)
+    // On iOS/UIKit the caller already passes a CAMetalLayer directly
+    return cocoaWindow;
 #else
     (void)cocoaWindow;
     return nullptr;
