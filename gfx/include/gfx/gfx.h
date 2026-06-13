@@ -19,7 +19,7 @@
 // Helper macro to create version number for comparison (Vulkan-style bit packing)
 // Bits 31-22: major (10 bits, 0-1023), Bits 21-12: minor (10 bits, 0-1023), Bits 11-0: patch (12 bits, 0-4095)
 // Example: #if GFX_VERSION < GFX_MAKE_VERSION(1, 2, 0)
-#define GFX_MAKE_VERSION(major, minor, patch) (((major) << 22) | ((minor) << 12) | (patch))
+#define GFX_MAKE_VERSION(major, minor, patch) ((((major) + 0u) << 22) | (((minor) + 0u) << 12) | ((patch) + 0u))
 
 // Combined version number for comparison
 #define GFX_VERSION GFX_MAKE_VERSION(GFX_VERSION_MAJOR, GFX_VERSION_MINOR, GFX_VERSION_PATCH)
