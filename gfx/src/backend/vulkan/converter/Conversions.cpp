@@ -1779,13 +1779,13 @@ core::SubmitInfo gfxDescriptorToSubmitInfo(const GfxSubmitDescriptor* descriptor
 {
     core::SubmitInfo submitInfo{};
     // Note: Array pointer conversions use reinterpret_cast as toNative<> is for individual objects
-    submitInfo.commandEncoders = reinterpret_cast<core::CommandEncoder**>(descriptor->commandEncoders);
+    submitInfo.commandEncoders = reinterpret_cast<core::CommandEncoder* const*>(descriptor->commandEncoders);
     submitInfo.commandEncoderCount = descriptor->commandEncoderCount;
     submitInfo.signalFence = converter::toNative<core::Fence>(descriptor->signalFence);
-    submitInfo.waitSemaphores = reinterpret_cast<core::Semaphore**>(descriptor->waitSemaphores);
+    submitInfo.waitSemaphores = reinterpret_cast<core::Semaphore* const*>(descriptor->waitSemaphores);
     submitInfo.waitValues = descriptor->waitValues;
     submitInfo.waitSemaphoreCount = descriptor->waitSemaphoreCount;
-    submitInfo.signalSemaphores = reinterpret_cast<core::Semaphore**>(descriptor->signalSemaphores);
+    submitInfo.signalSemaphores = reinterpret_cast<core::Semaphore* const*>(descriptor->signalSemaphores);
     submitInfo.signalValues = descriptor->signalValues;
     submitInfo.signalSemaphoreCount = descriptor->signalSemaphoreCount;
     return submitInfo;

@@ -1683,17 +1683,17 @@ typedef struct {
 typedef struct {
     GfxStructureType sType;
     const void* pNext;
-    GfxCommandEncoder* commandEncoders;
+    const GfxCommandEncoder* commandEncoders;
     uint32_t commandEncoderCount;
 
     // Wait semaphores (must be signaled before execution)
-    GfxSemaphore* waitSemaphores;
-    uint64_t* waitValues; // For timeline semaphores, NULL for binary
+    const GfxSemaphore* waitSemaphores;
+    const uint64_t* waitValues; // For timeline semaphores, NULL for binary
     uint32_t waitSemaphoreCount;
 
     // Signal semaphores (will be signaled after execution)
-    GfxSemaphore* signalSemaphores;
-    uint64_t* signalValues; // For timeline semaphores, NULL for binary
+    const GfxSemaphore* signalSemaphores;
+    const uint64_t* signalValues; // For timeline semaphores, NULL for binary
     uint32_t signalSemaphoreCount;
 
     // Optional fence to signal when all commands complete
@@ -1704,7 +1704,7 @@ typedef struct {
     GfxStructureType sType;
     const void* pNext;
     // Wait semaphores (rendering must complete before present)
-    GfxSemaphore* waitSemaphores;
+    const GfxSemaphore* waitSemaphores;
     uint32_t waitSemaphoreCount;
 } GfxPresentDescriptor;
 

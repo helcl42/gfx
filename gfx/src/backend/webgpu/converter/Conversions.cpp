@@ -733,13 +733,13 @@ core::SubmitInfo gfxDescriptorToWebGPUSubmitInfo(const GfxSubmitDescriptor* desc
 {
     core::SubmitInfo submitInfo{};
     // Note: Array pointer conversions use reinterpret_cast as toNative<> is for individual objects
-    submitInfo.commandEncoders = reinterpret_cast<CommandEncoder**>(descriptor->commandEncoders);
+    submitInfo.commandEncoders = reinterpret_cast<CommandEncoder* const*>(descriptor->commandEncoders);
     submitInfo.commandEncoderCount = descriptor->commandEncoderCount;
     submitInfo.signalFence = toNative<Fence>(descriptor->signalFence);
-    submitInfo.waitSemaphores = reinterpret_cast<Semaphore**>(descriptor->waitSemaphores);
+    submitInfo.waitSemaphores = reinterpret_cast<Semaphore* const*>(descriptor->waitSemaphores);
     submitInfo.waitValues = descriptor->waitValues;
     submitInfo.waitSemaphoreCount = descriptor->waitSemaphoreCount;
-    submitInfo.signalSemaphores = reinterpret_cast<Semaphore**>(descriptor->signalSemaphores);
+    submitInfo.signalSemaphores = reinterpret_cast<Semaphore* const*>(descriptor->signalSemaphores);
     submitInfo.signalValues = descriptor->signalValues;
     submitInfo.signalSemaphoreCount = descriptor->signalSemaphoreCount;
     return submitInfo;

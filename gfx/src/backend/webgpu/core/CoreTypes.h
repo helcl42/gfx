@@ -177,16 +177,16 @@ struct CommandEncoderCreateInfo {
 };
 
 struct SubmitInfo {
-    CommandEncoder** commandEncoders;
+    CommandEncoder* const* commandEncoders;
     uint32_t commandEncoderCount;
     Fence* signalFence;
 
     // Semaphores (stored but not used by WebGPU backend)
-    Semaphore** waitSemaphores;
-    uint64_t* waitValues;
+    Semaphore* const* waitSemaphores;
+    const uint64_t* waitValues;
     uint32_t waitSemaphoreCount;
-    Semaphore** signalSemaphores;
-    uint64_t* signalValues;
+    Semaphore* const* signalSemaphores;
+    const uint64_t* signalValues;
     uint32_t signalSemaphoreCount;
 };
 
