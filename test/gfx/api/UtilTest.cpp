@@ -165,13 +165,20 @@ TEST(GfxUtilTest, PlatformWindowHandleFromAndroid)
     EXPECT_EQ(handle.android.window, window);
 }
 
-TEST(GfxUtilTest, PlatformWindowHandleFromMetal)
+TEST(GfxUtilTest, PlatformWindowHandleFromMetalLayer)
+{
+    void* layer = (void*)0x1234;
+    GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromMetalLayer(layer);
+    EXPECT_EQ(handle.windowingSystem, GFX_WINDOWING_SYSTEM_METAL);
+    EXPECT_EQ(handle.metal.layer, layer);
+}
+
+TEST(GfxUtilTest, PlatformWindowHandleFromCocoaWindow)
 {
     void* window = nullptr;
-    GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromMetal(window);
+    GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromCocoaWindow(window);
     EXPECT_EQ(handle.windowingSystem, GFX_WINDOWING_SYSTEM_METAL);
-    // the layer is internally derived from window, so the input value is not stored directly.
-    // The handle should be valid but the layer field is not expected to match the input.
+    // the layer is derived from the window's content view; a null window yields a null layer
     EXPECT_EQ(handle.metal.layer, nullptr);
 }
 

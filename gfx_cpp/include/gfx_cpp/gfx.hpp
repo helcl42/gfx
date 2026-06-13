@@ -831,7 +831,8 @@ struct PlatformWindowHandle {
     static GFX_CPP_API PlatformWindowHandle fromXlib(void* display, unsigned long window);
     static GFX_CPP_API PlatformWindowHandle fromWayland(void* display, void* surface);
     static GFX_CPP_API PlatformWindowHandle fromXCB(void* connection, uint32_t window);
-    static GFX_CPP_API PlatformWindowHandle fromMetal(void* window);
+    static GFX_CPP_API PlatformWindowHandle fromMetalLayer(void* metalLayer);
+    static GFX_CPP_API PlatformWindowHandle fromCocoaWindow(void* nsWindow);
     static GFX_CPP_API PlatformWindowHandle fromEmscripten(const char* canvasSelector);
     static GFX_CPP_API PlatformWindowHandle fromAndroid(void* window);
 };

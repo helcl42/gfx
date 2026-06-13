@@ -149,10 +149,18 @@ TEST(GfxCppUtilTest, PlatformWindowHandleFromEmscripten)
     EXPECT_EQ(handle.handle.emscripten.canvasSelector, selector);
 }
 
-TEST(GfxCppUtilTest, PlatformWindowHandleFromMetal)
+TEST(GfxCppUtilTest, PlatformWindowHandleFromMetalLayer)
+{
+    void* layer = (void*)0x1234;
+    gfx::PlatformWindowHandle handle = gfx::PlatformWindowHandle::fromMetalLayer(layer);
+    EXPECT_EQ(handle.windowingSystem, gfx::WindowingSystem::Metal);
+    EXPECT_EQ(handle.handle.metal.layer, layer);
+}
+
+TEST(GfxCppUtilTest, PlatformWindowHandleFromCocoaWindow)
 {
     void* window = nullptr;
-    gfx::PlatformWindowHandle handle = gfx::PlatformWindowHandle::fromMetal(window);
+    gfx::PlatformWindowHandle handle = gfx::PlatformWindowHandle::fromCocoaWindow(window);
     EXPECT_EQ(handle.windowingSystem, gfx::WindowingSystem::Metal);
     EXPECT_EQ(handle.handle.metal.layer, nullptr);
 }

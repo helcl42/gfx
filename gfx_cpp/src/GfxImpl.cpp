@@ -164,9 +164,15 @@ PlatformWindowHandle PlatformWindowHandle::fromXCB(void* connection, uint32_t wi
     return cPlatformWindowHandleXCBToCpp(handle);
 }
 
-PlatformWindowHandle PlatformWindowHandle::fromMetal(void* window)
+PlatformWindowHandle PlatformWindowHandle::fromMetalLayer(void* metalLayer)
 {
-    GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromMetal(window);
+    GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromMetalLayer(metalLayer);
+    return cPlatformWindowHandleMetalToCpp(handle);
+}
+
+PlatformWindowHandle PlatformWindowHandle::fromCocoaWindow(void* nsWindow)
+{
+    GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromCocoaWindow(nsWindow);
     return cPlatformWindowHandleMetalToCpp(handle);
 }
 

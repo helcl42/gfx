@@ -1700,11 +1700,19 @@ GfxPlatformWindowHandle gfxPlatformWindowHandleFromAndroid(void* window)
     return handle;
 }
 
-GfxPlatformWindowHandle gfxPlatformWindowHandleFromMetal(void* window)
+GfxPlatformWindowHandle gfxPlatformWindowHandleFromMetalLayer(void* metalLayer)
 {
     GfxPlatformWindowHandle handle = {};
     handle.windowingSystem = GFX_WINDOWING_SYSTEM_METAL;
-    handle.metal.layer = gfx::util::getMetalLayerFromCocoaWindow(window);
+    handle.metal.layer = metalLayer;
+    return handle;
+}
+
+GfxPlatformWindowHandle gfxPlatformWindowHandleFromCocoaWindow(void* nsWindow)
+{
+    GfxPlatformWindowHandle handle = {};
+    handle.windowingSystem = GFX_WINDOWING_SYSTEM_METAL;
+    handle.metal.layer = gfx::util::getMetalLayerFromCocoaWindow(nsWindow);
     return handle;
 }
 

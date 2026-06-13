@@ -1739,7 +1739,7 @@ typedef struct GfxXcbHandle {
 } GfxXcbHandle;
 
 typedef struct GfxMetalHandle {
-    void* layer; // CAMetalLayer* (optional)
+    void* layer; // CAMetalLayer*
 } GfxMetalHandle;
 
 typedef struct GfxEmscriptenHandle {
@@ -2031,7 +2031,8 @@ GFX_API GfxPlatformWindowHandle gfxPlatformWindowHandleFromXCB(void* connection,
 GFX_API GfxPlatformWindowHandle gfxPlatformWindowHandleFromWin32(void* hinstance, void* hwnd);
 GFX_API GfxPlatformWindowHandle gfxPlatformWindowHandleFromEmscripten(const char* canvasSelector);
 GFX_API GfxPlatformWindowHandle gfxPlatformWindowHandleFromAndroid(void* window);
-GFX_API GfxPlatformWindowHandle gfxPlatformWindowHandleFromMetal(void* window);
+GFX_API GfxPlatformWindowHandle gfxPlatformWindowHandleFromMetalLayer(void* metalLayer);
+GFX_API GfxPlatformWindowHandle gfxPlatformWindowHandleFromCocoaWindow(void* nsWindow);
 
 #ifdef __cplusplus
 }

@@ -15,6 +15,8 @@ uint32_t getFormatBytesPerPixel(GfxFormat format);
 // Result to string conversion
 const char* resultToString(GfxResult result);
 
+// Returns the CAMetalLayer* backing the NSWindow's content view, creating one if needed.
+// Cocoa (macOS) only - returns nullptr on other platforms and for a null window.
 void* getMetalLayerFromCocoaWindow(void* cocoaWindow);
 
 } // namespace gfx::util
