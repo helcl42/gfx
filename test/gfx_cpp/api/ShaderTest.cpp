@@ -16,7 +16,7 @@ protected:
 
         try {
             instance = gfx::createInstance({ .backend = backend, .enabledExtensions = { gfx::INSTANCE_EXTENSION_DEBUG } });
-            adapter = instance->requestAdapter({ .adapterIndex = 0 });
+            adapter = instance->requestAdapter({});
             device = adapter->createDevice({ .label = "Test Device" });
         } catch (const std::exception& e) {
             GTEST_SKIP() << "Failed to set up: " << e.what();

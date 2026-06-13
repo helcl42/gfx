@@ -36,7 +36,6 @@ protected:
         GfxAdapterDescriptor adapterDesc = {};
         adapterDesc.sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR;
         adapterDesc.pNext = nullptr;
-        adapterDesc.adapterIndex = 0;
 
         if (gfxInstanceRequestAdapter(instance, &adapterDesc, &adapter) != GFX_RESULT_SUCCESS) {
             gfxInstanceDestroy(instance);

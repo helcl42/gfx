@@ -1276,13 +1276,16 @@ typedef struct {
     uint32_t enabledExtensionCount;
 } GfxInstanceDescriptor;
 
-// Adapter selection: specify either an index OR a preference
-// Set adapterIndex to UINT32_MAX to use preference-based selection
+// Adapter selection:
+// - preference != GFX_ADAPTER_PREFERENCE_UNDEFINED: preference-based selection (adapterIndex is ignored)
+// - preference == GFX_ADAPTER_PREFERENCE_UNDEFINED: select by adapterIndex
+//   (out-of-range indices fail with GFX_RESULT_ERROR_NOT_FOUND)
+// A zero-initialized descriptor therefore selects adapter 0.
 typedef struct {
     GfxStructureType sType;
     const void* pNext;
-    uint32_t adapterIndex; // Adapter index from enumeration (use UINT32_MAX to ignore)
-    GfxAdapterPreference preference; // Used only when adapterIndex is UINT32_MAX
+    uint32_t adapterIndex; // Index from gfxInstanceEnumerateAdapters, used only when preference is UNDEFINED
+    GfxAdapterPreference preference; // Non-UNDEFINED selects by preference instead of index
 } GfxAdapterDescriptor;
 
 // Adapter information

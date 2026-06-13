@@ -18,7 +18,7 @@ protected:
 
         try {
             instance = gfx::createInstance({ .backend = backend, .enabledExtensions = { gfx::INSTANCE_EXTENSION_DEBUG } });
-            adapter = instance->requestAdapter({ .adapterIndex = 0 });
+            adapter = instance->requestAdapter({});
 
             // Check if timeline semaphore extension is supported
             auto supportedExtensions = adapter->enumerateExtensions();

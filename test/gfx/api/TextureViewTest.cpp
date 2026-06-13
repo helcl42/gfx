@@ -32,7 +32,6 @@ protected:
         GfxAdapterDescriptor adapterDesc = {};
         adapterDesc.sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR;
         adapterDesc.pNext = nullptr;
-        adapterDesc.adapterIndex = 0;
         result = gfxInstanceRequestAdapter(instance, &adapterDesc, &adapter);
         ASSERT_EQ(result, GFX_RESULT_SUCCESS);
         ASSERT_NE(adapter, nullptr);

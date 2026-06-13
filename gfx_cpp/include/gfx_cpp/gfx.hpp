@@ -911,10 +911,14 @@ struct InstanceDescriptor {
     std::vector<std::string> enabledExtensions;
 };
 
+// Adapter selection:
+// - preference != AdapterPreference::Undefined: preference-based selection (adapterIndex is ignored)
+// - preference == AdapterPreference::Undefined: select by adapterIndex
+// A default-constructed descriptor therefore selects adapter 0.
 struct AdapterDescriptor {
     const ChainedStruct* next = nullptr;
-    uint32_t adapterIndex = UINT32_MAX; // Adapter index from enumeration (use UINT32_MAX to ignore)
-    AdapterPreference preference = AdapterPreference::Undefined; // Used only when adapterIndex is UINT32_MAX
+    uint32_t adapterIndex = 0; // Index from Instance::enumerateAdapters, used only when preference is Undefined
+    AdapterPreference preference = AdapterPreference::Undefined; // Non-Undefined selects by preference instead of index
 };
 
 struct QueueFamilyProperties {

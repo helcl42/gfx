@@ -336,7 +336,7 @@ GfxAddressMode cppAddressModeToCAddressMode(AddressMode mode)
 
 void convertAdapterDescriptor(const AdapterDescriptor& input, GfxAdapterDescriptor& output)
 {
-    output.adapterIndex = UINT32_MAX; // Use preference-based selection
+    output.adapterIndex = input.adapterIndex;
     output.preference = cppAdapterPreferenceToCAdapterPreference(input.preference);
 }
 

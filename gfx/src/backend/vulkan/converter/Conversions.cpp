@@ -1433,12 +1433,9 @@ core::AdapterCreateInfo gfxDescriptorToAdapterCreateInfo(const GfxAdapterDescrip
     core::AdapterCreateInfo createInfo{};
 
     if (descriptor) {
-        // Handle adapter index if specified
-        if (descriptor->adapterIndex != UINT32_MAX) {
-            createInfo.adapterIndex = descriptor->adapterIndex;
-        } else {
-            createInfo.adapterIndex = UINT32_MAX;
-        }
+        // UNDEFINED preference selects by index; otherwise the preference is used
+        // (UINT32_MAX = preference-based selection internally)
+        createInfo.adapterIndex = (descriptor->preference == GFX_ADAPTER_PREFERENCE_UNDEFINED) ? descriptor->adapterIndex : UINT32_MAX;
 
         // Handle preference-based selection
         if (descriptor->preference == GFX_ADAPTER_PREFERENCE_SOFTWARE) {

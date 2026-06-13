@@ -189,8 +189,9 @@ core::AdapterCreateInfo gfxDescriptorToWebGPUAdapterCreateInfo(const GfxAdapterD
     core::AdapterCreateInfo createInfo{};
 
     if (descriptor) {
-        // Handle adapter index if specified
-        if (descriptor->adapterIndex != UINT32_MAX) {
+        // UNDEFINED preference selects by index; otherwise the preference is used
+        // (UINT32_MAX = preference-based selection internally)
+        if (descriptor->preference == GFX_ADAPTER_PREFERENCE_UNDEFINED) {
             createInfo.adapterIndex = descriptor->adapterIndex;
             createInfo.powerPreference = WGPUPowerPreference_Undefined;
             createInfo.forceFallbackAdapter = false;

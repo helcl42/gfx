@@ -20,7 +20,6 @@ protected:
             instance = gfx::createInstance(instanceDesc);
 
             gfx::AdapterDescriptor adapterDesc{
-                .adapterIndex = 0
             };
             adapter = instance->requestAdapter(adapterDesc);
 

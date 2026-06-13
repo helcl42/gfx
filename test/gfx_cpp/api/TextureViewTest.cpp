@@ -17,7 +17,6 @@ protected:
             ASSERT_NE(instance, nullptr);
 
             gfx::AdapterDescriptor adapterDesc{};
-            adapterDesc.adapterIndex = 0;
             adapter = instance->requestAdapter(adapterDesc);
             ASSERT_NE(adapter, nullptr);
 

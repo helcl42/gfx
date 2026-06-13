@@ -138,7 +138,6 @@ TEST_P(GfxCppInstanceTest, RequestAdapterByIndex)
         if (!adapters.empty()) {
             // Request first adapter by index
             gfx::AdapterDescriptor adapterDesc{
-                .adapterIndex = 0,
                 .preference = gfx::AdapterPreference::HighPerformance
             };
 

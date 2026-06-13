@@ -38,8 +38,11 @@ namespace {
             return GFX_RESULT_SUCCESS;
         }
 
-        // All fields are optional - no specific validation needed
-        // adapterIndex and preference are both valid selection criteria
+        // With UNDEFINED preference the adapterIndex is used; UINT32_MAX can never be
+        // a valid index (and aliases the internal preference sentinel), so reject it
+        if (descriptor->preference == GFX_ADAPTER_PREFERENCE_UNDEFINED && descriptor->adapterIndex == UINT32_MAX) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
         return GFX_RESULT_SUCCESS;
     }
 

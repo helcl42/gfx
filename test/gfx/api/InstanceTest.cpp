@@ -136,7 +136,6 @@ TEST_P(GfxInstanceTest, RequestAdapterInvalidArguments)
     GfxAdapterDescriptor adapterDesc = {};
     adapterDesc.sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR;
     adapterDesc.pNext = nullptr;
-    adapterDesc.adapterIndex = UINT32_MAX;
     adapterDesc.preference = GFX_ADAPTER_PREFERENCE_HIGH_PERFORMANCE;
 
     GfxAdapter adapter = NULL;
@@ -168,7 +167,6 @@ TEST_P(GfxInstanceTest, RequestAdapterByPreference)
     GfxAdapterDescriptor adapterDesc = {};
     adapterDesc.sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR;
     adapterDesc.pNext = nullptr;
-    adapterDesc.adapterIndex = UINT32_MAX;
     adapterDesc.preference = GFX_ADAPTER_PREFERENCE_HIGH_PERFORMANCE;
 
     GfxAdapter adapter = NULL;
@@ -202,7 +200,6 @@ TEST_P(GfxInstanceTest, RequestAdapterByIndex)
         GfxAdapterDescriptor adapterDesc = {};
         adapterDesc.sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR;
         adapterDesc.pNext = nullptr;
-        adapterDesc.adapterIndex = 0;
         adapterDesc.preference = GFX_ADAPTER_PREFERENCE_HIGH_PERFORMANCE;
 
         GfxAdapter adapter = NULL;

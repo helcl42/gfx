@@ -22,7 +22,6 @@ protected:
             instance = gfx::createInstance(instDesc);
 
             gfx::AdapterDescriptor adapterDesc{
-                .adapterIndex = 0,
                 .preference = gfx::AdapterPreference::HighPerformance
             };
             adapter = instance->requestAdapter(adapterDesc);
