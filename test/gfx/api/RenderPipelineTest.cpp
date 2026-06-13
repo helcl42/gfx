@@ -862,6 +862,95 @@ TEST_P(GfxRenderPipelineTest, CreateRenderPipelineWithCulling)
     gfxRenderPassDestroy(renderPass);
 }
 
+// Test: portability-limited primitive state fails loudly instead of silently mistranslating
+TEST_P(GfxRenderPipelineTest, UnsupportedPrimitiveStateIsRejected)
+{
+    GfxRenderPassColorAttachmentTarget colorTarget = {};
+    colorTarget.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    colorTarget.sampleCount = GFX_SAMPLE_COUNT_1;
+    colorTarget.ops.loadOp = GFX_LOAD_OP_CLEAR;
+    colorTarget.ops.storeOp = GFX_STORE_OP_STORE;
+    colorTarget.finalLayout = GFX_TEXTURE_LAYOUT_COLOR_ATTACHMENT;
+
+    GfxRenderPassColorAttachment colorAttachment = {};
+    colorAttachment.target = colorTarget;
+
+    GfxRenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.colorAttachments = &colorAttachment;
+    renderPassDesc.colorAttachmentCount = 1;
+
+    GfxRenderPass renderPass = nullptr;
+    ASSERT_EQ(gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass), GFX_RESULT_SUCCESS);
+
+    GfxShaderDescriptor shaderDesc = {};
+    if (backend == GFX_BACKEND_VULKAN) {
+        shaderDesc.sourceType = GFX_SHADER_SOURCE_SPIRV;
+        shaderDesc.code = spirvVertexShader;
+        shaderDesc.codeSize = sizeof(spirvVertexShader);
+    } else {
+        shaderDesc.sourceType = GFX_SHADER_SOURCE_WGSL;
+        shaderDesc.code = wgslVertexShader;
+        shaderDesc.codeSize = strlen(wgslVertexShader) + 1;
+    }
+    shaderDesc.entryPoint = "main";
+
+    GfxShader vertexShader = nullptr;
+    ASSERT_EQ(gfxDeviceCreateShader(device, &shaderDesc, &vertexShader), GFX_RESULT_SUCCESS);
+
+    GfxVertexAttribute vertexAttr = {};
+    vertexAttr.format = GFX_FORMAT_R32G32B32_FLOAT;
+    vertexAttr.shaderLocation = 0;
+
+    GfxVertexBufferLayout vertexBufferLayout = {};
+    vertexBufferLayout.arrayStride = 12;
+    vertexBufferLayout.attributes = &vertexAttr;
+    vertexBufferLayout.attributeCount = 1;
+    vertexBufferLayout.stepMode = GFX_VERTEX_STEP_MODE_VERTEX;
+
+    GfxVertexState vertexState = {};
+    vertexState.module = vertexShader;
+    vertexState.entryPoint = "main";
+    vertexState.buffers = &vertexBufferLayout;
+    vertexState.bufferCount = 1;
+
+    GfxPrimitiveState primitiveState = {};
+    primitiveState.topology = GFX_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    primitiveState.stripIndexFormat = GFX_INDEX_FORMAT_UNDEFINED;
+    primitiveState.frontFace = GFX_FRONT_FACE_COUNTER_CLOCKWISE;
+    primitiveState.cullMode = GFX_CULL_MODE_NONE;
+    primitiveState.polygonMode = GFX_POLYGON_MODE_FILL;
+
+    GfxRenderPipelineDescriptor pipelineDesc = {};
+    pipelineDesc.renderPass = renderPass;
+    pipelineDesc.vertex = &vertexState;
+    pipelineDesc.primitive = &primitiveState;
+    pipelineDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+
+    GfxRenderPipeline pipeline = nullptr;
+
+    // Non-solid fill requires GFX_DEVICE_EXTENSION_NON_SOLID_FILL (not enabled by this
+    // fixture) on Vulkan and is never supported on WebGPU
+    primitiveState.polygonMode = GFX_POLYGON_MODE_LINE;
+    EXPECT_EQ(gfxDeviceCreateRenderPipeline(device, &pipelineDesc, &pipeline), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+    EXPECT_EQ(pipeline, nullptr);
+
+    // Front-and-back culling is Vulkan only
+    primitiveState.polygonMode = GFX_POLYGON_MODE_FILL;
+    primitiveState.cullMode = GFX_CULL_MODE_FRONT_AND_BACK;
+    GfxResult result = gfxDeviceCreateRenderPipeline(device, &pipelineDesc, &pipeline);
+    if (backend == GFX_BACKEND_WEBGPU) {
+        EXPECT_EQ(result, GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+        EXPECT_EQ(pipeline, nullptr);
+    } else {
+        EXPECT_EQ(result, GFX_RESULT_SUCCESS);
+        EXPECT_NE(pipeline, nullptr);
+        gfxRenderPipelineDestroy(pipeline);
+    }
+
+    gfxShaderDestroy(vertexShader);
+    gfxRenderPassDestroy(renderPass);
+}
+
 // Test: Create RenderPipeline with depth stencil state
 TEST_P(GfxRenderPipelineTest, CreateRenderPipelineWithDepthStencil)
 {

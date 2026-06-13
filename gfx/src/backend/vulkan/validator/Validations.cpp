@@ -913,6 +913,15 @@ GfxResult validateDeviceCreateRenderPipeline(GfxDevice device, const GfxRenderPi
     if (!device || !descriptor || !outPipeline) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
+
+    // Non-solid fill modes require GFX_DEVICE_EXTENSION_NON_SOLID_FILL to be enabled
+    if (descriptor->primitive && descriptor->primitive->polygonMode != GFX_POLYGON_MODE_FILL) {
+        const auto* dev = converter::toNative<core::Device>(device);
+        if (!dev->isExtensionEnabled(core::DeviceExtension::NonSolidFill)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+    }
+
     return validateRenderPipelineDescriptor(descriptor);
 }
 
@@ -982,7 +991,7 @@ GfxResult validateDeviceCreateQuerySet(GfxDevice device, const GfxQuerySetDescri
     }
     if (descriptor->type == GFX_QUERY_TYPE_TIMESTAMP) {
         const auto* dev = converter::toNative<core::Device>(device);
-        if (!dev->isTimestampQueryEnabled()) {
+        if (!dev->isExtensionEnabled(core::DeviceExtension::TimestampQuery)) {
             return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
         }
     }

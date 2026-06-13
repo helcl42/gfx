@@ -465,7 +465,7 @@ typedef enum {
     GFX_CULL_MODE_NONE = 0,
     GFX_CULL_MODE_FRONT = 1,
     GFX_CULL_MODE_BACK = 2,
-    GFX_CULL_MODE_FRONT_AND_BACK = 3,
+    GFX_CULL_MODE_FRONT_AND_BACK = 3, // Vulkan only - WebGPU pipeline creation fails with GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED
     GFX_CULL_MODE_MAX_ENUM = 0x7FFFFFFF
 } GfxCullMode;
 
@@ -477,6 +477,8 @@ typedef enum {
     GFX_LOG_LEVEL_MAX_ENUM = 0x7FFFFFFF
 } GfxLogLevel;
 
+// LINE and POINT require GFX_DEVICE_EXTENSION_NON_SOLID_FILL (Vulkan only);
+// on WebGPU pipeline creation with a non-FILL mode fails with GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED
 typedef enum {
     GFX_POLYGON_MODE_FILL = 0,
     GFX_POLYGON_MODE_LINE = 1,

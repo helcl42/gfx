@@ -37,6 +37,18 @@ namespace extensions {
     constexpr const char* TIMESTAMP_QUERY = "gfx_timestamp_query";
 } // namespace extensions
 
+// Bitmask of the known GFX device extensions, parsed once at device creation
+// so enablement checks are O(1) instead of string comparisons
+enum class DeviceExtension : uint64_t {
+    Swapchain = 1ull << 0,
+    TimelineSemaphore = 1ull << 1,
+    Multiview = 1ull << 2,
+    AnisotropicFiltering = 1ull << 3,
+    OcclusionQueryPrecise = 1ull << 4,
+    NonSolidFill = 1ull << 5,
+    TimestampQuery = 1ull << 6,
+};
+
 // ============================================================================
 // Internal Type Definitions
 // ============================================================================

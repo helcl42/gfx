@@ -14,19 +14,42 @@
 namespace gfx::backend::vulkan::core {
 
 namespace {
-    inline uint64_t makeQueueKey(uint32_t queueFamilyIndex, uint32_t queueIndex)
+    uint64_t makeQueueKey(uint32_t queueFamilyIndex, uint32_t queueIndex)
     {
         return (static_cast<uint64_t>(queueFamilyIndex) << 16) | queueIndex;
     }
 
-    bool isExtensionEnabled(const std::vector<std::string>& enabledExtensions, const char* extension)
+    bool containsString(const std::vector<std::string>& strings, const char* value)
     {
-        for (const auto& enabledExt : enabledExtensions) {
-            if (enabledExt == extension) {
+        for (const auto& str : strings) {
+            if (str == value) {
                 return true;
             }
         }
         return false;
+    }
+
+    // Parse the requested extension names into a DeviceExtension bitmask so all
+    // later enablement checks are O(1) bit tests
+    uint64_t parseEnabledExtensions(const std::vector<std::string>& enabledExtensions)
+    {
+        const std::pair<const char*, DeviceExtension> knownExtensions[] = {
+            { extensions::SWAPCHAIN, DeviceExtension::Swapchain },
+            { extensions::TIMELINE_SEMAPHORE, DeviceExtension::TimelineSemaphore },
+            { extensions::MULTIVIEW, DeviceExtension::Multiview },
+            { extensions::ANISOTROPIC_FILTERING, DeviceExtension::AnisotropicFiltering },
+            { extensions::OCCLUSION_QUERY_PRECISE, DeviceExtension::OcclusionQueryPrecise },
+            { extensions::NON_SOLID_FILL, DeviceExtension::NonSolidFill },
+            { extensions::TIMESTAMP_QUERY, DeviceExtension::TimestampQuery },
+        };
+
+        uint64_t mask = 0;
+        for (const auto& [name, bit] : knownExtensions) {
+            if (containsString(enabledExtensions, name)) {
+                mask |= static_cast<uint64_t>(bit);
+            }
+        }
+        return mask;
     }
 
     bool isExtensionAvailable(const std::vector<VkExtensionProperties>& availableExtensions, const char* extension)
@@ -42,7 +65,12 @@ namespace {
 
 Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     : m_adapter(adapter)
+    , m_enabledExtensions(parseEnabledExtensions(createInfo.enabledExtensions))
 {
+    // Invariant: m_enabledExtensions records REQUESTED extensions; if one cannot
+    // actually be enabled (missing device feature), this constructor throws - so
+    // on any live Device a set bit means the feature IS enabled on the VkDevice.
+
     // Query available device features
     const auto& availableFeatures = m_adapter->getFeatures();
 
@@ -52,25 +80,25 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     // Device extensions
     std::vector<const char*> requestedExtensions;
 #ifndef GFX_HEADLESS_BUILD
-    if (isExtensionEnabled(createInfo.enabledExtensions, extensions::SWAPCHAIN)) {
+    if (isExtensionEnabled(DeviceExtension::Swapchain)) {
         requestedExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     }
 #endif // GFX_HEADLESS_BUILD
 
     // Enable timeline semaphore extension if requested
-    bool timelineSemaphoreEnabled = isExtensionEnabled(createInfo.enabledExtensions, extensions::TIMELINE_SEMAPHORE);
+    bool timelineSemaphoreEnabled = isExtensionEnabled(DeviceExtension::TimelineSemaphore);
     if (timelineSemaphoreEnabled) {
         requestedExtensions.push_back(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
     }
 
     // Enable multiview extension if requested
-    bool multiviewEnabled = isExtensionEnabled(createInfo.enabledExtensions, extensions::MULTIVIEW);
+    bool multiviewEnabled = isExtensionEnabled(DeviceExtension::Multiview);
     if (multiviewEnabled) {
         requestedExtensions.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME);
     }
 
     // Enable anisotropic filtering if requested
-    if (isExtensionEnabled(createInfo.enabledExtensions, extensions::ANISOTROPIC_FILTERING)) {
+    if (isExtensionEnabled(DeviceExtension::AnisotropicFiltering)) {
         if (!availableFeatures.samplerAnisotropy) {
             throw std::runtime_error("Anisotropic filtering is not supported by this device");
         }
@@ -78,33 +106,23 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     }
 
     // Enable precise occlusion queries if requested
-    if (isExtensionEnabled(createInfo.enabledExtensions, extensions::OCCLUSION_QUERY_PRECISE)) {
+    if (isExtensionEnabled(DeviceExtension::OcclusionQueryPrecise)) {
         if (!availableFeatures.occlusionQueryPrecise) {
             throw std::runtime_error("Precise occlusion queries are not supported by this device");
         }
         deviceFeatures.occlusionQueryPrecise = VK_TRUE;
     }
 
-    if (isExtensionEnabled(createInfo.enabledExtensions, extensions::TIMESTAMP_QUERY)) {
-        // Timestamps require no extra feature bit — they are available when
-        // timestampValidBits > 0 on the graphics queue, which the Adapter already
-        // verified before reporting this extension as supported.
-        m_timestampQueryEnabled = true;
-    }
+    // Note: TIMESTAMP_QUERY needs no feature bit or device extension - it is available
+    // when timestampValidBits > 0 on the graphics queue, which the Adapter already
+    // verified before reporting the extension as supported.
 
     // Enable non-solid fill mode if requested
-    if (isExtensionEnabled(createInfo.enabledExtensions, extensions::NON_SOLID_FILL)) {
+    if (isExtensionEnabled(DeviceExtension::NonSolidFill)) {
         if (!availableFeatures.fillModeNonSolid) {
             throw std::runtime_error("Non-solid fill mode is not supported by this device");
         }
         deviceFeatures.fillModeNonSolid = VK_TRUE;
-    }
-
-    // Gate timestamp query sets behind the extension
-    if (isExtensionEnabled(createInfo.enabledExtensions, extensions::TIMESTAMP_QUERY)) {
-        // No VkPhysicalDeviceFeatures bit required — the Adapter only exposes this
-        // extension when timestampValidBits > 0 on the graphics queue family.
-        m_timestampQueryEnabled = true;
     }
 
     // Check if all requested extensions are available
@@ -310,9 +328,9 @@ bool Device::supportsShaderFormat(ShaderSourceType format) const
     return format == ShaderSourceType::SPIRV;
 }
 
-bool Device::isTimestampQueryEnabled() const
+bool Device::isExtensionEnabled(DeviceExtension extension) const
 {
-    return m_timestampQueryEnabled;
+    return (m_enabledExtensions & static_cast<uint64_t>(extension)) != 0;
 }
 
 } // namespace gfx::backend::vulkan::core

@@ -437,6 +437,17 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
+        // WebGPU has no front-and-back culling and no non-solid fill modes;
+        // fail loudly instead of silently rendering with the wrong state
+        if (descriptor->primitive) {
+            if (descriptor->primitive->cullMode == GFX_CULL_MODE_FRONT_AND_BACK) {
+                return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+            }
+            if (descriptor->primitive->polygonMode != GFX_POLYGON_MODE_FILL) {
+                return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+            }
+        }
+
         return GFX_RESULT_SUCCESS;
     }
 

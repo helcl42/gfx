@@ -36,7 +36,7 @@ public:
     const VkPhysicalDeviceProperties& getProperties() const;
 
     bool supportsShaderFormat(ShaderSourceType format) const;
-    bool isTimestampQueryEnabled() const;
+    bool isExtensionEnabled(DeviceExtension extension) const;
 
     // Extension function pointer loaders
     template <typename T>
@@ -48,7 +48,7 @@ public:
 private:
     VkDevice m_device = VK_NULL_HANDLE;
     Adapter* m_adapter = nullptr; // Non-owning pointer
-    bool m_timestampQueryEnabled = false;
+    uint64_t m_enabledExtensions = 0; // Bitmask of DeviceExtension values enabled at creation
     std::unique_ptr<Allocator> m_allocator;
 
     // Map of (queueFamilyIndex << 16 | queueIndex) -> Queue
