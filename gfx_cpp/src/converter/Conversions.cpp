@@ -241,6 +241,18 @@ DeviceLimits cDeviceLimitsToCppDeviceLimits(const GfxDeviceLimits& cLimits)
     limits.maxTextureDimension2D = cLimits.maxTextureDimension2D;
     limits.maxTextureDimension3D = cLimits.maxTextureDimension3D;
     limits.maxTextureArrayLayers = cLimits.maxTextureArrayLayers;
+    limits.maxBindGroups = cLimits.maxBindGroups;
+    limits.maxColorAttachments = cLimits.maxColorAttachments;
+    limits.maxVertexAttributes = cLimits.maxVertexAttributes;
+    limits.maxVertexBuffers = cLimits.maxVertexBuffers;
+    limits.maxVertexBufferArrayStride = cLimits.maxVertexBufferArrayStride;
+    limits.maxSamplerAnisotropy = cLimits.maxSamplerAnisotropy;
+    limits.maxComputeWorkgroupSizeX = cLimits.maxComputeWorkgroupSizeX;
+    limits.maxComputeWorkgroupSizeY = cLimits.maxComputeWorkgroupSizeY;
+    limits.maxComputeWorkgroupSizeZ = cLimits.maxComputeWorkgroupSizeZ;
+    limits.maxComputeInvocationsPerWorkgroup = cLimits.maxComputeInvocationsPerWorkgroup;
+    limits.maxComputeWorkgroupsPerDimension = cLimits.maxComputeWorkgroupsPerDimension;
+    limits.maxComputeWorkgroupStorageSize = cLimits.maxComputeWorkgroupStorageSize;
     return limits;
 }
 

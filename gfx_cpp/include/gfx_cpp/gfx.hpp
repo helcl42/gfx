@@ -1271,6 +1271,18 @@ struct DeviceLimits {
     uint32_t maxTextureDimension2D = 0;
     uint32_t maxTextureDimension3D = 0;
     uint32_t maxTextureArrayLayers = 0;
+    uint32_t maxBindGroups = 0; // Max bind group layouts per pipeline
+    uint32_t maxColorAttachments = 0; // Max color attachments per render pass
+    uint32_t maxVertexAttributes = 0;
+    uint32_t maxVertexBuffers = 0; // Max vertex buffer slots
+    uint32_t maxVertexBufferArrayStride = 0;
+    uint32_t maxSamplerAnisotropy = 0; // Max value for SamplerDescriptor.maxAnisotropy
+    uint32_t maxComputeWorkgroupSizeX = 0;
+    uint32_t maxComputeWorkgroupSizeY = 0;
+    uint32_t maxComputeWorkgroupSizeZ = 0;
+    uint32_t maxComputeInvocationsPerWorkgroup = 0; // Max product of workgroup size dimensions
+    uint32_t maxComputeWorkgroupsPerDimension = 0; // Max workgroup count per dispatch dimension
+    uint32_t maxComputeWorkgroupStorageSize = 0; // Max workgroup-shared memory in bytes
 };
 
 struct AdapterInfo {

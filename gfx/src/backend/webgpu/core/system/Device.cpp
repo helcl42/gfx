@@ -40,6 +40,12 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     wgpuDesc.uncapturedErrorCallbackInfo = errorCallbackInfo;
     wgpuDesc.deviceLostCallbackInfo = deviceLostCallbackInfo;
 
+    // Request the adapter's full limits instead of the conservative WebGPU defaults,
+    // so device limits match adapter limits - the same semantics as Vulkan, where a
+    // logical device always has the physical device's capabilities
+    WGPULimits adapterLimits = adapter->getLimits();
+    wgpuDesc.requiredLimits = &adapterLimits;
+
 #ifndef __EMSCRIPTEN__
     // Enable Dawn toggles to allow SPIR-V at device level (Dawn-specific)
     static const char* enabledToggles[] = { "allow_unsafe_apis" };

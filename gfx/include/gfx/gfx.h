@@ -1350,6 +1350,18 @@ typedef struct {
     uint32_t maxTextureDimension2D;
     uint32_t maxTextureDimension3D;
     uint32_t maxTextureArrayLayers;
+    uint32_t maxBindGroups; // Max bind group layouts per pipeline
+    uint32_t maxColorAttachments; // Max color attachments per render pass
+    uint32_t maxVertexAttributes;
+    uint32_t maxVertexBuffers; // Max vertex buffer slots
+    uint32_t maxVertexBufferArrayStride;
+    uint32_t maxSamplerAnisotropy; // Max value for GfxSamplerDescriptor.maxAnisotropy
+    uint32_t maxComputeWorkgroupSizeX;
+    uint32_t maxComputeWorkgroupSizeY;
+    uint32_t maxComputeWorkgroupSizeZ;
+    uint32_t maxComputeInvocationsPerWorkgroup; // Max product of workgroup size dimensions
+    uint32_t maxComputeWorkgroupsPerDimension; // Max workgroup count per dispatch dimension
+    uint32_t maxComputeWorkgroupStorageSize; // Max workgroup-shared memory in bytes
 } GfxDeviceLimits;
 
 // Queue family properties

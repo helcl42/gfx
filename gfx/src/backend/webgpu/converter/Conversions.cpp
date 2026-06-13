@@ -78,6 +78,18 @@ GfxDeviceLimits wgpuLimitsToGfxDeviceLimits(const WGPULimits& limits)
     gfxLimits.maxTextureDimension2D = limits.maxTextureDimension2D;
     gfxLimits.maxTextureDimension3D = limits.maxTextureDimension3D;
     gfxLimits.maxTextureArrayLayers = limits.maxTextureArrayLayers;
+    gfxLimits.maxBindGroups = limits.maxBindGroups;
+    gfxLimits.maxColorAttachments = limits.maxColorAttachments;
+    gfxLimits.maxVertexAttributes = limits.maxVertexAttributes;
+    gfxLimits.maxVertexBuffers = limits.maxVertexBuffers;
+    gfxLimits.maxVertexBufferArrayStride = limits.maxVertexBufferArrayStride;
+    gfxLimits.maxSamplerAnisotropy = 16; // Fixed by the WebGPU specification
+    gfxLimits.maxComputeWorkgroupSizeX = limits.maxComputeWorkgroupSizeX;
+    gfxLimits.maxComputeWorkgroupSizeY = limits.maxComputeWorkgroupSizeY;
+    gfxLimits.maxComputeWorkgroupSizeZ = limits.maxComputeWorkgroupSizeZ;
+    gfxLimits.maxComputeInvocationsPerWorkgroup = limits.maxComputeInvocationsPerWorkgroup;
+    gfxLimits.maxComputeWorkgroupsPerDimension = limits.maxComputeWorkgroupsPerDimension;
+    gfxLimits.maxComputeWorkgroupStorageSize = limits.maxComputeWorkgroupStorageSize;
     return gfxLimits;
 }
 

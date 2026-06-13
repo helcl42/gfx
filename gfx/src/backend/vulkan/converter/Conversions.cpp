@@ -11,6 +11,7 @@
 #include "../core/resource/Texture.h"
 #include "../core/resource/TextureView.h"
 
+#include <algorithm>
 #include <cstring>
 #include <vector>
 
@@ -75,6 +76,19 @@ GfxDeviceLimits vkPropertiesToGfxDeviceLimits(const VkPhysicalDeviceProperties& 
     limits.maxTextureDimension2D = properties.limits.maxImageDimension2D;
     limits.maxTextureDimension3D = properties.limits.maxImageDimension3D;
     limits.maxTextureArrayLayers = properties.limits.maxImageArrayLayers;
+    limits.maxBindGroups = properties.limits.maxBoundDescriptorSets;
+    limits.maxColorAttachments = properties.limits.maxColorAttachments;
+    limits.maxVertexAttributes = properties.limits.maxVertexInputAttributes;
+    limits.maxVertexBuffers = properties.limits.maxVertexInputBindings;
+    limits.maxVertexBufferArrayStride = properties.limits.maxVertexInputBindingStride;
+    limits.maxSamplerAnisotropy = static_cast<uint32_t>(properties.limits.maxSamplerAnisotropy);
+    limits.maxComputeWorkgroupSizeX = properties.limits.maxComputeWorkGroupSize[0];
+    limits.maxComputeWorkgroupSizeY = properties.limits.maxComputeWorkGroupSize[1];
+    limits.maxComputeWorkgroupSizeZ = properties.limits.maxComputeWorkGroupSize[2];
+    limits.maxComputeInvocationsPerWorkgroup = properties.limits.maxComputeWorkGroupInvocations;
+    // WebGPU exposes a single per-dimension dispatch limit; use the most restrictive Vulkan dimension
+    limits.maxComputeWorkgroupsPerDimension = std::min({ properties.limits.maxComputeWorkGroupCount[0], properties.limits.maxComputeWorkGroupCount[1], properties.limits.maxComputeWorkGroupCount[2] });
+    limits.maxComputeWorkgroupStorageSize = properties.limits.maxComputeSharedMemorySize;
     return limits;
 }
 

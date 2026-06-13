@@ -196,6 +196,40 @@ TEST_P(GfxDeviceTest, GetLimits)
     EXPECT_EQ(result, GFX_RESULT_SUCCESS);
     EXPECT_GT(limits.maxBufferSize, 0u);
     EXPECT_GT(limits.maxTextureDimension2D, 0u);
+    EXPECT_GT(limits.maxBindGroups, 0u);
+    EXPECT_GT(limits.maxColorAttachments, 0u);
+    EXPECT_GT(limits.maxVertexAttributes, 0u);
+    EXPECT_GT(limits.maxVertexBuffers, 0u);
+    EXPECT_GT(limits.maxVertexBufferArrayStride, 0u);
+    EXPECT_GT(limits.maxSamplerAnisotropy, 0u);
+    EXPECT_GT(limits.maxComputeWorkgroupSizeX, 0u);
+    EXPECT_GT(limits.maxComputeWorkgroupSizeY, 0u);
+    EXPECT_GT(limits.maxComputeWorkgroupSizeZ, 0u);
+    EXPECT_GT(limits.maxComputeInvocationsPerWorkgroup, 0u);
+    EXPECT_GT(limits.maxComputeWorkgroupsPerDimension, 0u);
+    EXPECT_GT(limits.maxComputeWorkgroupStorageSize, 0u);
+}
+
+// Devices are created with the adapter's full limits (Vulkan semantics on both
+// backends; the WebGPU backend requests the adapter limits instead of the defaults)
+TEST_P(GfxDeviceTest, DeviceLimitsMatchAdapterLimits)
+{
+    GfxDeviceDescriptor desc = {};
+    ASSERT_EQ(gfxAdapterCreateDevice(adapter, &desc, &device), GFX_RESULT_SUCCESS);
+
+    GfxDeviceLimits adapterLimits = {};
+    GfxDeviceLimits deviceLimits = {};
+    ASSERT_EQ(gfxAdapterGetLimits(adapter, &adapterLimits), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxDeviceGetLimits(device, &deviceLimits), GFX_RESULT_SUCCESS);
+
+    EXPECT_EQ(deviceLimits.maxTextureDimension2D, adapterLimits.maxTextureDimension2D);
+    EXPECT_EQ(deviceLimits.maxTextureDimension3D, adapterLimits.maxTextureDimension3D);
+    EXPECT_EQ(deviceLimits.maxTextureArrayLayers, adapterLimits.maxTextureArrayLayers);
+    EXPECT_EQ(deviceLimits.maxBufferSize, adapterLimits.maxBufferSize);
+    EXPECT_EQ(deviceLimits.maxBindGroups, adapterLimits.maxBindGroups);
+    EXPECT_EQ(deviceLimits.maxColorAttachments, adapterLimits.maxColorAttachments);
+    EXPECT_EQ(deviceLimits.maxComputeInvocationsPerWorkgroup, adapterLimits.maxComputeInvocationsPerWorkgroup);
+    EXPECT_EQ(deviceLimits.maxComputeWorkgroupStorageSize, adapterLimits.maxComputeWorkgroupStorageSize);
 }
 
 TEST_P(GfxDeviceTest, MultipleDevices)
