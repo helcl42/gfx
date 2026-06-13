@@ -41,6 +41,9 @@ namespace {
             { extensions::OCCLUSION_QUERY_PRECISE, DeviceExtension::OcclusionQueryPrecise },
             { extensions::NON_SOLID_FILL, DeviceExtension::NonSolidFill },
             { extensions::TIMESTAMP_QUERY, DeviceExtension::TimestampQuery },
+            { extensions::TEXTURE_COMPRESSION_BC, DeviceExtension::TextureCompressionBC },
+            { extensions::TEXTURE_COMPRESSION_ETC2, DeviceExtension::TextureCompressionETC2 },
+            { extensions::TEXTURE_COMPRESSION_ASTC, DeviceExtension::TextureCompressionASTC },
         };
 
         uint64_t mask = 0;
@@ -123,6 +126,26 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
             throw std::runtime_error("Non-solid fill mode is not supported by this device");
         }
         deviceFeatures.fillModeNonSolid = VK_TRUE;
+    }
+
+    // Enable texture compression families if requested
+    if (isExtensionEnabled(DeviceExtension::TextureCompressionBC)) {
+        if (!availableFeatures.textureCompressionBC) {
+            throw std::runtime_error("BC texture compression is not supported by this device");
+        }
+        deviceFeatures.textureCompressionBC = VK_TRUE;
+    }
+    if (isExtensionEnabled(DeviceExtension::TextureCompressionETC2)) {
+        if (!availableFeatures.textureCompressionETC2) {
+            throw std::runtime_error("ETC2 texture compression is not supported by this device");
+        }
+        deviceFeatures.textureCompressionETC2 = VK_TRUE;
+    }
+    if (isExtensionEnabled(DeviceExtension::TextureCompressionASTC)) {
+        if (!availableFeatures.textureCompressionASTC_LDR) {
+            throw std::runtime_error("ASTC texture compression is not supported by this device");
+        }
+        deviceFeatures.textureCompressionASTC_LDR = VK_TRUE;
     }
 
     // Check if all requested extensions are available

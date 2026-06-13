@@ -538,6 +538,71 @@ typedef enum {
     GFX_FORMAT_R32G32_UINT = 35,
     GFX_FORMAT_R32G32B32A32_SINT = 36,
     GFX_FORMAT_R32G32B32A32_UINT = 37,
+
+    // Block-compressed formats. Each family is gated behind a device extension:
+    // BC requires GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_BC,
+    // ETC2/EAC requires GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_ETC2,
+    // ASTC requires GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_ASTC.
+    // Use gfxGetFormatBlockSize/gfxGetFormatBlockDimensions for copy size math
+    // (gfxGetFormatBytesPerPixel returns 0 for these formats).
+
+    // BC (desktop) - 4x4 blocks
+    GFX_FORMAT_BC1_RGBA_UNORM = 38, // 8-byte blocks
+    GFX_FORMAT_BC1_RGBA_UNORM_SRGB = 39,
+    GFX_FORMAT_BC2_RGBA_UNORM = 40, // 16-byte blocks
+    GFX_FORMAT_BC2_RGBA_UNORM_SRGB = 41,
+    GFX_FORMAT_BC3_RGBA_UNORM = 42, // 16-byte blocks
+    GFX_FORMAT_BC3_RGBA_UNORM_SRGB = 43,
+    GFX_FORMAT_BC4_R_UNORM = 44, // 8-byte blocks
+    GFX_FORMAT_BC4_R_SNORM = 45,
+    GFX_FORMAT_BC5_RG_UNORM = 46, // 16-byte blocks
+    GFX_FORMAT_BC5_RG_SNORM = 47,
+    GFX_FORMAT_BC6H_RGB_UFLOAT = 48, // 16-byte blocks
+    GFX_FORMAT_BC6H_RGB_SFLOAT = 49,
+    GFX_FORMAT_BC7_RGBA_UNORM = 50, // 16-byte blocks
+    GFX_FORMAT_BC7_RGBA_UNORM_SRGB = 51,
+
+    // ETC2 / EAC (mobile baseline) - 4x4 blocks
+    GFX_FORMAT_ETC2_RGB8_UNORM = 52, // 8-byte blocks
+    GFX_FORMAT_ETC2_RGB8_UNORM_SRGB = 53,
+    GFX_FORMAT_ETC2_RGB8A1_UNORM = 54, // 8-byte blocks
+    GFX_FORMAT_ETC2_RGB8A1_UNORM_SRGB = 55,
+    GFX_FORMAT_ETC2_RGBA8_UNORM = 56, // 16-byte blocks
+    GFX_FORMAT_ETC2_RGBA8_UNORM_SRGB = 57,
+    GFX_FORMAT_EAC_R11_UNORM = 58, // 8-byte blocks
+    GFX_FORMAT_EAC_R11_SNORM = 59,
+    GFX_FORMAT_EAC_RG11_UNORM = 60, // 16-byte blocks
+    GFX_FORMAT_EAC_RG11_SNORM = 61,
+
+    // ASTC (modern mobile) - 16-byte blocks, dimensions per format name
+    GFX_FORMAT_ASTC_4X4_UNORM = 62,
+    GFX_FORMAT_ASTC_4X4_UNORM_SRGB = 63,
+    GFX_FORMAT_ASTC_5X4_UNORM = 64,
+    GFX_FORMAT_ASTC_5X4_UNORM_SRGB = 65,
+    GFX_FORMAT_ASTC_5X5_UNORM = 66,
+    GFX_FORMAT_ASTC_5X5_UNORM_SRGB = 67,
+    GFX_FORMAT_ASTC_6X5_UNORM = 68,
+    GFX_FORMAT_ASTC_6X5_UNORM_SRGB = 69,
+    GFX_FORMAT_ASTC_6X6_UNORM = 70,
+    GFX_FORMAT_ASTC_6X6_UNORM_SRGB = 71,
+    GFX_FORMAT_ASTC_8X5_UNORM = 72,
+    GFX_FORMAT_ASTC_8X5_UNORM_SRGB = 73,
+    GFX_FORMAT_ASTC_8X6_UNORM = 74,
+    GFX_FORMAT_ASTC_8X6_UNORM_SRGB = 75,
+    GFX_FORMAT_ASTC_8X8_UNORM = 76,
+    GFX_FORMAT_ASTC_8X8_UNORM_SRGB = 77,
+    GFX_FORMAT_ASTC_10X5_UNORM = 78,
+    GFX_FORMAT_ASTC_10X5_UNORM_SRGB = 79,
+    GFX_FORMAT_ASTC_10X6_UNORM = 80,
+    GFX_FORMAT_ASTC_10X6_UNORM_SRGB = 81,
+    GFX_FORMAT_ASTC_10X8_UNORM = 82,
+    GFX_FORMAT_ASTC_10X8_UNORM_SRGB = 83,
+    GFX_FORMAT_ASTC_10X10_UNORM = 84,
+    GFX_FORMAT_ASTC_10X10_UNORM_SRGB = 85,
+    GFX_FORMAT_ASTC_12X10_UNORM = 86,
+    GFX_FORMAT_ASTC_12X10_UNORM_SRGB = 87,
+    GFX_FORMAT_ASTC_12X12_UNORM = 88,
+    GFX_FORMAT_ASTC_12X12_UNORM_SRGB = 89,
     GFX_FORMAT_MAX_ENUM = 0x7FFFFFFF
 } GfxFormat;
 
@@ -930,6 +995,9 @@ typedef struct GfxChainHeader {
 #define GFX_DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE "gfx_occlusion_query_precise"
 #define GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY "gfx_timestamp_query"
 #define GFX_DEVICE_EXTENSION_NON_SOLID_FILL "gfx_non_solid_fill"
+#define GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_BC "gfx_texture_compression_bc"
+#define GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_ETC2 "gfx_texture_compression_etc2"
+#define GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_ASTC "gfx_texture_compression_astc"
 
 // ============================================================================
 // Forward Declarations (Opaque Handles)
@@ -2072,7 +2140,16 @@ GFX_API uint64_t gfxAlignDown(uint64_t value, uint64_t alignment);
 
 // Format helper functions
 // Get the size in bytes of a single pixel/texel for a given format
+// Returns 0 for block-compressed formats - use gfxGetFormatBlockSize instead
 GFX_API uint32_t gfxGetFormatBytesPerPixel(GfxFormat format);
+
+// Get the size in bytes of one block for a given format
+// (equals bytes-per-pixel for uncompressed formats, which are 1x1 blocks)
+GFX_API uint32_t gfxGetFormatBlockSize(GfxFormat format);
+
+// Get the block dimensions in texels for a given format (1x1 for uncompressed formats)
+// Copy regions for compressed formats must be aligned to these dimensions
+GFX_API void gfxGetFormatBlockDimensions(GfxFormat format, uint32_t* outWidth, uint32_t* outHeight);
 
 // Cross-platform helpers available on all platforms
 GFX_API GfxPlatformWindowHandle gfxPlatformWindowHandleFromXlib(void* display, unsigned long window);

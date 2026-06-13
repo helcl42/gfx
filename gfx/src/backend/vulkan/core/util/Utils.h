@@ -39,6 +39,13 @@ const char* vkResultToString(VkResult result);
 // Get bytes per pixel for a given Vulkan format (uncompressed formats only)
 uint32_t getVkFormatBytesPerPixel(VkFormat format);
 
+// Block-compressed format utilities
+bool isCompressedVkFormat(VkFormat format);
+// Bytes per block (equals bytes-per-pixel for uncompressed formats)
+uint32_t getVkFormatBlockSize(VkFormat format);
+// Block dimensions in texels (1x1 for uncompressed formats)
+void getVkFormatBlockDimensions(VkFormat format, uint32_t* outWidth, uint32_t* outHeight);
+
 } // namespace gfx::backend::vulkan::core
 
 #endif // GFX_VULKAN_CORE_UTILS_H

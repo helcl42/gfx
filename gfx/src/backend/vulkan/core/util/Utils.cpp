@@ -30,6 +30,121 @@ VkImageAspectFlags getImageAspectMask(VkFormat format)
     return VK_IMAGE_ASPECT_COLOR_BIT;
 }
 
+bool isCompressedVkFormat(VkFormat format)
+{
+    return format >= VK_FORMAT_BC1_RGB_UNORM_BLOCK && format <= VK_FORMAT_ASTC_12x12_SRGB_BLOCK;
+}
+
+uint32_t getVkFormatBlockSize(VkFormat format)
+{
+    switch (format) {
+    // 8-byte blocks
+    case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
+    case VK_FORMAT_BC1_RGB_SRGB_BLOCK:
+    case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
+    case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
+    case VK_FORMAT_BC4_UNORM_BLOCK:
+    case VK_FORMAT_BC4_SNORM_BLOCK:
+    case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
+    case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
+    case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK:
+    case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:
+    case VK_FORMAT_EAC_R11_UNORM_BLOCK:
+    case VK_FORMAT_EAC_R11_SNORM_BLOCK:
+        return 8;
+    default:
+        if (isCompressedVkFormat(format)) {
+            return 16; // All remaining BC/ETC2/EAC/ASTC formats use 16-byte blocks
+        }
+        return getVkFormatBytesPerPixel(format);
+    }
+}
+
+void getVkFormatBlockDimensions(VkFormat format, uint32_t* outWidth, uint32_t* outHeight)
+{
+    uint32_t width = 1;
+    uint32_t height = 1;
+    switch (format) {
+    case VK_FORMAT_ASTC_5x4_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_5x4_SRGB_BLOCK:
+        width = 5;
+        height = 4;
+        break;
+    case VK_FORMAT_ASTC_5x5_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_5x5_SRGB_BLOCK:
+        width = 5;
+        height = 5;
+        break;
+    case VK_FORMAT_ASTC_6x5_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_6x5_SRGB_BLOCK:
+        width = 6;
+        height = 5;
+        break;
+    case VK_FORMAT_ASTC_6x6_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_6x6_SRGB_BLOCK:
+        width = 6;
+        height = 6;
+        break;
+    case VK_FORMAT_ASTC_8x5_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_8x5_SRGB_BLOCK:
+        width = 8;
+        height = 5;
+        break;
+    case VK_FORMAT_ASTC_8x6_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_8x6_SRGB_BLOCK:
+        width = 8;
+        height = 6;
+        break;
+    case VK_FORMAT_ASTC_8x8_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_8x8_SRGB_BLOCK:
+        width = 8;
+        height = 8;
+        break;
+    case VK_FORMAT_ASTC_10x5_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_10x5_SRGB_BLOCK:
+        width = 10;
+        height = 5;
+        break;
+    case VK_FORMAT_ASTC_10x6_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_10x6_SRGB_BLOCK:
+        width = 10;
+        height = 6;
+        break;
+    case VK_FORMAT_ASTC_10x8_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_10x8_SRGB_BLOCK:
+        width = 10;
+        height = 8;
+        break;
+    case VK_FORMAT_ASTC_10x10_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_10x10_SRGB_BLOCK:
+        width = 10;
+        height = 10;
+        break;
+    case VK_FORMAT_ASTC_12x10_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_12x10_SRGB_BLOCK:
+        width = 12;
+        height = 10;
+        break;
+    case VK_FORMAT_ASTC_12x12_UNORM_BLOCK:
+    case VK_FORMAT_ASTC_12x12_SRGB_BLOCK:
+        width = 12;
+        height = 12;
+        break;
+    default:
+        if (isCompressedVkFormat(format)) {
+            width = 4; // BC, ETC2, EAC, and ASTC 4x4 all use 4x4 blocks
+            height = 4;
+        }
+        break;
+    }
+    if (outWidth) {
+        *outWidth = width;
+    }
+    if (outHeight) {
+        *outHeight = height;
+    }
+}
+
 uint32_t getAspectTexelSize(VkFormat format, VkImageAspectFlags aspectMask)
 {
     if (aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT) {
@@ -54,7 +169,8 @@ uint32_t getAspectTexelSize(VkFormat format, VkImageAspectFlags aspectMask)
     if ((aspectMask & (aspectMask - 1)) != 0) {
         return 0;
     }
-    return getVkFormatBytesPerPixel(format);
+    // For block-compressed formats this is the size of one block
+    return getVkFormatBlockSize(format);
 }
 
 VkAccessFlags getVkAccessFlagsForLayout(VkImageLayout layout)

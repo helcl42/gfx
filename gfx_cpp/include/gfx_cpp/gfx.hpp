@@ -325,7 +325,62 @@ enum class Format : int32_t {
     R32G32Sint = 34,
     R32G32Uint = 35,
     R32G32B32A32Sint = 36,
-    R32G32B32A32Uint = 37
+    R32G32B32A32Uint = 37,
+
+    // Block-compressed formats - gated behind device extensions
+    // (DEVICE_EXTENSION_TEXTURE_COMPRESSION_BC / _ETC2 / _ASTC)
+    BC1RGBAUnorm = 38,
+    BC1RGBAUnormSrgb = 39,
+    BC2RGBAUnorm = 40,
+    BC2RGBAUnormSrgb = 41,
+    BC3RGBAUnorm = 42,
+    BC3RGBAUnormSrgb = 43,
+    BC4RUnorm = 44,
+    BC4RSnorm = 45,
+    BC5RGUnorm = 46,
+    BC5RGSnorm = 47,
+    BC6HRGBUfloat = 48,
+    BC6HRGBSfloat = 49,
+    BC7RGBAUnorm = 50,
+    BC7RGBAUnormSrgb = 51,
+    ETC2RGB8Unorm = 52,
+    ETC2RGB8UnormSrgb = 53,
+    ETC2RGB8A1Unorm = 54,
+    ETC2RGB8A1UnormSrgb = 55,
+    ETC2RGBA8Unorm = 56,
+    ETC2RGBA8UnormSrgb = 57,
+    EACR11Unorm = 58,
+    EACR11Snorm = 59,
+    EACRG11Unorm = 60,
+    EACRG11Snorm = 61,
+    ASTC4x4Unorm = 62,
+    ASTC4x4UnormSrgb = 63,
+    ASTC5x4Unorm = 64,
+    ASTC5x4UnormSrgb = 65,
+    ASTC5x5Unorm = 66,
+    ASTC5x5UnormSrgb = 67,
+    ASTC6x5Unorm = 68,
+    ASTC6x5UnormSrgb = 69,
+    ASTC6x6Unorm = 70,
+    ASTC6x6UnormSrgb = 71,
+    ASTC8x5Unorm = 72,
+    ASTC8x5UnormSrgb = 73,
+    ASTC8x6Unorm = 74,
+    ASTC8x6UnormSrgb = 75,
+    ASTC8x8Unorm = 76,
+    ASTC8x8UnormSrgb = 77,
+    ASTC10x5Unorm = 78,
+    ASTC10x5UnormSrgb = 79,
+    ASTC10x6Unorm = 80,
+    ASTC10x6UnormSrgb = 81,
+    ASTC10x8Unorm = 82,
+    ASTC10x8UnormSrgb = 83,
+    ASTC10x10Unorm = 84,
+    ASTC10x10UnormSrgb = 85,
+    ASTC12x10Unorm = 86,
+    ASTC12x10UnormSrgb = 87,
+    ASTC12x12Unorm = 88,
+    ASTC12x12UnormSrgb = 89
 };
 
 enum class TextureType : int32_t {
@@ -494,6 +549,9 @@ constexpr const char* DEVICE_EXTENSION_ANISOTROPIC_FILTERING = "gfx_anisotropic_
 constexpr const char* DEVICE_EXTENSION_NON_SOLID_FILL = "gfx_non_solid_fill";
 constexpr const char* DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE = "gfx_occlusion_query_precise";
 constexpr const char* DEVICE_EXTENSION_TIMESTAMP_QUERY = "gfx_timestamp_query";
+constexpr const char* DEVICE_EXTENSION_TEXTURE_COMPRESSION_BC = "gfx_texture_compression_bc";
+constexpr const char* DEVICE_EXTENSION_TEXTURE_COMPRESSION_ETC2 = "gfx_texture_compression_etc2";
+constexpr const char* DEVICE_EXTENSION_TEXTURE_COMPRESSION_ASTC = "gfx_texture_compression_astc";
 
 enum class QueueFlags : uint32_t {
     None = 0,

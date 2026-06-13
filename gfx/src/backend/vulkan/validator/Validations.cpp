@@ -8,6 +8,7 @@
 #include "backend/vulkan/core/resource/Texture.h"
 #include "backend/vulkan/core/system/Device.h"
 #include "backend/vulkan/core/util/Utils.h"
+#include "util/Utils.h"
 
 #include <cstdint>
 
@@ -865,6 +866,29 @@ GfxResult validateDeviceCreateTexture(GfxDevice device, const GfxTextureDescript
     if (!device || !descriptor || !outTexture) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
+
+    // Compressed format families require their device extension to be enabled
+    const auto* dev = converter::toNative<core::Device>(device);
+    switch (gfx::util::getFormatCompressionFamily(descriptor->format)) {
+    case gfx::util::FormatCompressionFamily::BC:
+        if (!dev->isExtensionEnabled(core::DeviceExtension::TextureCompressionBC)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+        break;
+    case gfx::util::FormatCompressionFamily::ETC2:
+        if (!dev->isExtensionEnabled(core::DeviceExtension::TextureCompressionETC2)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+        break;
+    case gfx::util::FormatCompressionFamily::ASTC:
+        if (!dev->isExtensionEnabled(core::DeviceExtension::TextureCompressionASTC)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+        break;
+    case gfx::util::FormatCompressionFamily::None:
+        break;
+    }
+
     return validateTextureDescriptor(descriptor);
 }
 

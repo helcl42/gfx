@@ -100,6 +100,15 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
         supportedExtensions.push_back(extensions::TIMESTAMP_QUERY);
     }
 #endif
+    if (wgpuAdapterHasFeature(m_adapter, WGPUFeatureName_TextureCompressionBC)) {
+        supportedExtensions.push_back(extensions::TEXTURE_COMPRESSION_BC);
+    }
+    if (wgpuAdapterHasFeature(m_adapter, WGPUFeatureName_TextureCompressionETC2)) {
+        supportedExtensions.push_back(extensions::TEXTURE_COMPRESSION_ETC2);
+    }
+    if (wgpuAdapterHasFeature(m_adapter, WGPUFeatureName_TextureCompressionASTC)) {
+        supportedExtensions.push_back(extensions::TEXTURE_COMPRESSION_ASTC);
+    }
     return supportedExtensions;
 }
 

@@ -165,6 +165,44 @@ TEST(GfxUtilTest, PlatformWindowHandleFromAndroid)
     EXPECT_EQ(handle.android.window, window);
 }
 
+TEST(GfxUtilTest, FormatBlockSizeAndDimensions)
+{
+    uint32_t w = 0;
+    uint32_t h = 0;
+
+    // Uncompressed: 1x1 blocks, block size == bytes per pixel
+    EXPECT_EQ(gfxGetFormatBlockSize(GFX_FORMAT_R8G8B8A8_UNORM), 4u);
+    gfxGetFormatBlockDimensions(GFX_FORMAT_R8G8B8A8_UNORM, &w, &h);
+    EXPECT_EQ(w, 1u);
+    EXPECT_EQ(h, 1u);
+    EXPECT_EQ(gfxGetFormatBytesPerPixel(GFX_FORMAT_R8G8B8A8_UNORM), 4u);
+
+    // BC1: 4x4 blocks, 8 bytes; bytes-per-pixel is 0 for block formats
+    EXPECT_EQ(gfxGetFormatBlockSize(GFX_FORMAT_BC1_RGBA_UNORM), 8u);
+    gfxGetFormatBlockDimensions(GFX_FORMAT_BC1_RGBA_UNORM, &w, &h);
+    EXPECT_EQ(w, 4u);
+    EXPECT_EQ(h, 4u);
+    EXPECT_EQ(gfxGetFormatBytesPerPixel(GFX_FORMAT_BC1_RGBA_UNORM), 0u);
+
+    // BC7: 4x4 blocks, 16 bytes
+    EXPECT_EQ(gfxGetFormatBlockSize(GFX_FORMAT_BC7_RGBA_UNORM), 16u);
+
+    // ETC2 RGBA8: 4x4 blocks, 16 bytes
+    EXPECT_EQ(gfxGetFormatBlockSize(GFX_FORMAT_ETC2_RGBA8_UNORM), 16u);
+    gfxGetFormatBlockDimensions(GFX_FORMAT_ETC2_RGB8_UNORM, &w, &h);
+    EXPECT_EQ(w, 4u);
+    EXPECT_EQ(h, 4u);
+
+    // ASTC: always 16-byte blocks, dimensions per format
+    EXPECT_EQ(gfxGetFormatBlockSize(GFX_FORMAT_ASTC_12X10_UNORM), 16u);
+    gfxGetFormatBlockDimensions(GFX_FORMAT_ASTC_12X10_UNORM, &w, &h);
+    EXPECT_EQ(w, 12u);
+    EXPECT_EQ(h, 10u);
+    gfxGetFormatBlockDimensions(GFX_FORMAT_ASTC_6X5_UNORM_SRGB, &w, &h);
+    EXPECT_EQ(w, 6u);
+    EXPECT_EQ(h, 5u);
+}
+
 TEST(GfxUtilTest, PlatformWindowHandleFromMetalLayer)
 {
     void* layer = (void*)0x1234;

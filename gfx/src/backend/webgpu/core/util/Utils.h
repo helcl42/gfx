@@ -18,8 +18,13 @@ uint32_t getAspectTexelSize(WGPUTextureFormat format, WGPUTextureAspect aspect);
 // Align value up to the specified alignment
 uint32_t alignUp(uint32_t value, uint32_t alignment);
 
-// Calculate bytesPerRow for texture copy operations
-// Returns width * bytesPerPixel aligned to 256 bytes (WebGPU requirement)
+// Block-compressed format utilities
+bool isCompressedWGPUFormat(WGPUTextureFormat format);
+// Block dimensions in texels (1x1 for uncompressed formats)
+void getWGPUFormatBlockDimensions(WGPUTextureFormat format, uint32_t* outWidth, uint32_t* outHeight);
+
+// Calculate bytesPerRow for texture copy operations (block-aware)
+// Returns blocks-per-row * bytes-per-block aligned to 256 bytes (WebGPU requirement)
 uint32_t calculateBytesPerRow(WGPUTextureFormat format, uint32_t width);
 
 } // namespace gfx::backend::webgpu::core

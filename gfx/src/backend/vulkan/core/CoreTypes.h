@@ -35,6 +35,9 @@ namespace extensions {
     constexpr const char* OCCLUSION_QUERY_PRECISE = "gfx_occlusion_query_precise";
     constexpr const char* NON_SOLID_FILL = "gfx_non_solid_fill";
     constexpr const char* TIMESTAMP_QUERY = "gfx_timestamp_query";
+    constexpr const char* TEXTURE_COMPRESSION_BC = "gfx_texture_compression_bc";
+    constexpr const char* TEXTURE_COMPRESSION_ETC2 = "gfx_texture_compression_etc2";
+    constexpr const char* TEXTURE_COMPRESSION_ASTC = "gfx_texture_compression_astc";
 } // namespace extensions
 
 // Bitmask of the known GFX device extensions, parsed once at device creation
@@ -47,6 +50,9 @@ enum class DeviceExtension : uint64_t {
     OcclusionQueryPrecise = 1ull << 4,
     NonSolidFill = 1ull << 5,
     TimestampQuery = 1ull << 6,
+    TextureCompressionBC = 1ull << 7,
+    TextureCompressionETC2 = 1ull << 8,
+    TextureCompressionASTC = 1ull << 9,
 };
 
 // ============================================================================

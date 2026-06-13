@@ -252,7 +252,9 @@ void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, 
     // it is the number of array layers to copy starting at arrayLayer
     bool is3D = destination->getImageType() == VK_IMAGE_TYPE_3D;
     uint32_t layerCount = is3D ? 1 : (extent.depth > 0 ? extent.depth : 1);
-    uint32_t texelSize = getAspectTexelSize(destination->getFormat(), aspectMask);
+    uint32_t texelSize = getAspectTexelSize(destination->getFormat(), aspectMask); // block size for compressed formats
+    uint32_t blockWidth = 1;
+    getVkFormatBlockDimensions(destination->getFormat(), &blockWidth, nullptr);
 
     // Transition image layout to transfer dst optimal
     destination->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevel, 1, arrayLayer, layerCount);
@@ -260,7 +262,8 @@ void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, 
     // Copy buffer to image
     VkBufferImageCopy region{};
     region.bufferOffset = sourceOffset;
-    region.bufferRowLength = (bytesPerRow == 0 || texelSize == 0) ? 0 : bytesPerRow / texelSize;
+    // bufferRowLength is in texels: blocks per row (bytesPerRow / blockBytes) x texels per block
+    region.bufferRowLength = (bytesPerRow == 0 || texelSize == 0) ? 0 : (bytesPerRow / texelSize) * blockWidth;
     region.bufferImageHeight = rowsPerImage;
     region.imageSubresource.aspectMask = aspectMask;
     region.imageSubresource.mipLevel = mipLevel;
@@ -281,7 +284,9 @@ void CommandEncoder::copyTextureToBuffer(Texture* source, VkOffset3D origin, uin
     // it is the number of array layers to copy starting at arrayLayer
     bool is3D = source->getImageType() == VK_IMAGE_TYPE_3D;
     uint32_t layerCount = is3D ? 1 : (extent.depth > 0 ? extent.depth : 1);
-    uint32_t texelSize = getAspectTexelSize(source->getFormat(), aspectMask);
+    uint32_t texelSize = getAspectTexelSize(source->getFormat(), aspectMask); // block size for compressed formats
+    uint32_t blockWidth = 1;
+    getVkFormatBlockDimensions(source->getFormat(), &blockWidth, nullptr);
 
     // Transition image layout to transfer src optimal
     source->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevel, 1, arrayLayer, layerCount);
@@ -289,7 +294,8 @@ void CommandEncoder::copyTextureToBuffer(Texture* source, VkOffset3D origin, uin
     // Copy image to buffer
     VkBufferImageCopy region{};
     region.bufferOffset = destinationOffset;
-    region.bufferRowLength = (bytesPerRow == 0 || texelSize == 0) ? 0 : bytesPerRow / texelSize;
+    // bufferRowLength is in texels: blocks per row (bytesPerRow / blockBytes) x texels per block
+    region.bufferRowLength = (bytesPerRow == 0 || texelSize == 0) ? 0 : (bytesPerRow / texelSize) * blockWidth;
     region.bufferImageHeight = rowsPerImage;
     region.imageSubresource.aspectMask = aspectMask;
     region.imageSubresource.mipLevel = mipLevel;

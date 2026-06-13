@@ -404,6 +404,26 @@ TEST(VulkanConversionsTest, GfxPipelineStageAllCommands_ConvertsToVkAllCommandsO
     EXPECT_EQ(result, static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT));
 }
 
+TEST(VulkanConversionsTest, CompressedFormats_RoundTripToVulkan)
+{
+    const std::pair<GfxFormat, VkFormat> mappings[] = {
+        { GFX_FORMAT_BC1_RGBA_UNORM, VK_FORMAT_BC1_RGBA_UNORM_BLOCK },
+        { GFX_FORMAT_BC3_RGBA_UNORM_SRGB, VK_FORMAT_BC3_SRGB_BLOCK },
+        { GFX_FORMAT_BC6H_RGB_UFLOAT, VK_FORMAT_BC6H_UFLOAT_BLOCK },
+        { GFX_FORMAT_BC7_RGBA_UNORM, VK_FORMAT_BC7_UNORM_BLOCK },
+        { GFX_FORMAT_ETC2_RGB8_UNORM, VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK },
+        { GFX_FORMAT_ETC2_RGBA8_UNORM_SRGB, VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK },
+        { GFX_FORMAT_EAC_RG11_SNORM, VK_FORMAT_EAC_R11G11_SNORM_BLOCK },
+        { GFX_FORMAT_ASTC_4X4_UNORM, VK_FORMAT_ASTC_4x4_UNORM_BLOCK },
+        { GFX_FORMAT_ASTC_10X8_UNORM_SRGB, VK_FORMAT_ASTC_10x8_SRGB_BLOCK },
+        { GFX_FORMAT_ASTC_12X12_UNORM_SRGB, VK_FORMAT_ASTC_12x12_SRGB_BLOCK },
+    };
+    for (const auto& [gfxFormat, vkFormat] : mappings) {
+        EXPECT_EQ(gfx::backend::vulkan::converter::gfxFormatToVkFormat(gfxFormat), vkFormat);
+        EXPECT_EQ(gfx::backend::vulkan::converter::vkFormatToGfxFormat(vkFormat), gfxFormat);
+    }
+}
+
 TEST(VulkanConversionsTest, GfxPipelineStageHost_ConvertsToVkHostBit)
 {
     VkPipelineStageFlags result = gfx::backend::vulkan::converter::gfxPipelineStageFlagsToVkPipelineStageFlags(GFX_PIPELINE_STAGE_HOST);

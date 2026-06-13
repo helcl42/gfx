@@ -11,6 +11,18 @@ uint64_t alignDown(uint64_t value, uint64_t alignment);
 
 // Format utilities
 uint32_t getFormatBytesPerPixel(GfxFormat format);
+uint32_t getFormatBlockSize(GfxFormat format);
+void getFormatBlockDimensions(GfxFormat format, uint32_t* outWidth, uint32_t* outHeight);
+
+// Compressed format families (each is gated behind a device extension)
+enum class FormatCompressionFamily {
+    None, // Uncompressed format
+    BC,
+    ETC2,
+    ASTC,
+};
+FormatCompressionFamily getFormatCompressionFamily(GfxFormat format);
+bool isCompressedFormat(GfxFormat format);
 
 // Result to string conversion
 const char* resultToString(GfxResult result);

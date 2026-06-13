@@ -8,6 +8,7 @@
 #include "backend/webgpu/core/resource/Texture.h"
 #include "backend/webgpu/core/system/Device.h"
 #include "backend/webgpu/core/util/Utils.h"
+#include "util/Utils.h"
 
 #include <cstdint>
 
@@ -864,6 +865,29 @@ GfxResult validateDeviceCreateTexture(GfxDevice device, const GfxTextureDescript
     if (!device || !descriptor || !outTexture) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
+
+    // Compressed format families require their device extension (WGPU feature) to be enabled
+    WGPUDevice devHandle = converter::toNative<core::Device>(device)->handle();
+    switch (gfx::util::getFormatCompressionFamily(descriptor->format)) {
+    case gfx::util::FormatCompressionFamily::BC:
+        if (!wgpuDeviceHasFeature(devHandle, WGPUFeatureName_TextureCompressionBC)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+        break;
+    case gfx::util::FormatCompressionFamily::ETC2:
+        if (!wgpuDeviceHasFeature(devHandle, WGPUFeatureName_TextureCompressionETC2)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+        break;
+    case gfx::util::FormatCompressionFamily::ASTC:
+        if (!wgpuDeviceHasFeature(devHandle, WGPUFeatureName_TextureCompressionASTC)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+        break;
+    case gfx::util::FormatCompressionFamily::None:
+        break;
+    }
+
     return validateTextureDescriptor(descriptor);
 }
 

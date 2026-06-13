@@ -1648,6 +1648,16 @@ uint32_t gfxGetFormatBytesPerPixel(GfxFormat format)
     return gfx::util::getFormatBytesPerPixel(format);
 }
 
+uint32_t gfxGetFormatBlockSize(GfxFormat format)
+{
+    return gfx::util::getFormatBlockSize(format);
+}
+
+void gfxGetFormatBlockDimensions(GfxFormat format, uint32_t* outWidth, uint32_t* outHeight)
+{
+    gfx::util::getFormatBlockDimensions(format, outWidth, outHeight);
+}
+
 GfxPlatformWindowHandle gfxPlatformWindowHandleFromXlib(void* display, unsigned long window)
 {
     GfxPlatformWindowHandle handle = {};

@@ -136,6 +136,15 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
     if (availableFeatures.fillModeNonSolid) {
         supportedExtensions.push_back(extensions::NON_SOLID_FILL);
     }
+    if (availableFeatures.textureCompressionBC) {
+        supportedExtensions.push_back(extensions::TEXTURE_COMPRESSION_BC);
+    }
+    if (availableFeatures.textureCompressionETC2) {
+        supportedExtensions.push_back(extensions::TEXTURE_COMPRESSION_ETC2);
+    }
+    if (availableFeatures.textureCompressionASTC_LDR) {
+        supportedExtensions.push_back(extensions::TEXTURE_COMPRESSION_ASTC);
+    }
     // Timestamps are supported when the graphics queue has non-zero timestampValidBits
     auto queueFamilies = getQueueFamilyProperties();
     if (m_graphicsQueueFamily < queueFamilies.size() && queueFamilies[m_graphicsQueueFamily].timestampValidBits > 0) {

@@ -240,7 +240,9 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
     // it is the number of array layers to write starting at arrayLayer
     bool is3D = texture->getImageType() == VK_IMAGE_TYPE_3D;
     uint32_t layerCount = is3D ? 1 : (extent.depth > 0 ? extent.depth : 1);
-    uint32_t texelSize = getAspectTexelSize(texture->getFormat(), aspectMask);
+    uint32_t texelSize = getAspectTexelSize(texture->getFormat(), aspectMask); // block size for compressed formats
+    uint32_t blockWidth = 1;
+    getVkFormatBlockDimensions(texture->getFormat(), &blockWidth, nullptr);
 
     executor.execute([&](VkCommandBuffer cmd) {
         // Transition image to transfer dst optimal
@@ -249,7 +251,8 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
         // Copy buffer to image
         VkBufferImageCopy region{};
         region.bufferOffset = 0;
-        region.bufferRowLength = (bytesPerRow == 0 || texelSize == 0) ? 0 : bytesPerRow / texelSize;
+        // bufferRowLength is in texels: blocks per row (bytesPerRow / blockBytes) x texels per block
+        region.bufferRowLength = (bytesPerRow == 0 || texelSize == 0) ? 0 : (bytesPerRow / texelSize) * blockWidth;
         region.bufferImageHeight = rowsPerImage;
         region.imageSubresource.aspectMask = aspectMask;
         region.imageSubresource.mipLevel = mipLevel;

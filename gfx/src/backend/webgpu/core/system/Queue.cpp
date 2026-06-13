@@ -91,7 +91,10 @@ void Queue::writeTexture(Texture* texture, uint32_t mipLevel, uint32_t arrayLaye
 {
     // For WriteTexture (CPU→texture), bytesPerRow doesn't require 256-byte alignment
     // (unlike buffer-to-texture copies). Use tight packing if bytesPerRow is 0.
-    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? extent.width * getAspectTexelSize(texture->getFormat(), aspect) : bytesPerRow;
+    uint32_t blockWidth = 1, blockHeight = 1;
+    getWGPUFormatBlockDimensions(texture->getFormat(), &blockWidth, &blockHeight);
+    // For compressed formats a "row" is a row of blocks and getAspectTexelSize returns the block size
+    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? ((extent.width + blockWidth - 1) / blockWidth) * getAspectTexelSize(texture->getFormat(), aspect) : bytesPerRow;
 
     WGPUTexelCopyTextureInfo dest = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
     dest.texture = texture->handle();
@@ -105,7 +108,7 @@ void Queue::writeTexture(Texture* texture, uint32_t mipLevel, uint32_t arrayLaye
 
     WGPUTexelCopyBufferLayout layout = WGPU_TEXEL_COPY_BUFFER_LAYOUT_INIT;
     layout.bytesPerRow = effectiveBytesPerRow;
-    layout.rowsPerImage = (rowsPerImage == 0) ? extent.height : rowsPerImage;
+    layout.rowsPerImage = (rowsPerImage == 0) ? (extent.height + blockHeight - 1) / blockHeight : rowsPerImage; // rows of blocks for compressed formats
 
     wgpuQueueWriteTexture(m_queue, &dest, data, dataSize, &layout, &extent);
 }

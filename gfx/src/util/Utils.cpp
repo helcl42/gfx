@@ -79,7 +79,203 @@ uint32_t getFormatBytesPerPixel(GfxFormat format)
         return 16;
     case GFX_FORMAT_UNDEFINED:
     default:
+        // Block-compressed formats have no per-pixel size - use getFormatBlockSize
         return 0;
+    }
+}
+
+uint32_t getFormatBlockSize(GfxFormat format)
+{
+    switch (format) {
+    // 8-byte blocks
+    case GFX_FORMAT_BC1_RGBA_UNORM:
+    case GFX_FORMAT_BC1_RGBA_UNORM_SRGB:
+    case GFX_FORMAT_BC4_R_UNORM:
+    case GFX_FORMAT_BC4_R_SNORM:
+    case GFX_FORMAT_ETC2_RGB8_UNORM:
+    case GFX_FORMAT_ETC2_RGB8_UNORM_SRGB:
+    case GFX_FORMAT_ETC2_RGB8A1_UNORM:
+    case GFX_FORMAT_ETC2_RGB8A1_UNORM_SRGB:
+    case GFX_FORMAT_EAC_R11_UNORM:
+    case GFX_FORMAT_EAC_R11_SNORM:
+        return 8;
+    // 16-byte blocks
+    case GFX_FORMAT_BC2_RGBA_UNORM:
+    case GFX_FORMAT_BC2_RGBA_UNORM_SRGB:
+    case GFX_FORMAT_BC3_RGBA_UNORM:
+    case GFX_FORMAT_BC3_RGBA_UNORM_SRGB:
+    case GFX_FORMAT_BC5_RG_UNORM:
+    case GFX_FORMAT_BC5_RG_SNORM:
+    case GFX_FORMAT_BC6H_RGB_UFLOAT:
+    case GFX_FORMAT_BC6H_RGB_SFLOAT:
+    case GFX_FORMAT_BC7_RGBA_UNORM:
+    case GFX_FORMAT_BC7_RGBA_UNORM_SRGB:
+    case GFX_FORMAT_ETC2_RGBA8_UNORM:
+    case GFX_FORMAT_ETC2_RGBA8_UNORM_SRGB:
+    case GFX_FORMAT_EAC_RG11_UNORM:
+    case GFX_FORMAT_EAC_RG11_SNORM:
+    case GFX_FORMAT_ASTC_4X4_UNORM:
+    case GFX_FORMAT_ASTC_4X4_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_5X4_UNORM:
+    case GFX_FORMAT_ASTC_5X4_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_5X5_UNORM:
+    case GFX_FORMAT_ASTC_5X5_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_6X5_UNORM:
+    case GFX_FORMAT_ASTC_6X5_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_6X6_UNORM:
+    case GFX_FORMAT_ASTC_6X6_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_8X5_UNORM:
+    case GFX_FORMAT_ASTC_8X5_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_8X6_UNORM:
+    case GFX_FORMAT_ASTC_8X6_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_8X8_UNORM:
+    case GFX_FORMAT_ASTC_8X8_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_10X5_UNORM:
+    case GFX_FORMAT_ASTC_10X5_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_10X6_UNORM:
+    case GFX_FORMAT_ASTC_10X6_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_10X8_UNORM:
+    case GFX_FORMAT_ASTC_10X8_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_10X10_UNORM:
+    case GFX_FORMAT_ASTC_10X10_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_12X10_UNORM:
+    case GFX_FORMAT_ASTC_12X10_UNORM_SRGB:
+    case GFX_FORMAT_ASTC_12X12_UNORM:
+    case GFX_FORMAT_ASTC_12X12_UNORM_SRGB:
+        return 16;
+    // Uncompressed formats: block = one texel
+    default:
+        return getFormatBytesPerPixel(format);
+    }
+}
+
+FormatCompressionFamily getFormatCompressionFamily(GfxFormat format)
+{
+    if (format >= GFX_FORMAT_BC1_RGBA_UNORM && format <= GFX_FORMAT_BC7_RGBA_UNORM_SRGB) {
+        return FormatCompressionFamily::BC;
+    }
+    if (format >= GFX_FORMAT_ETC2_RGB8_UNORM && format <= GFX_FORMAT_EAC_RG11_SNORM) {
+        return FormatCompressionFamily::ETC2;
+    }
+    if (format >= GFX_FORMAT_ASTC_4X4_UNORM && format <= GFX_FORMAT_ASTC_12X12_UNORM_SRGB) {
+        return FormatCompressionFamily::ASTC;
+    }
+    return FormatCompressionFamily::None;
+}
+
+bool isCompressedFormat(GfxFormat format)
+{
+    return getFormatCompressionFamily(format) != FormatCompressionFamily::None;
+}
+
+void getFormatBlockDimensions(GfxFormat format, uint32_t* outWidth, uint32_t* outHeight)
+{
+    uint32_t width = 1;
+    uint32_t height = 1;
+    switch (format) {
+    // 4x4 block families
+    case GFX_FORMAT_BC1_RGBA_UNORM:
+    case GFX_FORMAT_BC1_RGBA_UNORM_SRGB:
+    case GFX_FORMAT_BC2_RGBA_UNORM:
+    case GFX_FORMAT_BC2_RGBA_UNORM_SRGB:
+    case GFX_FORMAT_BC3_RGBA_UNORM:
+    case GFX_FORMAT_BC3_RGBA_UNORM_SRGB:
+    case GFX_FORMAT_BC4_R_UNORM:
+    case GFX_FORMAT_BC4_R_SNORM:
+    case GFX_FORMAT_BC5_RG_UNORM:
+    case GFX_FORMAT_BC5_RG_SNORM:
+    case GFX_FORMAT_BC6H_RGB_UFLOAT:
+    case GFX_FORMAT_BC6H_RGB_SFLOAT:
+    case GFX_FORMAT_BC7_RGBA_UNORM:
+    case GFX_FORMAT_BC7_RGBA_UNORM_SRGB:
+    case GFX_FORMAT_ETC2_RGB8_UNORM:
+    case GFX_FORMAT_ETC2_RGB8_UNORM_SRGB:
+    case GFX_FORMAT_ETC2_RGB8A1_UNORM:
+    case GFX_FORMAT_ETC2_RGB8A1_UNORM_SRGB:
+    case GFX_FORMAT_ETC2_RGBA8_UNORM:
+    case GFX_FORMAT_ETC2_RGBA8_UNORM_SRGB:
+    case GFX_FORMAT_EAC_R11_UNORM:
+    case GFX_FORMAT_EAC_R11_SNORM:
+    case GFX_FORMAT_EAC_RG11_UNORM:
+    case GFX_FORMAT_EAC_RG11_SNORM:
+    case GFX_FORMAT_ASTC_4X4_UNORM:
+    case GFX_FORMAT_ASTC_4X4_UNORM_SRGB:
+        width = 4;
+        height = 4;
+        break;
+    case GFX_FORMAT_ASTC_5X4_UNORM:
+    case GFX_FORMAT_ASTC_5X4_UNORM_SRGB:
+        width = 5;
+        height = 4;
+        break;
+    case GFX_FORMAT_ASTC_5X5_UNORM:
+    case GFX_FORMAT_ASTC_5X5_UNORM_SRGB:
+        width = 5;
+        height = 5;
+        break;
+    case GFX_FORMAT_ASTC_6X5_UNORM:
+    case GFX_FORMAT_ASTC_6X5_UNORM_SRGB:
+        width = 6;
+        height = 5;
+        break;
+    case GFX_FORMAT_ASTC_6X6_UNORM:
+    case GFX_FORMAT_ASTC_6X6_UNORM_SRGB:
+        width = 6;
+        height = 6;
+        break;
+    case GFX_FORMAT_ASTC_8X5_UNORM:
+    case GFX_FORMAT_ASTC_8X5_UNORM_SRGB:
+        width = 8;
+        height = 5;
+        break;
+    case GFX_FORMAT_ASTC_8X6_UNORM:
+    case GFX_FORMAT_ASTC_8X6_UNORM_SRGB:
+        width = 8;
+        height = 6;
+        break;
+    case GFX_FORMAT_ASTC_8X8_UNORM:
+    case GFX_FORMAT_ASTC_8X8_UNORM_SRGB:
+        width = 8;
+        height = 8;
+        break;
+    case GFX_FORMAT_ASTC_10X5_UNORM:
+    case GFX_FORMAT_ASTC_10X5_UNORM_SRGB:
+        width = 10;
+        height = 5;
+        break;
+    case GFX_FORMAT_ASTC_10X6_UNORM:
+    case GFX_FORMAT_ASTC_10X6_UNORM_SRGB:
+        width = 10;
+        height = 6;
+        break;
+    case GFX_FORMAT_ASTC_10X8_UNORM:
+    case GFX_FORMAT_ASTC_10X8_UNORM_SRGB:
+        width = 10;
+        height = 8;
+        break;
+    case GFX_FORMAT_ASTC_10X10_UNORM:
+    case GFX_FORMAT_ASTC_10X10_UNORM_SRGB:
+        width = 10;
+        height = 10;
+        break;
+    case GFX_FORMAT_ASTC_12X10_UNORM:
+    case GFX_FORMAT_ASTC_12X10_UNORM_SRGB:
+        width = 12;
+        height = 10;
+        break;
+    case GFX_FORMAT_ASTC_12X12_UNORM:
+    case GFX_FORMAT_ASTC_12X12_UNORM_SRGB:
+        width = 12;
+        height = 12;
+        break;
+    default:
+        break; // Uncompressed: 1x1
+    }
+    if (outWidth) {
+        *outWidth = width;
+    }
+    if (outHeight) {
+        *outHeight = height;
     }
 }
 

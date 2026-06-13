@@ -10,9 +10,18 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace gfx::backend::webgpu::core {
+
+namespace {
+    bool isExtensionRequested(const std::vector<std::string>& enabledExtensions, const char* name)
+    {
+        return std::find(enabledExtensions.begin(), enabledExtensions.end(), std::string(name)) != enabledExtensions.end();
+    }
+} // anonymous namespace
 
 // Constructor 1: Request device from adapter with createInfo
 Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
@@ -64,11 +73,25 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     std::vector<WGPUFeatureName> requiredFeatures;
 
     // Request timestamp query feature only when the extension is enabled and the adapter supports it
-    const bool wantsTimestamp = std::find(createInfo.enabledExtensions.begin(), createInfo.enabledExtensions.end(),
-                                    std::string(extensions::TIMESTAMP_QUERY))
-        != createInfo.enabledExtensions.end();
-    if (wantsTimestamp && wgpuAdapterHasFeature(adapter->handle(), WGPUFeatureName_TimestampQuery)) {
+    if (isExtensionRequested(createInfo.enabledExtensions, extensions::TIMESTAMP_QUERY)
+        && wgpuAdapterHasFeature(adapter->handle(), WGPUFeatureName_TimestampQuery)) {
         requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
+    }
+
+    // Texture compression families: request the WGPU feature when the GFX extension is
+    // enabled; fail device creation if the adapter cannot deliver it (matches Vulkan)
+    const std::pair<const char*, WGPUFeatureName> compressionFeatures[] = {
+        { extensions::TEXTURE_COMPRESSION_BC, WGPUFeatureName_TextureCompressionBC },
+        { extensions::TEXTURE_COMPRESSION_ETC2, WGPUFeatureName_TextureCompressionETC2 },
+        { extensions::TEXTURE_COMPRESSION_ASTC, WGPUFeatureName_TextureCompressionASTC },
+    };
+    for (const auto& [extName, feature] : compressionFeatures) {
+        if (isExtensionRequested(createInfo.enabledExtensions, extName)) {
+            if (!wgpuAdapterHasFeature(adapter->handle(), feature)) {
+                throw std::runtime_error(std::string("Texture compression extension not supported by this adapter: ") + extName);
+            }
+            requiredFeatures.push_back(feature);
+        }
     }
 
     // Dawn native is NOT thread-safe by default; enable implicit device synchronization

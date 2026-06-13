@@ -160,12 +160,108 @@ uint32_t getAspectTexelSize(WGPUTextureFormat format, WGPUTextureAspect aspect)
     return getFormatBytesPerPixel(format);
 }
 
+bool isCompressedWGPUFormat(WGPUTextureFormat format)
+{
+    return (format >= WGPUTextureFormat_BC1RGBAUnorm && format <= WGPUTextureFormat_BC7RGBAUnormSrgb)
+        || (format >= WGPUTextureFormat_ETC2RGB8Unorm && format <= WGPUTextureFormat_EACRG11Snorm)
+        || (format >= WGPUTextureFormat_ASTC4x4Unorm && format <= WGPUTextureFormat_ASTC12x12UnormSrgb);
+}
+
+void getWGPUFormatBlockDimensions(WGPUTextureFormat format, uint32_t* outWidth, uint32_t* outHeight)
+{
+    uint32_t width = 1;
+    uint32_t height = 1;
+    switch (format) {
+    case WGPUTextureFormat_ASTC5x4Unorm:
+    case WGPUTextureFormat_ASTC5x4UnormSrgb:
+        width = 5;
+        height = 4;
+        break;
+    case WGPUTextureFormat_ASTC5x5Unorm:
+    case WGPUTextureFormat_ASTC5x5UnormSrgb:
+        width = 5;
+        height = 5;
+        break;
+    case WGPUTextureFormat_ASTC6x5Unorm:
+    case WGPUTextureFormat_ASTC6x5UnormSrgb:
+        width = 6;
+        height = 5;
+        break;
+    case WGPUTextureFormat_ASTC6x6Unorm:
+    case WGPUTextureFormat_ASTC6x6UnormSrgb:
+        width = 6;
+        height = 6;
+        break;
+    case WGPUTextureFormat_ASTC8x5Unorm:
+    case WGPUTextureFormat_ASTC8x5UnormSrgb:
+        width = 8;
+        height = 5;
+        break;
+    case WGPUTextureFormat_ASTC8x6Unorm:
+    case WGPUTextureFormat_ASTC8x6UnormSrgb:
+        width = 8;
+        height = 6;
+        break;
+    case WGPUTextureFormat_ASTC8x8Unorm:
+    case WGPUTextureFormat_ASTC8x8UnormSrgb:
+        width = 8;
+        height = 8;
+        break;
+    case WGPUTextureFormat_ASTC10x5Unorm:
+    case WGPUTextureFormat_ASTC10x5UnormSrgb:
+        width = 10;
+        height = 5;
+        break;
+    case WGPUTextureFormat_ASTC10x6Unorm:
+    case WGPUTextureFormat_ASTC10x6UnormSrgb:
+        width = 10;
+        height = 6;
+        break;
+    case WGPUTextureFormat_ASTC10x8Unorm:
+    case WGPUTextureFormat_ASTC10x8UnormSrgb:
+        width = 10;
+        height = 8;
+        break;
+    case WGPUTextureFormat_ASTC10x10Unorm:
+    case WGPUTextureFormat_ASTC10x10UnormSrgb:
+        width = 10;
+        height = 10;
+        break;
+    case WGPUTextureFormat_ASTC12x10Unorm:
+    case WGPUTextureFormat_ASTC12x10UnormSrgb:
+        width = 12;
+        height = 10;
+        break;
+    case WGPUTextureFormat_ASTC12x12Unorm:
+    case WGPUTextureFormat_ASTC12x12UnormSrgb:
+        width = 12;
+        height = 12;
+        break;
+    default:
+        if (isCompressedWGPUFormat(format)) {
+            width = 4; // BC, ETC2, EAC, and ASTC 4x4 all use 4x4 blocks
+            height = 4;
+        }
+        break;
+    }
+    if (outWidth) {
+        *outWidth = width;
+    }
+    if (outHeight) {
+        *outHeight = height;
+    }
+}
+
 uint32_t calculateBytesPerRow(WGPUTextureFormat format, uint32_t width)
 {
     constexpr uint32_t WEBGPU_COPY_BUFFER_ALIGNMENT = 256;
 
-    uint32_t bytesPerPixel = getFormatBytesPerPixel(format);
-    uint32_t bytesPerRow = width * bytesPerPixel;
+    // For compressed formats getFormatBytesPerPixel returns the block size,
+    // and a "row" is a row of blocks
+    uint32_t blockWidth = 1;
+    getWGPUFormatBlockDimensions(format, &blockWidth, nullptr);
+    uint32_t blocksPerRow = (width + blockWidth - 1) / blockWidth;
+    uint32_t bytesPerRow = blocksPerRow * getFormatBytesPerPixel(format);
 
     // Align to 256 bytes as required by WebGPU spec
     return alignUp(bytesPerRow, WEBGPU_COPY_BUFFER_ALIGNMENT);
