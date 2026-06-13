@@ -23,8 +23,10 @@ GfxFence FenceImpl::getHandle() const
 
 FenceStatus FenceImpl::getStatus() const
 {
-    bool signaled;
-    gfxFenceGetStatus(m_handle, &signaled);
+    bool signaled = false;
+    if (gfxFenceGetStatus(m_handle, &signaled) != GFX_RESULT_SUCCESS) {
+        return FenceStatus::Error;
+    }
     return signaled ? FenceStatus::Signaled : FenceStatus::Unsignaled;
 }
 
