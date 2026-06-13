@@ -997,6 +997,7 @@ void convertBindGroupDescriptor(const BindGroupDescriptor& descriptor, std::vect
     for (size_t i = 0; i < descriptor.entries.size(); ++i) {
         const auto& entry = descriptor.entries[i];
         outEntries[i].binding = entry.binding;
+        outEntries[i].arrayElement = entry.arrayElement;
 
         if (std::holds_alternative<std::shared_ptr<Buffer>>(entry.resource)) {
             outEntries[i].type = GFX_BIND_GROUP_ENTRY_TYPE_BUFFER;

@@ -199,6 +199,76 @@ TEST_P(GfxCppBindGroupTest, CreateBindGroupWithTextureView)
     EXPECT_NE(bindGroup, nullptr);
 }
 
+TEST_P(GfxCppBindGroupTest, CreateBindGroupWithTextureArrayBinding)
+{
+    ASSERT_NE(device, nullptr);
+
+    // Layout with a texture array binding of 2 elements
+    gfx::BindGroupLayoutEntry layoutEntry{
+        .binding = 0,
+        .visibility = gfx::ShaderStage::Fragment,
+        .count = 2,
+        .resource = gfx::BindGroupLayoutEntry::TextureBinding{
+            .multisampled = false,
+            .viewDimension = gfx::TextureViewType::View2D }
+    };
+
+    gfx::BindGroupLayoutDescriptor layoutDesc{
+        .entries = { layoutEntry }
+    };
+
+    std::shared_ptr<gfx::BindGroupLayout> layout;
+    try {
+        layout = device->createBindGroupLayout(layoutDesc);
+    } catch (const std::exception&) {
+        layout = nullptr;
+    }
+    if (!layout) {
+        // Binding arrays may be unsupported by the backend (e.g. WebGPU without the feature)
+        GTEST_SKIP() << "Binding arrays not supported by this backend";
+    }
+
+    gfx::TextureDescriptor textureDesc{
+        .type = gfx::TextureType::Texture2D,
+        .size = { 64, 64, 1 },
+        .arrayLayerCount = 1,
+        .mipLevelCount = 1,
+        .sampleCount = gfx::SampleCount::Count1,
+        .format = gfx::Format::R8G8B8A8Unorm,
+        .usage = gfx::TextureUsage::TextureBinding
+    };
+
+    gfx::TextureViewDescriptor viewDesc{
+        .viewType = gfx::TextureViewType::View2D,
+        .format = gfx::Format::R8G8B8A8Unorm,
+        .baseMipLevel = 0,
+        .mipLevelCount = 1,
+        .baseArrayLayer = 0,
+        .arrayLayerCount = 1
+    };
+
+    auto texture0 = device->createTexture(textureDesc);
+    auto texture1 = device->createTexture(textureDesc);
+    ASSERT_NE(texture0, nullptr);
+    ASSERT_NE(texture1, nullptr);
+
+    auto view0 = texture0->createView(viewDesc);
+    auto view1 = texture1->createView(viewDesc);
+    ASSERT_NE(view0, nullptr);
+    ASSERT_NE(view1, nullptr);
+
+    // One entry per array element, same binding
+    gfx::BindGroupDescriptor bindGroupDesc{
+        .layout = layout,
+        .entries = {
+            gfx::BindGroupEntry{ .binding = 0, .arrayElement = 0, .resource = view0 },
+            gfx::BindGroupEntry{ .binding = 0, .arrayElement = 1, .resource = view1 } }
+    };
+
+    auto bindGroup = device->createBindGroup(bindGroupDesc);
+    EXPECT_NE(bindGroup, nullptr);
+}
+
 TEST_P(GfxCppBindGroupTest, CreateBindGroupWithStorageBuffer)
 {
     ASSERT_NE(device, nullptr);

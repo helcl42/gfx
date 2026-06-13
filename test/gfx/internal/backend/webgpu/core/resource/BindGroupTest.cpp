@@ -179,6 +179,64 @@ TEST_F(WebGPUBindGroupTest, CreateBindGroup_WithTextureAndSampler)
     EXPECT_NE(bindGroup->handle(), nullptr);
 }
 
+TEST_F(WebGPUBindGroupTest, CreateBindGroup_WithTextureArrayBinding)
+{
+    // Layout with an array of 2 sampled textures at binding 0
+    gfx::backend::webgpu::core::BindGroupLayoutCreateInfo layoutInfo{};
+
+    gfx::backend::webgpu::core::BindGroupLayoutEntry textureEntry{};
+    textureEntry.binding = 0;
+    textureEntry.count = 2;
+    textureEntry.visibility = WGPUShaderStage_Fragment;
+    textureEntry.textureSampleType = WGPUTextureSampleType_Float;
+    textureEntry.textureViewDimension = WGPUTextureViewDimension_2D;
+    textureEntry.textureMultisampled = false;
+    layoutInfo.entries.push_back(textureEntry);
+
+    auto layout = std::make_unique<gfx::backend::webgpu::core::BindGroupLayout>(device.get(), layoutInfo);
+
+    gfx::backend::webgpu::core::TextureCreateInfo texInfo{};
+    texInfo.format = WGPUTextureFormat_RGBA8Unorm;
+    texInfo.size = { 64, 64, 1 };
+    texInfo.usage = WGPUTextureUsage_TextureBinding;
+    texInfo.dimension = WGPUTextureDimension_2D;
+    texInfo.mipLevelCount = 1;
+    texInfo.sampleCount = 1;
+    texInfo.arrayLayers = 1;
+    auto texture0 = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), texInfo);
+    auto texture1 = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), texInfo);
+
+    gfx::backend::webgpu::core::TextureViewCreateInfo viewInfo{};
+    viewInfo.format = WGPUTextureFormat_RGBA8Unorm;
+    viewInfo.viewDimension = WGPUTextureViewDimension_2D;
+    viewInfo.baseMipLevel = 0;
+    viewInfo.mipLevelCount = 1;
+    viewInfo.baseArrayLayer = 0;
+    viewInfo.arrayLayerCount = 1;
+    auto view0 = std::make_unique<gfx::backend::webgpu::core::TextureView>(texture0.get(), viewInfo);
+    auto view1 = std::make_unique<gfx::backend::webgpu::core::TextureView>(texture1.get(), viewInfo);
+
+    // One entry per array element, same binding
+    gfx::backend::webgpu::core::BindGroupCreateInfo createInfo{};
+    createInfo.layout = layout->handle();
+
+    gfx::backend::webgpu::core::BindGroupEntry entry0{};
+    entry0.binding = 0;
+    entry0.arrayElement = 0;
+    entry0.textureView = view0->handle();
+    createInfo.entries.push_back(entry0);
+
+    gfx::backend::webgpu::core::BindGroupEntry entry1{};
+    entry1.binding = 0;
+    entry1.arrayElement = 1;
+    entry1.textureView = view1->handle();
+    createInfo.entries.push_back(entry1);
+
+    auto bindGroup = std::make_unique<gfx::backend::webgpu::core::BindGroup>(device.get(), createInfo);
+
+    EXPECT_NE(bindGroup->handle(), nullptr);
+}
+
 TEST_F(WebGPUBindGroupTest, Destructor_CleansUpResources)
 {
     // Create layout

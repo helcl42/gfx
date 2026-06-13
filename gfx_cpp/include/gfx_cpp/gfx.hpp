@@ -1164,8 +1164,12 @@ struct BindGroupLayoutDescriptor {
     std::vector<BindGroupLayoutEntry> entries;
 };
 
+// One entry binds a single resource to (binding, arrayElement).
+// For array bindings (BindGroupLayoutEntry.count > 1), provide one entry per
+// array element with the same binding and arrayElement = 0..count-1.
 struct BindGroupEntry {
     uint32_t binding = 0;
+    uint32_t arrayElement = 0; // Index within the binding array, 0 for non-array bindings
 
     // Resource (exactly one should be set)
     std::variant<

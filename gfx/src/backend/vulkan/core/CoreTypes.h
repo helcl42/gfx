@@ -231,6 +231,7 @@ struct BindGroupLayoutCreateInfo {
 
 struct BindGroupEntry {
     uint32_t binding;
+    uint32_t arrayElement = 0; // Index within the binding array (dstArrayElement)
     VkDescriptorType descriptorType;
     // Union-like storage for different resource types
     VkBuffer buffer;

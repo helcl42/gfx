@@ -266,6 +266,62 @@ TEST_F(VulkanBindGroupTest, CreateWithSampledImage_CreatesSuccessfully)
     EXPECT_NE(bindGroup.handle(), VK_NULL_HANDLE);
 }
 
+TEST_F(VulkanBindGroupTest, CreateWithSampledImageArray_CreatesSuccessfully)
+{
+    // Create layout with an array of 2 sampled images at binding 0
+    gfx::backend::vulkan::core::BindGroupLayoutEntry layoutEntry{};
+    layoutEntry.binding = 0;
+    layoutEntry.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    layoutEntry.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutEntry.descriptorCount = 2;
+
+    gfx::backend::vulkan::core::BindGroupLayoutCreateInfo layoutInfo{};
+    layoutInfo.entries = { layoutEntry };
+    gfx::backend::vulkan::core::BindGroupLayout layout(device.get(), layoutInfo);
+
+    gfx::backend::vulkan::core::TextureCreateInfo textureInfo{};
+    textureInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    textureInfo.size = { 64, 64, 1 };
+    textureInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+    textureInfo.sampleCount = VK_SAMPLE_COUNT_1_BIT;
+    textureInfo.mipLevelCount = 1;
+    textureInfo.imageType = VK_IMAGE_TYPE_2D;
+    textureInfo.arrayLayers = 1;
+    textureInfo.flags = 0;
+    gfx::backend::vulkan::core::Texture texture0(device.get(), textureInfo);
+    gfx::backend::vulkan::core::Texture texture1(device.get(), textureInfo);
+
+    gfx::backend::vulkan::core::TextureViewCreateInfo viewInfo{};
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = VK_FORMAT_UNDEFINED; // Use texture's format
+    viewInfo.baseMipLevel = 0;
+    viewInfo.mipLevelCount = 1;
+    viewInfo.baseArrayLayer = 0;
+    viewInfo.arrayLayerCount = 1;
+    gfx::backend::vulkan::core::TextureView view0(&texture0, viewInfo);
+    gfx::backend::vulkan::core::TextureView view1(&texture1, viewInfo);
+
+    // One entry per array element, same binding
+    gfx::backend::vulkan::core::BindGroupEntry entry0{};
+    entry0.binding = 0;
+    entry0.arrayElement = 0;
+    entry0.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    entry0.imageView = view0.handle();
+    entry0.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    gfx::backend::vulkan::core::BindGroupEntry entry1 = entry0;
+    entry1.arrayElement = 1;
+    entry1.imageView = view1.handle();
+
+    gfx::backend::vulkan::core::BindGroupCreateInfo createInfo{};
+    createInfo.layout = layout.handle();
+    createInfo.entries = { entry0, entry1 };
+
+    gfx::backend::vulkan::core::BindGroup bindGroup(device.get(), createInfo);
+
+    EXPECT_NE(bindGroup.handle(), VK_NULL_HANDLE);
+}
+
 TEST_F(VulkanBindGroupTest, CreateWithStorageImage_CreatesSuccessfully)
 {
     // Create layout

@@ -17,7 +17,8 @@ BindGroup::BindGroup(Device* device, const BindGroupCreateInfo& createInfo)
 
     for (const auto& entry : createInfo.entries) {
         WGPUBindGroupEntry wgpuEntry = WGPU_BIND_GROUP_ENTRY_INIT;
-        wgpuEntry.binding = entry.binding;
+        // WebGPU binding_array convention: element i of an array binding is bound at binding + i
+        wgpuEntry.binding = entry.binding + entry.arrayElement;
         wgpuEntry.buffer = entry.buffer;
         wgpuEntry.offset = entry.bufferOffset;
         wgpuEntry.size = entry.bufferSize;

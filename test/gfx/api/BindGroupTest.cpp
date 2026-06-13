@@ -350,6 +350,80 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithTextureView)
     gfxBindGroupLayoutDestroy(layout);
 }
 
+// Test: Create BindGroup with a texture array binding (layout count > 1)
+TEST_P(GfxBindGroupTest, CreateBindGroupWithTextureArrayBinding)
+{
+    GfxBindGroupLayoutEntry layoutEntry = {};
+    layoutEntry.binding = 0;
+    layoutEntry.visibility = GFX_SHADER_STAGE_FRAGMENT;
+    layoutEntry.type = GFX_BINDING_TYPE_TEXTURE;
+    layoutEntry.count = 2;
+    layoutEntry.texture.sampleType = GFX_TEXTURE_SAMPLE_TYPE_FLOAT;
+    layoutEntry.texture.viewDimension = GFX_TEXTURE_VIEW_TYPE_2D;
+    layoutEntry.texture.multisampled = false;
+
+    GfxBindGroupLayoutDescriptor layoutDesc = {};
+    layoutDesc.entries = &layoutEntry;
+    layoutDesc.entryCount = 1;
+
+    GfxBindGroupLayout layout = nullptr;
+    GfxResult result = gfxDeviceCreateBindGroupLayout(device, &layoutDesc, &layout);
+    if (result != GFX_RESULT_SUCCESS) {
+        GTEST_SKIP() << "Binding arrays not supported by this backend";
+    }
+    ASSERT_NE(layout, nullptr);
+
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { 64, 64, 1 };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.usage = GFX_TEXTURE_USAGE_TEXTURE_BINDING;
+
+    GfxTextureViewDescriptor viewDesc = {};
+    viewDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
+    viewDesc.baseMipLevel = 0;
+    viewDesc.mipLevelCount = 1;
+    viewDesc.baseArrayLayer = 0;
+    viewDesc.arrayLayerCount = 1;
+
+    GfxTexture textures[2] = { nullptr, nullptr };
+    GfxTextureView views[2] = { nullptr, nullptr };
+    for (int i = 0; i < 2; ++i) {
+        ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &textures[i]), GFX_RESULT_SUCCESS);
+        ASSERT_EQ(gfxTextureCreateView(textures[i], &viewDesc, &views[i]), GFX_RESULT_SUCCESS);
+    }
+
+    // One entry per array element, same binding
+    GfxBindGroupEntry entries[2] = {};
+    for (uint32_t i = 0; i < 2; ++i) {
+        entries[i].binding = 0;
+        entries[i].arrayElement = i;
+        entries[i].type = GFX_BIND_GROUP_ENTRY_TYPE_TEXTURE_VIEW;
+        entries[i].resource.textureView = views[i];
+    }
+
+    GfxBindGroupDescriptor bindGroupDesc = {};
+    bindGroupDesc.layout = layout;
+    bindGroupDesc.entries = entries;
+    bindGroupDesc.entryCount = 2;
+
+    GfxBindGroup bindGroup = nullptr;
+    result = gfxDeviceCreateBindGroup(device, &bindGroupDesc, &bindGroup);
+    EXPECT_EQ(result, GFX_RESULT_SUCCESS);
+    EXPECT_NE(bindGroup, nullptr);
+
+    gfxBindGroupDestroy(bindGroup);
+    for (int i = 0; i < 2; ++i) {
+        gfxTextureViewDestroy(views[i]);
+        gfxTextureDestroy(textures[i]);
+    }
+    gfxBindGroupLayoutDestroy(layout);
+}
+
 // Test: Create BindGroup with storage buffer
 TEST_P(GfxBindGroupTest, CreateBindGroupWithStorageBuffer)
 {

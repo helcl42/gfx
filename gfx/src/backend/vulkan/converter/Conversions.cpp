@@ -1613,6 +1613,7 @@ core::BindGroupCreateInfo gfxDescriptorToBindGroupCreateInfo(const GfxBindGroupD
 
         core::BindGroupEntry bindEntry{};
         bindEntry.binding = entry.binding;
+        bindEntry.arrayElement = entry.arrayElement;
 
         if (entry.type == GFX_BIND_GROUP_ENTRY_TYPE_BUFFER) {
             auto* buffer = converter::toNative<core::Buffer>(entry.resource.buffer.buffer);

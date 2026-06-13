@@ -67,12 +67,8 @@ BindGroup::BindGroup(Device* device, const BindGroupCreateInfo& createInfo)
     size_t bufferInfoIndex = 0;
     size_t imageInfoIndex = 0;
 
-    // Track array element index per binding
-    std::unordered_map<uint32_t, uint32_t> bindingArrayIndices;
-
     for (const auto& entry : createInfo.entries) {
-        // Get array element index for this binding (auto-increments on repeated bindings)
-        uint32_t arrayElement = bindingArrayIndices[entry.binding]++;
+        uint32_t arrayElement = entry.arrayElement;
 
         if (entry.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || entry.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
             VkDescriptorBufferInfo bufferInfo{};

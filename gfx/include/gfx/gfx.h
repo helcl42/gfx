@@ -1556,7 +1556,7 @@ typedef struct {
     uint32_t binding;
     GfxShaderStageFlags visibility;
     GfxBindingType type; // Explicitly specify the binding type
-    uint32_t count; // Number of descriptors (for arrays), default 1
+    uint32_t count; // Number of descriptors for array bindings (0 or 1 = single). Bind elements via GfxBindGroupEntry.arrayElement.
 
     // Resource type - use type field to determine which is valid
     struct {
@@ -1589,8 +1589,12 @@ typedef struct {
     uint32_t entryCount;
 } GfxBindGroupLayoutDescriptor;
 
+// One entry binds a single resource to (binding, arrayElement).
+// For array bindings (GfxBindGroupLayoutEntry.count > 1), provide one entry per
+// array element with the same binding and arrayElement = 0..count-1.
 typedef struct {
     uint32_t binding;
+    uint32_t arrayElement; // Index within the binding array, 0 for non-array bindings
     GfxBindGroupEntryType type;
     union {
         struct {

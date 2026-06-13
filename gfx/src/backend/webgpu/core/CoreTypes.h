@@ -300,6 +300,7 @@ struct BindGroupLayoutCreateInfo {
 
 struct BindGroupEntry {
     uint32_t binding;
+    uint32_t arrayElement = 0; // Index within the binding array
     WGPUBuffer buffer;
     uint64_t bufferOffset;
     uint64_t bufferSize;

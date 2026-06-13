@@ -543,6 +543,7 @@ core::BindGroupCreateInfo gfxDescriptorToWebGPUBindGroupCreateInfo(const GfxBind
             core::BindGroupEntry bindEntry{};
 
             bindEntry.binding = entry.binding;
+            bindEntry.arrayElement = entry.arrayElement;
 
             switch (entry.type) {
             case GFX_BIND_GROUP_ENTRY_TYPE_BUFFER: {
