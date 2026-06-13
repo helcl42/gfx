@@ -123,7 +123,7 @@
 //   if (result == GFX_RESULT_ERROR_OUT_OF_DATE) {
 //       gfxSwapchainDestroy(swapchain);
 //       // Query new window size
-//       swapchain = gfxDeviceCreateSwapchain(device, &newDesc);
+//       gfxDeviceCreateSwapchain(device, &newDesc, &swapchain);
 //   }
 //
 // 4. Device lost (GPU crash):
@@ -132,7 +132,7 @@
 //       // GPU crashed - need to recreate device
 //       cleanupAllResources();
 //       gfxDeviceDestroy(device);
-//       device = gfxAdapterCreateDevice(adapter, &deviceDesc);
+//       gfxAdapterCreateDevice(adapter, &deviceDesc, &device);
 //       recreateAllResources();
 //   }
 //
@@ -192,19 +192,19 @@
 //
 // Input Strings (Borrowed):
 //   const char* label = "MyBuffer";
-//   gfxDeviceCreateBuffer(device, &desc);
+//   gfxDeviceCreateBuffer(device, &desc, &buffer);
 //   → label string is COPIED internally, application can free immediately after call returns
 //   → All const char* parameters in descriptors are borrowed and copied
 //   → Lifetime requirement: Valid only during the function call
 //
 // Output Strings (Library-Owned):
-//   GfxBufferInfo info;
-//   gfxBufferGetInfo(buffer, &info);
+//   GfxAdapterInfo info;
+//   gfxAdapterGetInfo(adapter, &info);
 //   printf("%s", info.name); // OK
-//   → info.name is owned by the BUFFER object
-//   → Remains valid until gfxBufferDestroy() is called
+//   → info.name is owned by the ADAPTER object
+//   → Remains valid until the owning object is destroyed
 //   → Application MUST NOT free these strings
-//   → Application MUST copy if needed after buffer destruction
+//   → Application MUST copy if needed beyond the owning object's lifetime
 //
 // ARRAYS IN DESCRIPTORS:
 //
@@ -215,7 +215,7 @@
 //       .attributes = attrs,
 //       .attributeCount = 3
 //   };
-//   gfxDeviceCreatePipeline(device, &pipelineDesc);
+//   gfxDeviceCreateRenderPipeline(device, &pipelineDesc, &pipeline);
 //   // attrs can be freed or go out of scope here - array was copied
 //
 // Extension Chains (pNext):
@@ -230,7 +230,7 @@
 //
 //   GfxCommandEncoder encoder;
 //   gfxDeviceCreateCommandEncoder(device, &desc, &encoder);
-//   gfxCommandEncoderCopyBuffer(encoder, ...);
+//   gfxCommandEncoderCopyBufferToBuffer(encoder, &copyDesc);
 //   gfxCommandEncoderEnd(encoder);
 //   gfxQueueSubmit(queue, &submitDesc); // submitDesc contains encoder
 //   → Encoder is BORROWED by gfxQueueSubmit (reads commands, doesn't store encoder)
@@ -288,7 +288,7 @@
 // | GfxDevice          | Adapter       | gfxDeviceDestroy()          | Adapter           |
 // | GfxBuffer          | Device        | gfxBufferDestroy()          | Device            |
 // | GfxTexture         | Device        | gfxTextureDestroy()         | Device            |
-// | GfxPipeline        | Device        | gfxPipelineDestroy()        | Device, Shader    |
+// | GfxRenderPipeline  | Device        | gfxRenderPipelineDestroy()  | Device, Shader    |
 // | GfxBindGroup       | Device        | gfxBindGroupDestroy()       | Device, Resources |
 // | Descriptor strings | Application   | Application manages         | N/A               |
 // | Info strings       | Parent object | Parent's destroy function   | Parent object     |
@@ -312,7 +312,7 @@
 // Resource Creation (Requires External Sync on Same Device):
 //   ✗ gfxDeviceCreateBuffer(device, ...)
 //   ✗ gfxDeviceCreateTexture(device, ...)
-//   ✗ gfxDeviceCreatePipeline(device, ...)
+//   ✗ gfxDeviceCreateRenderPipeline(device, ...)
 //   → Multiple threads creating resources on the SAME device must synchronize externally
 //   → Different devices can be used concurrently without sync
 //
@@ -1813,7 +1813,8 @@ GFX_API GfxResult gfxLoadAllBackends(void);
 GFX_API GfxResult gfxUnloadAllBackends(void);
 
 // Extension enumeration functions
-// Vulkan-style enumeration: call with queueFamilies=NULL to get count, then call again with allocated array
+// Vulkan-style enumeration: call with extensionNames=NULL to get count, then call again with allocated array
+// Returned strings are owned by the library and remain valid for its lifetime
 GFX_API GfxResult gfxEnumerateInstanceExtensions(GfxBackend backend, uint32_t* extensionCount, const char** extensionNames);
 
 // Instance functions
@@ -1832,7 +1833,8 @@ GFX_API GfxResult gfxAdapterGetLimits(GfxAdapter adapter, GfxDeviceLimits* outLi
 // Vulkan-style enumeration: call with queueFamilies=NULL to get count, then call again with allocated array
 GFX_API GfxResult gfxAdapterEnumerateQueueFamilies(GfxAdapter adapter, uint32_t* queueFamilyCount, GfxQueueFamilyProperties* queueFamilies);
 GFX_API GfxResult gfxAdapterGetQueueFamilySurfaceSupport(GfxAdapter adapter, uint32_t queueFamilyIndex, GfxSurface surface, bool* outSupported);
-// Vulkan-style enumeration: call with queueFamilies=NULL to get count, then call again with allocated array
+// Vulkan-style enumeration: call with extensionNames=NULL to get count, then call again with allocated array
+// Returned strings are owned by the library and remain valid for its lifetime
 GFX_API GfxResult gfxAdapterEnumerateExtensions(GfxAdapter adapter, uint32_t* extensionCount, const char** extensionNames);
 
 // Device functions
