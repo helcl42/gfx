@@ -143,9 +143,12 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
         m_textureViews.push_back(std::make_unique<TextureView>(m_textures[i].get(), viewCreateInfo));
     }
 
-    // Present on the device's default queue (previously this fetched raw queue (0,0),
-    // which is invalid when custom queue requests don't include family 0 index 0)
-    m_presentQueue = m_device->getQueue();
+    // Present on a queue whose family can actually present to this surface
+    // (prefers the default queue; verified via vkGetPhysicalDeviceSurfaceSupportKHR)
+    m_presentQueue = m_device->findPresentQueue(m_surface->handle());
+    if (!m_presentQueue) {
+        throw std::runtime_error("No queue created on this device supports presentation to the surface");
+    }
 
     // Don't pre-acquire an image - let explicit acquire handle it
     m_currentImageIndex = 0;

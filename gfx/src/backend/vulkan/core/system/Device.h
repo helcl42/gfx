@@ -26,6 +26,7 @@ public:
     VkDevice handle() const;
     Queue* getQueue();
     Queue* getQueueByIndex(uint32_t queueFamilyIndex, uint32_t queueIndex);
+    Queue* findPresentQueue(VkSurfaceKHR surface);
 
     // Returns the mutex guarding host access to the given VkQueue.
     // Vulkan requires external synchronization for vkQueueSubmit/vkQueueWaitIdle/vkQueuePresentKHR;

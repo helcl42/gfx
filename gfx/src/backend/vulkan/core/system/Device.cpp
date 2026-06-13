@@ -322,6 +322,20 @@ Queue* Device::getQueueByIndex(uint32_t queueFamilyIndex, uint32_t queueIndex)
     return (it != m_queues.end()) ? it->second.get() : nullptr;
 }
 
+Queue* Device::findPresentQueue(VkSurfaceKHR surface)
+{
+    if (m_defaultQueue && m_adapter->supportsPresentation(m_defaultQueue->family(), surface)) {
+        return m_defaultQueue;
+    }
+    // Otherwise fall back to any other queue created on this device
+    for (auto& [key, queue] : m_queues) {
+        if (m_adapter->supportsPresentation(queue->family(), surface)) {
+            return queue.get();
+        }
+    }
+    return nullptr;
+}
+
 std::mutex& Device::queueMutex(VkQueue queue)
 {
     // unordered_map guarantees reference stability, so the returned mutex
