@@ -564,7 +564,7 @@ enum class PipelineStage : uint32_t {
     ComputeShader = 1 << 11, // 0x00000800
     Transfer = 1 << 12, // 0x00001000
     BottomOfPipe = 1 << 13, // 0x00002000
-    AllGraphics = 0x0000FFFF,
+    AllGraphics = 1 << 15, // 0x00008000 - all graphics pipeline stages (dedicated bit, matches Vulkan)
     AllCommands = 1 << 16 // 0x00010000
 };
 

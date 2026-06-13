@@ -380,11 +380,28 @@ TEST(VulkanConversionsTest, GfxMemoryBarrierToMemoryBarrier_AllFields_ConvertsCo
 
     gfx::backend::vulkan::core::MemoryBarrier result = gfx::backend::vulkan::converter::gfxMemoryBarrierToMemoryBarrier(gfxBarrier);
 
-    // Check that the appropriate bits are set (converter may set additional flags like ALL_GRAPHICS)
-    EXPECT_TRUE(result.srcStageMask & VK_PIPELINE_STAGE_VERTEX_SHADER_BIT);
-    EXPECT_TRUE(result.dstStageMask & VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
-    EXPECT_TRUE(result.srcAccessMask & VK_ACCESS_SHADER_WRITE_BIT);
-    EXPECT_TRUE(result.dstAccessMask & VK_ACCESS_SHADER_READ_BIT);
+    EXPECT_EQ(result.srcStageMask, static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_VERTEX_SHADER_BIT));
+    EXPECT_EQ(result.dstStageMask, static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT));
+    EXPECT_EQ(result.srcAccessMask, static_cast<VkAccessFlags>(VK_ACCESS_SHADER_WRITE_BIT));
+    EXPECT_EQ(result.dstAccessMask, static_cast<VkAccessFlags>(VK_ACCESS_SHADER_READ_BIT));
+}
+
+TEST(VulkanConversionsTest, GfxPipelineStageAllGraphics_ConvertsToVkAllGraphicsOnly)
+{
+    VkPipelineStageFlags result = gfx::backend::vulkan::converter::gfxPipelineStageFlagsToVkPipelineStageFlags(GFX_PIPELINE_STAGE_ALL_GRAPHICS);
+    EXPECT_EQ(result, static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT));
+}
+
+TEST(VulkanConversionsTest, GfxPipelineStageSingleBit_DoesNotWidenToAllGraphics)
+{
+    VkPipelineStageFlags result = gfx::backend::vulkan::converter::gfxPipelineStageFlagsToVkPipelineStageFlags(GFX_PIPELINE_STAGE_COMPUTE_SHADER);
+    EXPECT_EQ(result, static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT));
+}
+
+TEST(VulkanConversionsTest, GfxPipelineStageAllCommands_ConvertsToVkAllCommandsOnly)
+{
+    VkPipelineStageFlags result = gfx::backend::vulkan::converter::gfxPipelineStageFlagsToVkPipelineStageFlags(GFX_PIPELINE_STAGE_ALL_COMMANDS);
+    EXPECT_EQ(result, static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT));
 }
 
 TEST(VulkanConversionsTest, GfxMemoryBarrierToMemoryBarrier_MultipleStages_ConvertsCorrectly)
