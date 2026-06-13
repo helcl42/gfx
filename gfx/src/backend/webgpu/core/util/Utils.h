@@ -12,6 +12,9 @@ bool hasStencil(WGPUTextureFormat format);
 // Get bytes per pixel for a texture format
 uint32_t getFormatBytesPerPixel(WGPUTextureFormat format);
 
+// Get the size in bytes of one texel in buffer memory for a given aspect of a format
+uint32_t getAspectTexelSize(WGPUTextureFormat format, WGPUTextureAspect aspect);
+
 // Align value up to the specified alignment
 uint32_t alignUp(uint32_t value, uint32_t alignment);
 

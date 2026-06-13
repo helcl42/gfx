@@ -197,7 +197,7 @@ TEST_F(VulkanCommandEncoderTest, CopyBufferToTexture_WorksCorrectly)
     encoder->begin();
     VkOffset3D origin = { 0, 0, 0 };
     VkExtent3D extent = { 256, 256, 1 };
-    EXPECT_NO_THROW(encoder->copyBufferToTexture(buffer.get(), 0, texture.get(), origin, extent, 0, 0, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL));
+    EXPECT_NO_THROW(encoder->copyBufferToTexture(buffer.get(), 0, texture.get(), origin, extent, 0, 0, 0, 0, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL));
     encoder->end();
 }
 
@@ -224,7 +224,7 @@ TEST_F(VulkanCommandEncoderTest, CopyTextureToBuffer_WorksCorrectly)
     encoder->begin();
     VkOffset3D origin = { 0, 0, 0 };
     VkExtent3D extent = { 256, 256, 1 };
-    EXPECT_NO_THROW(encoder->copyTextureToBuffer(texture.get(), origin, 0, 0, buffer.get(), 0, extent, 0, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL));
+    EXPECT_NO_THROW(encoder->copyTextureToBuffer(texture.get(), origin, 0, 0, buffer.get(), 0, extent, 0, 0, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL));
     encoder->end();
 }
 

@@ -30,6 +30,33 @@ VkImageAspectFlags getImageAspectMask(VkFormat format)
     return VK_IMAGE_ASPECT_COLOR_BIT;
 }
 
+uint32_t getAspectTexelSize(VkFormat format, VkImageAspectFlags aspectMask)
+{
+    if (aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT) {
+        return 1; // Stencil data is always 1 byte/texel
+    }
+    if (aspectMask == VK_IMAGE_ASPECT_DEPTH_BIT) {
+        switch (format) {
+        case VK_FORMAT_D16_UNORM:
+        case VK_FORMAT_D16_UNORM_S8_UINT:
+            return 2;
+        case VK_FORMAT_X8_D24_UNORM_PACK32:
+        case VK_FORMAT_D24_UNORM_S8_UINT: // depth is packed in 32 bits
+        case VK_FORMAT_D32_SFLOAT:
+        case VK_FORMAT_D32_SFLOAT_S8_UINT: // depth data is 32-bit float
+            return 4;
+        default:
+            return 0; // not a depth format
+        }
+    }
+    // Multi-aspect masks have no defined buffer layout for copies (Vulkan requires a single
+    // aspect per VkBufferImageCopy region; enforced by validation) - return 0 to make misuse visible
+    if ((aspectMask & (aspectMask - 1)) != 0) {
+        return 0;
+    }
+    return getVkFormatBytesPerPixel(format);
+}
+
 VkAccessFlags getVkAccessFlagsForLayout(VkImageLayout layout)
 {
     switch (layout) {

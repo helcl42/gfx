@@ -104,6 +104,11 @@ TextureLayout cLayoutToCppLayout(GfxTextureLayout layout)
     return static_cast<TextureLayout>(layout);
 }
 
+GfxTextureAspect cppTextureAspectToCTextureAspect(TextureAspect aspect)
+{
+    return static_cast<GfxTextureAspect>(aspect);
+}
+
 GfxPresentMode cppPresentModeToCPresentMode(PresentMode mode)
 {
     return static_cast<GfxPresentMode>(mode);
@@ -477,11 +482,13 @@ void convertCopyBufferToTextureDescriptor(const CopyBufferToTextureDescriptor& i
     output.source = srcImpl->getHandle();
     output.sourceOffset = input.sourceOffset;
     output.bytesPerRow = input.bytesPerRow;
+    output.rowsPerImage = input.rowsPerImage;
     output.destination = dstImpl->getHandle();
     output.origin = cppOrigin3DToCOrigin3D(input.origin);
     output.extent = cppExtent3DToCExtent3D(input.extent);
     output.mipLevel = input.mipLevel;
     output.arrayLayer = input.arrayLayer;
+    output.aspect = cppTextureAspectToCTextureAspect(input.aspect);
     output.finalLayout = cppLayoutToCLayout(input.finalLayout);
 }
 
@@ -500,9 +507,11 @@ void convertCopyTextureToBufferDescriptor(const CopyTextureToBufferDescriptor& i
     output.origin = cppOrigin3DToCOrigin3D(input.origin);
     output.mipLevel = input.mipLevel;
     output.arrayLayer = input.arrayLayer;
+    output.aspect = cppTextureAspectToCTextureAspect(input.aspect);
     output.destination = dstImpl->getHandle();
     output.destinationOffset = input.destinationOffset;
     output.bytesPerRow = input.bytesPerRow;
+    output.rowsPerImage = input.rowsPerImage;
     output.extent = cppExtent3DToCExtent3D(input.extent);
     output.finalLayout = cppLayoutToCLayout(input.finalLayout);
 }

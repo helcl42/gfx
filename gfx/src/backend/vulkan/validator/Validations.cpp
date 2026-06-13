@@ -5,7 +5,9 @@
 #include "backend/vulkan/core/command/RenderPassEncoder.h"
 #include "backend/vulkan/core/query/QuerySet.h"
 #include "backend/vulkan/core/resource/Buffer.h"
+#include "backend/vulkan/core/resource/Texture.h"
 #include "backend/vulkan/core/system/Device.h"
+#include "backend/vulkan/core/util/Utils.h"
 
 #include <cstdint>
 
@@ -559,6 +561,27 @@ namespace {
         return GFX_RESULT_SUCCESS;
     }
 
+    // Common aspect/layout checks for buffer<->texture copies
+    GfxResult validateCopyAspectAndRowPitch(GfxTexture texture, GfxTextureAspect aspect, uint32_t bytesPerRow)
+    {
+        const auto* tex = converter::toNative<core::Texture>(texture);
+        VkFormat format = tex->getFormat();
+        VkImageAspectFlags aspectMask = converter::gfxTextureAspectToVkAspectMask(aspect, format);
+
+        // Buffer<->texture copies of combined depth-stencil formats must select a single aspect
+        if (aspectMask == (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+
+        // bytesPerRow must be a whole number of texels (Vulkan's bufferRowLength is in texels)
+        uint32_t texelSize = core::getAspectTexelSize(format, aspectMask);
+        if (bytesPerRow != 0 && texelSize != 0 && bytesPerRow % texelSize != 0) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+
+        return GFX_RESULT_SUCCESS;
+    }
+
     GfxResult validateCopyBufferToTextureDescriptor(const GfxCopyBufferToTextureDescriptor* descriptor)
     {
         if (!descriptor) {
@@ -575,7 +598,7 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        return GFX_RESULT_SUCCESS;
+        return validateCopyAspectAndRowPitch(descriptor->destination, descriptor->aspect, descriptor->bytesPerRow);
     }
 
     GfxResult validateCopyTextureToBufferDescriptor(const GfxCopyTextureToBufferDescriptor* descriptor)
@@ -587,6 +610,11 @@ namespace {
         // Validate source and destination
         if (!descriptor->source || !descriptor->destination) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+
+        GfxResult aspectResult = validateCopyAspectAndRowPitch(descriptor->source, descriptor->aspect, descriptor->bytesPerRow);
+        if (aspectResult != GFX_RESULT_SUCCESS) {
+            return aspectResult;
         }
 
         // Validate extent
@@ -1154,12 +1182,15 @@ GfxResult validateQueueWriteBuffer(GfxQueue queue, GfxBuffer buffer, const void*
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult validateQueueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, const void* data)
+GfxResult validateQueueWriteTexture(GfxQueue queue, const GfxWriteTextureDescriptor* descriptor, const void* data)
 {
-    if (!queue || !texture || !origin || !extent || !data) {
+    if (!queue || !descriptor || !descriptor->texture || !data) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    return GFX_RESULT_SUCCESS;
+    if (descriptor->extent.width == 0 || descriptor->extent.height == 0 || descriptor->extent.depth == 0) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return validateCopyAspectAndRowPitch(descriptor->texture, descriptor->aspect, descriptor->bytesPerRow);
 }
 
 GfxResult validateCommandEncoderBeginRenderPass(GfxCommandEncoder commandEncoder, const GfxRenderPassBeginDescriptor* beginDescriptor, GfxRenderPassEncoder* outRenderPass)

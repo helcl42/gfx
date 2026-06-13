@@ -185,7 +185,8 @@ void Queue::writeBuffer(Buffer* buffer, uint64_t offset, const void* data, uint6
 
 void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mipLevel,
     uint32_t arrayLayer, const void* data, uint64_t dataSize,
-    const VkExtent3D& extent, uint32_t bytesPerRow, VkImageLayout finalLayout)
+    const VkExtent3D& extent, uint32_t bytesPerRow, uint32_t rowsPerImage,
+    VkImageAspectFlags aspectMask, VkImageLayout finalLayout)
 {
     Allocator* allocator = m_device->getAllocator();
 
@@ -217,26 +218,32 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
     // writeTexture overwrites the entire subresource contents.
     texture->setLayout(VK_IMAGE_LAYOUT_UNDEFINED);
 
+    // For 3D textures extent.depth is the number of depth slices; for 1D/2D textures
+    // it is the number of array layers to write starting at arrayLayer
+    bool is3D = texture->getImageType() == VK_IMAGE_TYPE_3D;
+    uint32_t layerCount = is3D ? 1 : (extent.depth > 0 ? extent.depth : 1);
+    uint32_t texelSize = getAspectTexelSize(texture->getFormat(), aspectMask);
+
     executor.execute([&](VkCommandBuffer cmd) {
         // Transition image to transfer dst optimal
-        texture->transitionLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevel, 1, arrayLayer, 1);
+        texture->transitionLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevel, 1, arrayLayer, layerCount);
 
         // Copy buffer to image
         VkBufferImageCopy region{};
         region.bufferOffset = 0;
-        region.bufferRowLength = (bytesPerRow == 0) ? 0 : bytesPerRow / getVkFormatBytesPerPixel(texture->getFormat());
-        region.bufferImageHeight = 0;
-        region.imageSubresource.aspectMask = getImageAspectMask(texture->getFormat());
+        region.bufferRowLength = (bytesPerRow == 0 || texelSize == 0) ? 0 : bytesPerRow / texelSize;
+        region.bufferImageHeight = rowsPerImage;
+        region.imageSubresource.aspectMask = aspectMask;
         region.imageSubresource.mipLevel = mipLevel;
-        region.imageSubresource.baseArrayLayer = arrayLayer;
-        region.imageSubresource.layerCount = 1;
-        region.imageOffset = origin;
-        region.imageExtent = extent;
+        region.imageSubresource.baseArrayLayer = is3D ? 0 : arrayLayer;
+        region.imageSubresource.layerCount = layerCount;
+        region.imageOffset = { origin.x, origin.y, is3D ? origin.z : 0 };
+        region.imageExtent = { extent.width, extent.height, is3D ? extent.depth : 1 };
 
         vkCmdCopyBufferToImage(cmd, staging.buffer, texture->handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
         // Transition image to final layout
-        texture->transitionLayout(cmd, finalLayout, mipLevel, 1, arrayLayer, 1);
+        texture->transitionLayout(cmd, finalLayout, mipLevel, 1, arrayLayer, layerCount);
     });
 
     // Cleanup

@@ -991,6 +991,26 @@ TEST(VulkanConversionsTest, GetImageAspectMask_DepthStencilFormat_ReturnsBothBit
     EXPECT_TRUE(result & VK_IMAGE_ASPECT_STENCIL_BIT);
 }
 
+TEST(VulkanConversionsTest, GfxTextureAspect_DepthOnly_ReturnsDepthBit)
+{
+    VkImageAspectFlags result = gfx::backend::vulkan::converter::gfxTextureAspectToVkAspectMask(GFX_TEXTURE_ASPECT_DEPTH_ONLY, VK_FORMAT_D24_UNORM_S8_UINT);
+    EXPECT_EQ(result, static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT));
+}
+
+TEST(VulkanConversionsTest, GfxTextureAspect_StencilOnly_ReturnsStencilBit)
+{
+    VkImageAspectFlags result = gfx::backend::vulkan::converter::gfxTextureAspectToVkAspectMask(GFX_TEXTURE_ASPECT_STENCIL_ONLY, VK_FORMAT_D24_UNORM_S8_UINT);
+    EXPECT_EQ(result, static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_STENCIL_BIT));
+}
+
+TEST(VulkanConversionsTest, GfxTextureAspect_All_DerivesFromFormat)
+{
+    EXPECT_EQ(gfx::backend::vulkan::converter::gfxTextureAspectToVkAspectMask(GFX_TEXTURE_ASPECT_ALL, VK_FORMAT_R8G8B8A8_UNORM),
+        static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_COLOR_BIT));
+    EXPECT_EQ(gfx::backend::vulkan::converter::gfxTextureAspectToVkAspectMask(GFX_TEXTURE_ASPECT_ALL, VK_FORMAT_D24_UNORM_S8_UINT),
+        static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT));
+}
+
 // ============================================================================
 // Layout Access Flags Utility
 // ============================================================================

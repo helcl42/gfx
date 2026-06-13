@@ -548,6 +548,14 @@ enum class TextureLayout : int32_t {
     PresentSrc = 8
 };
 
+// Texture aspect selection for copy operations on depth/stencil formats
+// Combined depth-stencil formats require DepthOnly or StencilOnly for buffer<->texture copies.
+enum class TextureAspect : int32_t {
+    All = 0,
+    DepthOnly = 1,
+    StencilOnly = 2
+};
+
 enum class PipelineStage : uint32_t {
     None = 0,
     TopOfPipe = 1 << 0, // 0x00000001
@@ -1420,12 +1428,14 @@ struct CopyBufferToBufferDescriptor {
 struct CopyBufferToTextureDescriptor {
     std::shared_ptr<Buffer> source;
     uint64_t sourceOffset = 0;
-    uint32_t bytesPerRow = 0;
+    uint32_t bytesPerRow = 0; // 0 = tightly packed
+    uint32_t rowsPerImage = 0; // 0 = tightly packed
     std::shared_ptr<Texture> destination;
     Origin3D origin = {};
     Extent3D extent = {};
     uint32_t mipLevel = 0;
     uint32_t arrayLayer = 0;
+    TextureAspect aspect = TextureAspect::All;
     TextureLayout finalLayout = TextureLayout::Undefined;
 };
 
@@ -1434,10 +1444,25 @@ struct CopyTextureToBufferDescriptor {
     Origin3D origin = {};
     uint32_t mipLevel = 0;
     uint32_t arrayLayer = 0;
+    TextureAspect aspect = TextureAspect::All;
     std::shared_ptr<Buffer> destination;
     uint64_t destinationOffset = 0;
-    uint32_t bytesPerRow = 0;
+    uint32_t bytesPerRow = 0; // 0 = tightly packed
+    uint32_t rowsPerImage = 0; // 0 = tightly packed
     Extent3D extent = {};
+    TextureLayout finalLayout = TextureLayout::Undefined;
+};
+
+// Descriptor for Queue::writeTexture (data and dataSize are passed as function arguments)
+struct WriteTextureDescriptor {
+    std::shared_ptr<Texture> texture;
+    Origin3D origin = {};
+    Extent3D extent = {};
+    uint32_t mipLevel = 0;
+    uint32_t arrayLayer = 0;
+    TextureAspect aspect = TextureAspect::All;
+    uint32_t bytesPerRow = 0; // 0 = tightly packed
+    uint32_t rowsPerImage = 0; // 0 = tightly packed
     TextureLayout finalLayout = TextureLayout::Undefined;
 };
 
@@ -1709,7 +1734,7 @@ public:
     virtual void* getNativeHandle() const = 0;
     virtual Result submit(const SubmitDescriptor& submitDescriptor) = 0;
     virtual void writeBuffer(std::shared_ptr<Buffer> buffer, uint64_t offset, const void* data, uint64_t size) = 0;
-    virtual void writeTexture(std::shared_ptr<Texture> texture, const Origin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, const Extent3D& extent, uint32_t bytesPerRow, TextureLayout finalLayout) = 0;
+    virtual void writeTexture(const WriteTextureDescriptor& descriptor, const void* data, uint64_t dataSize) = 0;
     virtual void waitIdle() = 0;
 
     template <typename T>

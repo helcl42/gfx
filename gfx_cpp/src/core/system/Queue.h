@@ -19,7 +19,7 @@ public:
     void* getNativeHandle() const override;
     Result submit(const SubmitDescriptor& submitDescriptor) override;
     void writeBuffer(std::shared_ptr<Buffer> buffer, uint64_t offset, const void* data, uint64_t size) override;
-    void writeTexture(std::shared_ptr<Texture> texture, const Origin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, const Extent3D& extent, uint32_t bytesPerRow, TextureLayout finalLayout) override;
+    void writeTexture(const WriteTextureDescriptor& descriptor, const void* data, uint64_t dataSize) override;
     void waitIdle() override;
 
     GfxQueue getHandle() const { return m_handle; }

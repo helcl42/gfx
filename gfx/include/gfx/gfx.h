@@ -564,6 +564,13 @@ typedef enum {
 } GfxTextureSampleType;
 
 typedef enum {
+    GFX_TEXTURE_ASPECT_ALL = 0, // Color formats, or depth-only/stencil-only formats
+    GFX_TEXTURE_ASPECT_DEPTH_ONLY = 1,
+    GFX_TEXTURE_ASPECT_STENCIL_ONLY = 2,
+    GFX_TEXTURE_ASPECT_MAX_ENUM = 0x7FFFFFFF
+} GfxTextureAspect;
+
+typedef enum {
     GFX_TEXTURE_USAGE_NONE = 0,
     GFX_TEXTURE_USAGE_COPY_SRC = 1 << 0,
     GFX_TEXTURE_USAGE_COPY_DST = 1 << 1,
@@ -1177,15 +1184,23 @@ typedef struct {
     uint64_t size;
 } GfxCopyBufferToBufferDescriptor;
 
+// Buffer data layout for buffer<->texture copies:
+// - bytesPerRow: byte stride between rows in the buffer, 0 = tightly packed (extent.width * texel size)
+// - rowsPerImage: rows per image slice in the buffer, 0 = tightly packed (= extent.height)
+// Extent semantics:
+// - 3D textures: extent.depth = number of depth slices to copy (origin.z = first slice)
+// - 1D/2D textures: extent.depth = number of array layers to copy (arrayLayer = first layer)
 typedef struct {
     GfxBuffer source;
     uint64_t sourceOffset;
-    uint32_t bytesPerRow;
+    uint32_t bytesPerRow; // 0 = tightly packed
+    uint32_t rowsPerImage; // 0 = tightly packed
     GfxTexture destination;
     GfxOrigin3D origin;
     GfxExtent3D extent;
     uint32_t mipLevel;
     uint32_t arrayLayer;
+    GfxTextureAspect aspect; // Must be DEPTH_ONLY or STENCIL_ONLY for combined depth-stencil formats
     GfxTextureLayout finalLayout;
 } GfxCopyBufferToTextureDescriptor;
 
@@ -1194,9 +1209,11 @@ typedef struct {
     GfxOrigin3D origin;
     uint32_t mipLevel;
     uint32_t arrayLayer;
+    GfxTextureAspect aspect; // Must be DEPTH_ONLY or STENCIL_ONLY for combined depth-stencil formats
     GfxBuffer destination;
     uint64_t destinationOffset;
-    uint32_t bytesPerRow;
+    uint32_t bytesPerRow; // 0 = tightly packed
+    uint32_t rowsPerImage; // 0 = tightly packed
     GfxExtent3D extent;
     GfxTextureLayout finalLayout;
 } GfxCopyTextureToBufferDescriptor;
@@ -1230,6 +1247,18 @@ typedef struct {
     GfxTextureLayout destinationFinalLayout;
     GfxFilterMode filter;
 } GfxBlitTextureToTextureDescriptor;
+
+typedef struct {
+    GfxTexture texture;
+    GfxOrigin3D origin;
+    GfxExtent3D extent;
+    uint32_t mipLevel;
+    uint32_t arrayLayer;
+    GfxTextureAspect aspect; // Must be DEPTH_ONLY or STENCIL_ONLY for combined depth-stencil formats
+    uint32_t bytesPerRow; // 0 = tightly packed
+    uint32_t rowsPerImage; // 0 = tightly packed
+    GfxTextureLayout finalLayout;
+} GfxWriteTextureDescriptor;
 
 typedef struct {
     GfxStructureType sType;
@@ -1825,7 +1854,7 @@ GFX_API GfxResult gfxQueueSubmit(GfxQueue queue, const GfxSubmitDescriptor* subm
 GFX_API GfxResult gfxQueueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo);
 GFX_API GfxResult gfxQueueGetNativeHandle(GfxQueue queue, void** outHandle);
 GFX_API GfxResult gfxQueueWriteBuffer(GfxQueue queue, GfxBuffer buffer, uint64_t offset, const void* data, uint64_t size);
-GFX_API GfxResult gfxQueueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, uint32_t bytesPerRow, GfxTextureLayout finalLayout);
+GFX_API GfxResult gfxQueueWriteTexture(GfxQueue queue, const GfxWriteTextureDescriptor* descriptor, const void* data, uint64_t dataSize);
 GFX_API GfxResult gfxQueueWaitIdle(GfxQueue queue);
 
 // Surface functions

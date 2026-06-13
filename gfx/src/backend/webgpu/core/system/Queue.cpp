@@ -87,21 +87,25 @@ void Queue::writeBuffer(Buffer* buffer, uint64_t offset, const void* data, uint6
     wgpuQueueWriteBuffer(m_queue, buffer->handle(), offset, data, size);
 }
 
-void Queue::writeTexture(Texture* texture, uint32_t mipLevel, uint32_t arrayLayer, const WGPUOrigin3D& origin, const void* data, uint64_t dataSize, const WGPUExtent3D& extent, uint32_t bytesPerRow)
+void Queue::writeTexture(Texture* texture, uint32_t mipLevel, uint32_t arrayLayer, const WGPUOrigin3D& origin, const void* data, uint64_t dataSize, const WGPUExtent3D& extent, uint32_t bytesPerRow, uint32_t rowsPerImage, WGPUTextureAspect aspect)
 {
     // For WriteTexture (CPU→texture), bytesPerRow doesn't require 256-byte alignment
     // (unlike buffer-to-texture copies). Use tight packing if bytesPerRow is 0.
-    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? extent.width * getFormatBytesPerPixel(texture->getFormat()) : bytesPerRow;
+    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? extent.width * getAspectTexelSize(texture->getFormat(), aspect) : bytesPerRow;
 
     WGPUTexelCopyTextureInfo dest = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
     dest.texture = texture->handle();
     dest.mipLevel = mipLevel;
     dest.origin = origin;
-    dest.origin.z = arrayLayer;
+    // For 1D/2D textures origin.z selects the array layer; for 3D textures it is the depth slice
+    if (texture->getDimension() != WGPUTextureDimension_3D) {
+        dest.origin.z = arrayLayer;
+    }
+    dest.aspect = aspect;
 
     WGPUTexelCopyBufferLayout layout = WGPU_TEXEL_COPY_BUFFER_LAYOUT_INIT;
     layout.bytesPerRow = effectiveBytesPerRow;
-    layout.rowsPerImage = extent.height;
+    layout.rowsPerImage = (rowsPerImage == 0) ? extent.height : rowsPerImage;
 
     wgpuQueueWriteTexture(m_queue, &dest, data, dataSize, &layout, &extent);
 }

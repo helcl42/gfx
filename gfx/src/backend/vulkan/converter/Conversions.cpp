@@ -758,6 +758,19 @@ VkOffset3D gfxOrigin3DToVkOffset3D(const GfxOrigin3D* gfxOrigin)
     return { gfxOrigin->x, gfxOrigin->y, gfxOrigin->z };
 }
 
+VkImageAspectFlags gfxTextureAspectToVkAspectMask(GfxTextureAspect aspect, VkFormat format)
+{
+    switch (aspect) {
+    case GFX_TEXTURE_ASPECT_DEPTH_ONLY:
+        return VK_IMAGE_ASPECT_DEPTH_BIT;
+    case GFX_TEXTURE_ASPECT_STENCIL_ONLY:
+        return VK_IMAGE_ASPECT_STENCIL_BIT;
+    case GFX_TEXTURE_ASPECT_ALL:
+    default:
+        return getImageAspectMask(format);
+    }
+}
+
 GfxExtent2D vkExtent2DToGfxExtent2D(const VkExtent2D& vkExtent)
 {
     return { vkExtent.width, vkExtent.height };

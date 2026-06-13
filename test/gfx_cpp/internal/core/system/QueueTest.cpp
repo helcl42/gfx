@@ -104,11 +104,13 @@ TEST_P(QueueImplTest, WriteTexture)
     // Write data
     std::vector<uint8_t> data(16 * 16 * 4, 255);
 
-    Origin3D origin = { 0, 0, 0 };
-    Extent3D extent = { 16, 16, 1 };
+    WriteTextureDescriptor writeDesc = {};
+    writeDesc.texture = texture;
+    writeDesc.origin = { 0, 0, 0 };
+    writeDesc.extent = { 16, 16, 1 };
 
     // Should not crash
-    queueWrapper.writeTexture(texture, origin, 0, 0, data.data(), data.size(), extent, 0, TextureLayout::Undefined);
+    queueWrapper.writeTexture(writeDesc, data.data(), data.size());
 }
 
 TEST_P(QueueImplTest, Submit)

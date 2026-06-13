@@ -59,16 +59,23 @@ void QueueImpl::writeBuffer(std::shared_ptr<Buffer> buffer, uint64_t offset, con
     gfxQueueWriteBuffer(m_handle, impl->getHandle(), offset, data, size);
 }
 
-void QueueImpl::writeTexture(std::shared_ptr<Texture> texture, const Origin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, const Extent3D& extent, uint32_t bytesPerRow, TextureLayout finalLayout)
+void QueueImpl::writeTexture(const WriteTextureDescriptor& descriptor, const void* data, uint64_t dataSize)
 {
-    auto impl = std::dynamic_pointer_cast<TextureImpl>(texture);
+    auto impl = std::dynamic_pointer_cast<TextureImpl>(descriptor.texture);
     if (!impl) {
         throw std::runtime_error("Invalid texture type");
     }
-    GfxOrigin3D cOrigin = cppOrigin3DToCOrigin3D(origin);
-    GfxExtent3D cExtent = cppExtent3DToCExtent3D(extent);
-    GfxTextureLayout cFinalLayout = cppLayoutToCLayout(finalLayout);
-    gfxQueueWriteTexture(m_handle, impl->getHandle(), &cOrigin, &cExtent, mipLevel, arrayLayer, data, dataSize, bytesPerRow, cFinalLayout);
+    GfxWriteTextureDescriptor cDescriptor = {};
+    cDescriptor.texture = impl->getHandle();
+    cDescriptor.origin = cppOrigin3DToCOrigin3D(descriptor.origin);
+    cDescriptor.extent = cppExtent3DToCExtent3D(descriptor.extent);
+    cDescriptor.mipLevel = descriptor.mipLevel;
+    cDescriptor.arrayLayer = descriptor.arrayLayer;
+    cDescriptor.aspect = cppTextureAspectToCTextureAspect(descriptor.aspect);
+    cDescriptor.bytesPerRow = descriptor.bytesPerRow;
+    cDescriptor.rowsPerImage = descriptor.rowsPerImage;
+    cDescriptor.finalLayout = cppLayoutToCLayout(descriptor.finalLayout);
+    gfxQueueWriteTexture(m_handle, &cDescriptor, data, dataSize);
 }
 
 void QueueImpl::waitIdle()

@@ -189,38 +189,50 @@ void CommandEncoder::copyBufferToBuffer(Buffer* source, uint64_t sourceOffset, B
     wgpuCommandEncoderCopyBufferToBuffer(m_encoder, source->handle(), sourceOffset, destination->handle(), destinationOffset, size);
 }
 
-void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, Texture* destination, const WGPUOrigin3D& origin, const WGPUExtent3D& extent, uint32_t mipLevel, uint32_t arrayLayer, uint32_t bytesPerRow)
+void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, Texture* destination, const WGPUOrigin3D& origin, const WGPUExtent3D& extent, uint32_t mipLevel, uint32_t arrayLayer, uint32_t bytesPerRow, uint32_t rowsPerImage, WGPUTextureAspect aspect)
 {
-    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? calculateBytesPerRow(destination->getFormat(), extent.width) : bytesPerRow;
+    // Buffer-to-texture copies require 256-byte-aligned bytesPerRow; compute an aligned default
+    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? alignUp(extent.width * getAspectTexelSize(destination->getFormat(), aspect), 256) : bytesPerRow;
 
     WGPUTexelCopyBufferInfo sourceInfo = WGPU_TEXEL_COPY_BUFFER_INFO_INIT;
     sourceInfo.buffer = source->handle();
     sourceInfo.layout.offset = sourceOffset;
     sourceInfo.layout.bytesPerRow = effectiveBytesPerRow;
+    sourceInfo.layout.rowsPerImage = (rowsPerImage == 0) ? extent.height : rowsPerImage;
 
     WGPUTexelCopyTextureInfo destInfo = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
     destInfo.texture = destination->handle();
     destInfo.mipLevel = mipLevel;
     destInfo.origin = origin;
-    destInfo.origin.z = arrayLayer;
+    // For 1D/2D textures origin.z selects the array layer; for 3D textures it is the depth slice
+    if (destination->getDimension() != WGPUTextureDimension_3D) {
+        destInfo.origin.z = arrayLayer;
+    }
+    destInfo.aspect = aspect;
 
     wgpuCommandEncoderCopyBufferToTexture(m_encoder, &sourceInfo, &destInfo, &extent);
 }
 
-void CommandEncoder::copyTextureToBuffer(Texture* source, const WGPUOrigin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, Buffer* destination, uint64_t destinationOffset, const WGPUExtent3D& extent, uint32_t bytesPerRow)
+void CommandEncoder::copyTextureToBuffer(Texture* source, const WGPUOrigin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, Buffer* destination, uint64_t destinationOffset, const WGPUExtent3D& extent, uint32_t bytesPerRow, uint32_t rowsPerImage, WGPUTextureAspect aspect)
 {
-    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? calculateBytesPerRow(source->getFormat(), extent.width) : bytesPerRow;
+    // Texture-to-buffer copies require 256-byte-aligned bytesPerRow; compute an aligned default
+    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? alignUp(extent.width * getAspectTexelSize(source->getFormat(), aspect), 256) : bytesPerRow;
 
     WGPUTexelCopyTextureInfo sourceInfo = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
     sourceInfo.texture = source->handle();
     sourceInfo.mipLevel = mipLevel;
     sourceInfo.origin = origin;
-    sourceInfo.origin.z = arrayLayer;
+    // For 1D/2D textures origin.z selects the array layer; for 3D textures it is the depth slice
+    if (source->getDimension() != WGPUTextureDimension_3D) {
+        sourceInfo.origin.z = arrayLayer;
+    }
+    sourceInfo.aspect = aspect;
 
     WGPUTexelCopyBufferInfo destInfo = WGPU_TEXEL_COPY_BUFFER_INFO_INIT;
     destInfo.buffer = destination->handle();
     destInfo.layout.offset = destinationOffset;
     destInfo.layout.bytesPerRow = effectiveBytesPerRow;
+    destInfo.layout.rowsPerImage = (rowsPerImage == 0) ? extent.height : rowsPerImage;
 
     wgpuCommandEncoderCopyTextureToBuffer(m_encoder, &sourceInfo, &destInfo, &extent);
 }

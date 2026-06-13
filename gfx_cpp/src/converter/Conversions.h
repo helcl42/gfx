@@ -31,6 +31,9 @@ Format cFormatToCppFormat(GfxFormat format);
 GfxTextureLayout cppLayoutToCLayout(TextureLayout layout);
 TextureLayout cLayoutToCppLayout(GfxTextureLayout layout);
 
+// Texture aspect conversions
+GfxTextureAspect cppTextureAspectToCTextureAspect(TextureAspect aspect);
+
 // Present mode conversions
 GfxPresentMode cppPresentModeToCPresentMode(PresentMode mode);
 PresentMode cPresentModeToCppPresentMode(GfxPresentMode mode);

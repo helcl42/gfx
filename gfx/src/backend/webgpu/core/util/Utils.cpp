@@ -137,6 +137,29 @@ uint32_t getFormatBytesPerPixel(WGPUTextureFormat format)
     }
 }
 
+uint32_t getAspectTexelSize(WGPUTextureFormat format, WGPUTextureAspect aspect)
+{
+    if (aspect == WGPUTextureAspect_StencilOnly) {
+        return 1; // Stencil data is always 1 byte/texel
+    }
+    if (aspect == WGPUTextureAspect_DepthOnly) {
+        switch (format) {
+        case WGPUTextureFormat_Depth16Unorm:
+            return 2;
+        case WGPUTextureFormat_Depth32Float:
+        case WGPUTextureFormat_Depth32FloatStencil8:
+            return 4;
+        case WGPUTextureFormat_Depth24Plus:
+        case WGPUTextureFormat_Depth24PlusStencil8:
+        default:
+            // The depth aspect of depth24plus(-stencil8) has no defined buffer layout in
+            // WebGPU - such copies are rejected by the implementation. 0 makes misuse visible.
+            return 0;
+        }
+    }
+    return getFormatBytesPerPixel(format);
+}
+
 uint32_t calculateBytesPerRow(WGPUTextureFormat format, uint32_t width)
 {
     constexpr uint32_t WEBGPU_COPY_BUFFER_ALIGNMENT = 256;

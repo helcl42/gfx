@@ -338,6 +338,98 @@ TEST_P(GfxCppCommandEncoderTest, CopyBufferToTexture)
     encoder->end();
 }
 
+TEST_P(GfxCppCommandEncoderTest, CopyBufferToTextureMultipleArrayLayers)
+{
+    ASSERT_NE(device, nullptr);
+
+    // Buffer holding 2 tightly packed 64x64 RGBA8 layers
+    gfx::BufferDescriptor bufferDesc{
+        .size = 64 * 64 * 4 * 2,
+        .usage = gfx::BufferUsage::CopySrc,
+        .memoryProperties = gfx::MemoryProperty::DeviceLocal
+    };
+    auto buffer = device->createBuffer(bufferDesc);
+    ASSERT_NE(buffer, nullptr);
+
+    gfx::TextureDescriptor textureDesc{
+        .type = gfx::TextureType::Texture2D,
+        .size = { 64, 64, 1 },
+        .arrayLayerCount = 4,
+        .mipLevelCount = 1,
+        .sampleCount = gfx::SampleCount::Count1,
+        .format = gfx::Format::R8G8B8A8Unorm,
+        .usage = gfx::TextureUsage::CopyDst
+    };
+    auto texture = device->createTexture(textureDesc);
+    ASSERT_NE(texture, nullptr);
+
+    auto encoder = device->createCommandEncoder({});
+
+    // Copy 2 layers in a single call starting at array layer 1 (extent.depth = layer count for 2D textures)
+    gfx::CopyBufferToTextureDescriptor copyDesc{
+        .source = buffer,
+        .sourceOffset = 0,
+        .bytesPerRow = 64 * 4,
+        .rowsPerImage = 64,
+        .destination = texture,
+        .origin = { 0, 0, 0 },
+        .extent = { 64, 64, 2 },
+        .mipLevel = 0,
+        .arrayLayer = 1
+    };
+
+    EXPECT_NO_THROW(encoder->copyBufferToTexture(copyDesc));
+
+    encoder->end();
+}
+
+TEST_P(GfxCppCommandEncoderTest, CopyDepthStencilAllAspectIsRejected)
+{
+    ASSERT_NE(device, nullptr);
+
+    gfx::TextureDescriptor textureDesc{
+        .type = gfx::TextureType::Texture2D,
+        .size = { 64, 64, 1 },
+        .arrayLayerCount = 1,
+        .mipLevelCount = 1,
+        .sampleCount = gfx::SampleCount::Count1,
+        .format = gfx::Format::Depth24PlusStencil8,
+        .usage = gfx::TextureUsage::CopySrc
+    };
+    auto texture = device->createTexture(textureDesc);
+    ASSERT_NE(texture, nullptr);
+
+    gfx::BufferDescriptor bufferDesc{
+        .size = 64 * 64 * 4,
+        .usage = gfx::BufferUsage::CopyDst,
+        .memoryProperties = gfx::MemoryProperty::DeviceLocal
+    };
+    auto buffer = device->createBuffer(bufferDesc);
+    ASSERT_NE(buffer, nullptr);
+
+    auto encoder = device->createCommandEncoder({});
+
+    // Combined depth-stencil copies must select a single aspect - ALL must be rejected
+    gfx::CopyTextureToBufferDescriptor copyDesc{
+        .source = texture,
+        .origin = { 0, 0, 0 },
+        .mipLevel = 0,
+        .aspect = gfx::TextureAspect::All,
+        .destination = buffer,
+        .destinationOffset = 0,
+        .extent = { 64, 64, 1 }
+    };
+
+    EXPECT_THROW(encoder->copyTextureToBuffer(copyDesc), std::runtime_error);
+
+    // Stencil-only copy of the same texture is valid
+    copyDesc.aspect = gfx::TextureAspect::StencilOnly;
+    copyDesc.bytesPerRow = 256; // 64 texels * 1 byte, aligned to 256 for WebGPU
+    EXPECT_NO_THROW(encoder->copyTextureToBuffer(copyDesc));
+
+    encoder->end();
+}
+
 TEST_P(GfxCppCommandEncoderTest, CopyTextureToBuffer)
 {
     ASSERT_NE(device, nullptr);

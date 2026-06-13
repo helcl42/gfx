@@ -70,7 +70,7 @@ GfxResult validateQueueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo);
 GfxResult validateQueueGetNativeHandle(GfxQueue queue, void** outHandle);
 GfxResult validateQueueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitInfo);
 GfxResult validateQueueWriteBuffer(GfxQueue queue, GfxBuffer buffer, const void* data);
-GfxResult validateQueueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, const void* data);
+GfxResult validateQueueWriteTexture(GfxQueue queue, const GfxWriteTextureDescriptor* descriptor, const void* data);
 GfxResult validateCommandEncoderBeginRenderPass(GfxCommandEncoder commandEncoder, const GfxRenderPassBeginDescriptor* beginDescriptor, GfxRenderPassEncoder* outRenderPass);
 GfxResult validateCommandEncoderBeginComputePass(GfxCommandEncoder commandEncoder, const GfxComputePassBeginDescriptor* beginDescriptor, GfxComputePassEncoder* outComputePass);
 GfxResult validateCommandEncoderCopyBufferToBuffer(GfxCommandEncoder commandEncoder, const GfxCopyBufferToBufferDescriptor* descriptor);

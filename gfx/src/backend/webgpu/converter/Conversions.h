@@ -223,6 +223,9 @@ WGPUTextureDimension gfxTextureTypeToWGPUTextureDimension(GfxTextureType type);
 GfxTextureType wgpuTextureDimensionToGfxTextureType(WGPUTextureDimension dimension);
 WGPUTextureViewDimension gfxTextureViewTypeToWGPU(GfxTextureViewType type);
 
+// Texture aspect conversion
+WGPUTextureAspect gfxTextureAspectToWGPUTextureAspect(GfxTextureAspect aspect);
+
 // Geometry conversions
 WGPUOrigin3D gfxOrigin3DToWGPUOrigin3D(const GfxOrigin3D* origin);
 WGPUExtent3D gfxExtent3DToWGPUExtent3D(const GfxExtent3D* extent);

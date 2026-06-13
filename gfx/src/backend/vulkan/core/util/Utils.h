@@ -12,6 +12,10 @@ namespace gfx::backend::vulkan::core {
 // Get the appropriate image aspect mask for a given format
 VkImageAspectFlags getImageAspectMask(VkFormat format);
 
+// Get the size in bytes of one texel in buffer memory for a given aspect of a format
+// (stencil data is 1 byte/texel, depth data is 2 or 4 bytes/texel depending on format)
+uint32_t getAspectTexelSize(VkFormat format, VkImageAspectFlags aspectMask);
+
 // Get the appropriate access flags for a given image layout
 VkAccessFlags getVkAccessFlagsForLayout(VkImageLayout layout);
 

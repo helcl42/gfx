@@ -117,7 +117,7 @@ TEST_F(WebGPUCommandEncoderTest, CopyBufferToTexture_WorksCorrectly)
 
     WGPUOrigin3D origin = { 0, 0, 0 };
     WGPUExtent3D extent = { 256, 256, 1 };
-    EXPECT_NO_THROW(encoder->copyBufferToTexture(buffer.get(), 0, texture.get(), origin, extent, 0, 0, 0));
+    EXPECT_NO_THROW(encoder->copyBufferToTexture(buffer.get(), 0, texture.get(), origin, extent, 0, 0, 0, 0, WGPUTextureAspect_All));
 }
 
 TEST_F(WebGPUCommandEncoderTest, CopyTextureToBuffer_WorksCorrectly)
@@ -142,7 +142,7 @@ TEST_F(WebGPUCommandEncoderTest, CopyTextureToBuffer_WorksCorrectly)
 
     WGPUOrigin3D origin = { 0, 0, 0 };
     WGPUExtent3D extent = { 256, 256, 1 };
-    EXPECT_NO_THROW(encoder->copyTextureToBuffer(texture.get(), origin, 0, 0, buffer.get(), 0, extent, 0));
+    EXPECT_NO_THROW(encoder->copyTextureToBuffer(texture.get(), origin, 0, 0, buffer.get(), 0, extent, 0, 0, WGPUTextureAspect_All));
 }
 
 TEST_F(WebGPUCommandEncoderTest, CopyTextureToTexture_WorksCorrectly)

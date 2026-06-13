@@ -1560,6 +1560,19 @@ WGPUTextureViewDimension gfxTextureViewTypeToWGPU(GfxTextureViewType type)
     }
 }
 
+WGPUTextureAspect gfxTextureAspectToWGPUTextureAspect(GfxTextureAspect aspect)
+{
+    switch (aspect) {
+    case GFX_TEXTURE_ASPECT_DEPTH_ONLY:
+        return WGPUTextureAspect_DepthOnly;
+    case GFX_TEXTURE_ASPECT_STENCIL_ONLY:
+        return WGPUTextureAspect_StencilOnly;
+    case GFX_TEXTURE_ASPECT_ALL:
+    default:
+        return WGPUTextureAspect_All;
+    }
+}
+
 WGPUOrigin3D gfxOrigin3DToWGPUOrigin3D(const GfxOrigin3D* origin)
 {
     if (!origin) {

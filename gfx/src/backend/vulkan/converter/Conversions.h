@@ -106,6 +106,7 @@ bool hasStencilComponent(VkFormat format);
 VkImageAspectFlags getImageAspectMask(VkFormat format);
 VkImageLayout gfxLayoutToVkImageLayout(GfxTextureLayout layout);
 GfxTextureLayout vkImageLayoutToGfxLayout(VkImageLayout layout);
+VkImageAspectFlags gfxTextureAspectToVkAspectMask(GfxTextureAspect aspect, VkFormat format);
 VkAccessFlags getVkAccessFlagsForLayout(VkImageLayout layout);
 VkImageType gfxTextureTypeToVkImageType(GfxTextureType type);
 GfxTextureType vkImageTypeToGfxTextureType(VkImageType type);

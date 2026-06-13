@@ -7,6 +7,7 @@
 #include "backend/vulkan/validator/Validations.h"
 
 #include "backend/vulkan/core/presentation/Surface.h"
+#include "backend/vulkan/core/resource/Texture.h"
 #include "backend/vulkan/core/system/Adapter.h"
 #include "backend/vulkan/core/system/Device.h"
 #include "backend/vulkan/core/system/Instance.h"
@@ -383,21 +384,22 @@ GfxResult SystemComponent::queueWriteBuffer(GfxQueue queue, GfxBuffer buffer, ui
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult SystemComponent::queueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, uint32_t bytesPerRow, GfxTextureLayout finalLayout) const
+GfxResult SystemComponent::queueWriteTexture(GfxQueue queue, const GfxWriteTextureDescriptor* descriptor, const void* data, uint64_t dataSize) const
 {
-    GfxResult validationResult = validator::validateQueueWriteTexture(queue, texture, origin, extent, data);
+    GfxResult validationResult = validator::validateQueueWriteTexture(queue, descriptor, data);
     if (validationResult != GFX_RESULT_SUCCESS) {
         return validationResult;
     }
 
     auto* q = converter::toNative<core::Queue>(queue);
-    auto* tex = converter::toNative<core::Texture>(texture);
+    auto* tex = converter::toNative<core::Texture>(descriptor->texture);
 
-    VkOffset3D vkOrigin = origin ? converter::gfxOrigin3DToVkOffset3D(origin) : VkOffset3D{ 0, 0, 0 };
-    VkExtent3D vkExtent = converter::gfxExtent3DToVkExtent3D(extent);
-    VkImageLayout vkLayout = converter::gfxLayoutToVkImageLayout(finalLayout);
+    VkOffset3D vkOrigin = converter::gfxOrigin3DToVkOffset3D(&descriptor->origin);
+    VkExtent3D vkExtent = converter::gfxExtent3DToVkExtent3D(&descriptor->extent);
+    VkImageLayout vkLayout = converter::gfxLayoutToVkImageLayout(descriptor->finalLayout);
+    VkImageAspectFlags aspectMask = converter::gfxTextureAspectToVkAspectMask(descriptor->aspect, tex->getFormat());
 
-    q->writeTexture(tex, vkOrigin, mipLevel, arrayLayer, data, dataSize, vkExtent, bytesPerRow, vkLayout);
+    q->writeTexture(tex, vkOrigin, descriptor->mipLevel, descriptor->arrayLayer, data, dataSize, vkExtent, descriptor->bytesPerRow, descriptor->rowsPerImage, aspectMask, vkLayout);
 
     return GFX_RESULT_SUCCESS;
 }

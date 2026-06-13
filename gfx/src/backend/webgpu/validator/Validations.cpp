@@ -5,7 +5,9 @@
 #include "backend/webgpu/core/command/RenderPassEncoder.h"
 #include "backend/webgpu/core/query/QuerySet.h"
 #include "backend/webgpu/core/resource/Buffer.h"
+#include "backend/webgpu/core/resource/Texture.h"
 #include "backend/webgpu/core/system/Device.h"
+#include "backend/webgpu/core/util/Utils.h"
 
 #include <cstdint>
 
@@ -561,6 +563,18 @@ namespace {
         return GFX_RESULT_SUCCESS;
     }
 
+    // Combined depth-stencil formats require a single aspect for buffer<->texture copies
+    GfxResult validateCopyAspect(GfxTexture texture, GfxTextureAspect aspect)
+    {
+        const auto* tex = converter::toNative<core::Texture>(texture);
+        WGPUTextureFormat format = tex->getFormat();
+        bool isCombinedDepthStencil = core::hasStencil(format) && format != WGPUTextureFormat_Stencil8;
+        if (isCombinedDepthStencil && aspect == GFX_TEXTURE_ASPECT_ALL) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+        return GFX_RESULT_SUCCESS;
+    }
+
     GfxResult validateCopyBufferToTextureDescriptor(const GfxCopyBufferToTextureDescriptor* descriptor)
     {
         if (!descriptor) {
@@ -577,7 +591,7 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        return GFX_RESULT_SUCCESS;
+        return validateCopyAspect(descriptor->destination, descriptor->aspect);
     }
 
     GfxResult validateCopyTextureToBufferDescriptor(const GfxCopyTextureToBufferDescriptor* descriptor)
@@ -596,7 +610,7 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        return GFX_RESULT_SUCCESS;
+        return validateCopyAspect(descriptor->source, descriptor->aspect);
     }
 
     GfxResult validateCopyTextureToTextureDescriptor(const GfxCopyTextureToTextureDescriptor* descriptor)
@@ -1156,12 +1170,15 @@ GfxResult validateQueueWriteBuffer(GfxQueue queue, GfxBuffer buffer, const void*
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult validateQueueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, const void* data)
+GfxResult validateQueueWriteTexture(GfxQueue queue, const GfxWriteTextureDescriptor* descriptor, const void* data)
 {
-    if (!queue || !texture || !origin || !extent || !data) {
+    if (!queue || !descriptor || !descriptor->texture || !data) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    return GFX_RESULT_SUCCESS;
+    if (descriptor->extent.width == 0 || descriptor->extent.height == 0 || descriptor->extent.depth == 0) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return validateCopyAspect(descriptor->texture, descriptor->aspect);
 }
 
 GfxResult validateCommandEncoderBeginRenderPass(GfxCommandEncoder commandEncoder, const GfxRenderPassBeginDescriptor* beginDescriptor, GfxRenderPassEncoder* outRenderPass)

@@ -132,8 +132,9 @@ GfxResult CommandComponent::commandEncoderCopyBufferToTexture(GfxCommandEncoder 
     VkOffset3D vkOrigin = converter::gfxOrigin3DToVkOffset3D(&descriptor->origin);
     VkExtent3D vkExtent = converter::gfxExtent3DToVkExtent3D(&descriptor->extent);
     VkImageLayout vkLayout = converter::gfxLayoutToVkImageLayout(descriptor->finalLayout);
+    VkImageAspectFlags vkAspect = converter::gfxTextureAspectToVkAspectMask(descriptor->aspect, dstTex->getFormat());
 
-    enc->copyBufferToTexture(srcBuf, descriptor->sourceOffset, dstTex, vkOrigin, vkExtent, descriptor->mipLevel, descriptor->arrayLayer, descriptor->bytesPerRow, vkLayout);
+    enc->copyBufferToTexture(srcBuf, descriptor->sourceOffset, dstTex, vkOrigin, vkExtent, descriptor->mipLevel, descriptor->arrayLayer, descriptor->bytesPerRow, descriptor->rowsPerImage, vkAspect, vkLayout);
 
     return GFX_RESULT_SUCCESS;
 }
@@ -152,8 +153,9 @@ GfxResult CommandComponent::commandEncoderCopyTextureToBuffer(GfxCommandEncoder 
     VkOffset3D vkOrigin = converter::gfxOrigin3DToVkOffset3D(&descriptor->origin);
     VkExtent3D vkExtent = converter::gfxExtent3DToVkExtent3D(&descriptor->extent);
     VkImageLayout vkLayout = converter::gfxLayoutToVkImageLayout(descriptor->finalLayout);
+    VkImageAspectFlags vkAspect = converter::gfxTextureAspectToVkAspectMask(descriptor->aspect, srcTex->getFormat());
 
-    enc->copyTextureToBuffer(srcTex, vkOrigin, descriptor->mipLevel, descriptor->arrayLayer, dstBuf, descriptor->destinationOffset, vkExtent, descriptor->bytesPerRow, vkLayout);
+    enc->copyTextureToBuffer(srcTex, vkOrigin, descriptor->mipLevel, descriptor->arrayLayer, dstBuf, descriptor->destinationOffset, vkExtent, descriptor->bytesPerRow, descriptor->rowsPerImage, vkAspect, vkLayout);
 
     return GFX_RESULT_SUCCESS;
 }

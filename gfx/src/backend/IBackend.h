@@ -43,7 +43,7 @@ public:
     virtual GfxResult queueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo) const = 0;
     virtual GfxResult queueGetNativeHandle(GfxQueue queue, void** outHandle) const = 0;
     virtual GfxResult queueWriteBuffer(GfxQueue queue, GfxBuffer buffer, uint64_t offset, const void* data, uint64_t size) const = 0;
-    virtual GfxResult queueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, uint32_t bytesPerRow, GfxTextureLayout finalLayout) const = 0;
+    virtual GfxResult queueWriteTexture(GfxQueue queue, const GfxWriteTextureDescriptor* descriptor, const void* data, uint64_t dataSize) const = 0;
     virtual GfxResult queueWaitIdle(GfxQueue queue) const = 0;
 
     // Surface functions

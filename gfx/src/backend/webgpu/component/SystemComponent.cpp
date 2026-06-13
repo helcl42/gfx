@@ -384,22 +384,23 @@ GfxResult SystemComponent::queueWriteBuffer(GfxQueue queue, GfxBuffer buffer, ui
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult SystemComponent::queueWriteTexture(GfxQueue queue, GfxTexture texture, const GfxOrigin3D* origin, const GfxExtent3D* extent, uint32_t mipLevel, uint32_t arrayLayer, const void* data, uint64_t dataSize, uint32_t bytesPerRow, GfxTextureLayout finalLayout) const
+GfxResult SystemComponent::queueWriteTexture(GfxQueue queue, const GfxWriteTextureDescriptor* descriptor, const void* data, uint64_t dataSize) const
 {
-    GfxResult validationResult = validator::validateQueueWriteTexture(queue, texture, origin, extent, data);
+    GfxResult validationResult = validator::validateQueueWriteTexture(queue, descriptor, data);
     if (validationResult != GFX_RESULT_SUCCESS) {
         return validationResult;
     }
 
     auto* queuePtr = converter::toNative<core::Queue>(queue);
-    auto* texturePtr = converter::toNative<core::Texture>(texture);
+    auto* texturePtr = converter::toNative<core::Texture>(descriptor->texture);
 
-    WGPUOrigin3D wgpuOrigin = converter::gfxOrigin3DToWGPUOrigin3D(origin);
-    WGPUExtent3D wgpuExtent = converter::gfxExtent3DToWGPUExtent3D(extent);
+    WGPUOrigin3D wgpuOrigin = converter::gfxOrigin3DToWGPUOrigin3D(&descriptor->origin);
+    WGPUExtent3D wgpuExtent = converter::gfxExtent3DToWGPUExtent3D(&descriptor->extent);
+    WGPUTextureAspect wgpuAspect = converter::gfxTextureAspectToWGPUTextureAspect(descriptor->aspect);
 
-    queuePtr->writeTexture(texturePtr, mipLevel, arrayLayer, wgpuOrigin, data, dataSize, wgpuExtent, bytesPerRow);
+    // finalLayout is unused - WebGPU handles layout transitions automatically
+    queuePtr->writeTexture(texturePtr, descriptor->mipLevel, descriptor->arrayLayer, wgpuOrigin, data, dataSize, wgpuExtent, descriptor->bytesPerRow, descriptor->rowsPerImage, wgpuAspect);
 
-    (void)finalLayout; // WebGPU handles layout transitions automatically
     return GFX_RESULT_SUCCESS;
 }
 
