@@ -351,7 +351,6 @@ static bool createGraphics(ComputeApp* app)
     GfxAdapterDescriptor adapterDesc = {
         .sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR,
         .pNext = NULL,
-        .adapterIndex = UINT32_MAX,
         .preference = GFX_ADAPTER_PREFERENCE_HIGH_PERFORMANCE
     };
 
@@ -1443,14 +1442,14 @@ static GfxPlatformWindowHandle getPlatformWindowHandle(ComputeApp* app)
 #elif defined(__EMSCRIPTEN__)
     handle = gfxPlatformWindowHandleFromEmscripten("#canvas");
 #elif TARGET_OS_IOS
-    handle = gfxPlatformWindowHandleFromMetal(app->metalLayer);
+    handle = gfxPlatformWindowHandleFromMetalLayer(app->metalLayer);
 #elif defined(_WIN32)
     handle = gfxPlatformWindowHandleFromWin32(GetModuleHandle(NULL), glfwGetWin32Window(app->window));
 #elif defined(__linux__)
     // handle = gfxPlatformWindowHandleFromXlib(glfwGetX11Display(), glfwGetX11Window(app->window));
     handle = gfxPlatformWindowHandleFromWayland(glfwGetWaylandDisplay(), glfwGetWaylandWindow(app->window));
 #elif defined(__APPLE__)
-    handle = gfxPlatformWindowHandleFromMetal(glfwGetCocoaWindow(app->window));
+    handle = gfxPlatformWindowHandleFromCocoaWindow(glfwGetCocoaWindow(app->window));
 #endif
     return handle;
 }

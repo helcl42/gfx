@@ -384,7 +384,6 @@ static bool createGraphics(CubeApp* app)
     GfxAdapterDescriptor adapterDesc = {
         .sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR,
         .pNext = NULL,
-        .adapterIndex = UINT32_MAX, // Use preference-based selection
         .preference = GFX_ADAPTER_PREFERENCE_HIGH_PERFORMANCE
     };
 
@@ -1671,7 +1670,7 @@ static GfxPlatformWindowHandle getPlatformWindowHandle(GLFWwindow* window)
     // handle = gfxPlatformWindowHandleFromXlib(glfwGetX11Display(), glfwGetX11Window(window));
     handle = gfxPlatformWindowHandleFromWayland(glfwGetWaylandDisplay(), glfwGetWaylandWindow(window));
 #elif defined(__APPLE__)
-    handle = gfxPlatformWindowHandleFromMetal(glfwGetCocoaWindow(window));
+    handle = gfxPlatformWindowHandleFromCocoaWindow(glfwGetCocoaWindow(window));
 #endif
     return handle;
 }

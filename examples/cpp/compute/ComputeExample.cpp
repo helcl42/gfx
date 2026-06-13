@@ -1569,7 +1569,7 @@ gfx::PlatformWindowHandle ComputeApp::getPlatformWindowHandle()
     handle = gfx::PlatformWindowHandle::fromWayland(glfwGetWaylandDisplay(), glfwGetWaylandWindow(window));
     LOG_DEBUG("Extracted Wayland handle: Surface=%p, Display=%p", handle.handle.wayland.surface, handle.handle.wayland.display);
 #elif defined(__APPLE__)
-    handle = gfx::PlatformWindowHandle::fromMetal(glfwGetCocoaWindow(window));
+    handle = gfx::PlatformWindowHandle::fromCocoaWindow(glfwGetCocoaWindow(window));
     LOG_DEBUG("Extracted Metal handle: Layer=%p", handle.handle.metal.layer);
 #endif
     return handle;

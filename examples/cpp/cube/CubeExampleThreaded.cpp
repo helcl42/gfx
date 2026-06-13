@@ -532,7 +532,6 @@ bool CubeApp::createGraphics()
 
     // Get adapter
     GfxAdapterDescriptor adapterDesc = {
-        .adapterIndex = UINT32_MAX,
         .preference = GFX_ADAPTER_PREFERENCE_HIGH_PERFORMANCE
     };
 
@@ -2024,7 +2023,7 @@ GfxPlatformWindowHandle CubeApp::getPlatformWindowHandle()
     // handle = gfxPlatformWindowHandleFromXlib(glfwGetX11Display(), glfwGetX11Window(window));
     handle = gfxPlatformWindowHandleFromWayland(glfwGetWaylandDisplay(), glfwGetWaylandWindow(window));
 #elif defined(__APPLE__)
-    handle = gfxPlatformWindowHandleFromMetal(glfwGetCocoaWindow(window));
+    handle = gfxPlatformWindowHandleFromCocoaWindow(glfwGetCocoaWindow(window));
 #endif
     return handle;
 }
