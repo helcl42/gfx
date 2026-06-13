@@ -33,6 +33,8 @@ public:
     void setIndexBuffer(Buffer* buffer, VkIndexType indexType, uint64_t offset);
     void setViewport(const Viewport& viewport);
     void setScissorRect(const ScissorRect& scissor);
+    void setBlendConstant(const float color[4]);
+    void setStencilReference(uint32_t reference);
 
     void draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
     void drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance);

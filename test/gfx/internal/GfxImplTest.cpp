@@ -146,6 +146,8 @@ public:
     MOCK_METHOD(GfxResult, renderPassEncoderSetIndexBuffer, (GfxRenderPassEncoder, GfxBuffer, GfxIndexFormat, uint64_t, uint64_t), (const, override));
     MOCK_METHOD(GfxResult, renderPassEncoderSetViewport, (GfxRenderPassEncoder, const GfxViewport*), (const, override));
     MOCK_METHOD(GfxResult, renderPassEncoderSetScissorRect, (GfxRenderPassEncoder, const GfxScissorRect*), (const, override));
+    MOCK_METHOD(GfxResult, renderPassEncoderSetBlendConstant, (GfxRenderPassEncoder, const GfxColor*), (const, override));
+    MOCK_METHOD(GfxResult, renderPassEncoderSetStencilReference, (GfxRenderPassEncoder, uint32_t), (const, override));
     MOCK_METHOD(GfxResult, renderPassEncoderDraw, (GfxRenderPassEncoder, uint32_t, uint32_t, uint32_t, uint32_t), (const, override));
     MOCK_METHOD(GfxResult, renderPassEncoderDrawIndexed, (GfxRenderPassEncoder, uint32_t, uint32_t, uint32_t, int32_t, uint32_t), (const, override));
     MOCK_METHOD(GfxResult, renderPassEncoderDrawIndirect, (GfxRenderPassEncoder, GfxBuffer, uint64_t), (const, override));
@@ -1373,6 +1375,17 @@ TEST_F(GfxImplTest, RenderPassEncoderSetScissorRect_NullEncoder_ReturnsError)
 {
     GfxScissorRect scissor = {};
     ASSERT_EQ(gfxRenderPassEncoderSetScissorRect(nullptr, &scissor), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_F(GfxImplTest, RenderPassEncoderSetBlendConstant_NullEncoder_ReturnsError)
+{
+    GfxColor color = {};
+    ASSERT_EQ(gfxRenderPassEncoderSetBlendConstant(nullptr, &color), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_F(GfxImplTest, RenderPassEncoderSetStencilReference_NullEncoder_ReturnsError)
+{
+    ASSERT_EQ(gfxRenderPassEncoderSetStencilReference(nullptr, 0), GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
 TEST_F(GfxImplTest, RenderPassEncoderDraw_NullEncoder_ReturnsError)

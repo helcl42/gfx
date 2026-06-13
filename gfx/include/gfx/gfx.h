@@ -1932,6 +1932,8 @@ GFX_API GfxResult gfxRenderPassEncoderSetVertexBuffer(GfxRenderPassEncoder rende
 GFX_API GfxResult gfxRenderPassEncoderSetIndexBuffer(GfxRenderPassEncoder renderPassEncoder, GfxBuffer buffer, GfxIndexFormat format, uint64_t offset, uint64_t size);
 GFX_API GfxResult gfxRenderPassEncoderSetViewport(GfxRenderPassEncoder renderPassEncoder, const GfxViewport* viewport);
 GFX_API GfxResult gfxRenderPassEncoderSetScissorRect(GfxRenderPassEncoder renderPassEncoder, const GfxScissorRect* scissor);
+GFX_API GfxResult gfxRenderPassEncoderSetBlendConstant(GfxRenderPassEncoder renderPassEncoder, const GfxColor* color);
+GFX_API GfxResult gfxRenderPassEncoderSetStencilReference(GfxRenderPassEncoder renderPassEncoder, uint32_t reference);
 GFX_API GfxResult gfxRenderPassEncoderDraw(GfxRenderPassEncoder renderPassEncoder, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
 GFX_API GfxResult gfxRenderPassEncoderDrawIndexed(GfxRenderPassEncoder renderPassEncoder, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance);
 GFX_API GfxResult gfxRenderPassEncoderDrawIndirect(GfxRenderPassEncoder renderPassEncoder, GfxBuffer indirectBuffer, uint64_t indirectOffset);

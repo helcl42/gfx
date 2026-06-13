@@ -416,6 +416,31 @@ GfxResult CommandComponent::renderPassEncoderSetScissorRect(GfxRenderPassEncoder
     return GFX_RESULT_SUCCESS;
 }
 
+GfxResult CommandComponent::renderPassEncoderSetBlendConstant(GfxRenderPassEncoder renderPassEncoder, const GfxColor* color) const
+{
+    GfxResult validationResult = validator::validateRenderPassEncoderSetBlendConstant(renderPassEncoder, color);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* rpe = converter::toNative<core::RenderPassEncoder>(renderPassEncoder);
+    const float blendConstants[4] = { color->r, color->g, color->b, color->a };
+    rpe->setBlendConstant(blendConstants);
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult CommandComponent::renderPassEncoderSetStencilReference(GfxRenderPassEncoder renderPassEncoder, uint32_t reference) const
+{
+    GfxResult validationResult = validator::validateRenderPassEncoderSetStencilReference(renderPassEncoder);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* rpe = converter::toNative<core::RenderPassEncoder>(renderPassEncoder);
+    rpe->setStencilReference(reference);
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult CommandComponent::renderPassEncoderDraw(GfxRenderPassEncoder renderPassEncoder, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) const
 {
     GfxResult validationResult = validator::validateRenderPassEncoderDraw(renderPassEncoder);

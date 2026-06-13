@@ -119,6 +119,8 @@ public:
     GfxResult renderPassEncoderSetIndexBuffer(GfxRenderPassEncoder, GfxBuffer, GfxIndexFormat, uint64_t, uint64_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult renderPassEncoderSetViewport(GfxRenderPassEncoder, const GfxViewport*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult renderPassEncoderSetScissorRect(GfxRenderPassEncoder, const GfxScissorRect*) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult renderPassEncoderSetBlendConstant(GfxRenderPassEncoder, const GfxColor*) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult renderPassEncoderSetStencilReference(GfxRenderPassEncoder, uint32_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult renderPassEncoderDraw(GfxRenderPassEncoder, uint32_t, uint32_t, uint32_t, uint32_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult renderPassEncoderDrawIndexed(GfxRenderPassEncoder, uint32_t, uint32_t, uint32_t, int32_t, uint32_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult renderPassEncoderDrawIndirect(GfxRenderPassEncoder, GfxBuffer, uint64_t) const override { return GFX_RESULT_SUCCESS; }

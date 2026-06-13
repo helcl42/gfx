@@ -1628,6 +1628,8 @@ public:
     virtual void setIndexBuffer(std::shared_ptr<Buffer> buffer, IndexFormat format, uint64_t offset = 0, uint64_t size = UINT64_MAX) = 0;
     virtual void setViewport(const Viewport& viewport) = 0;
     virtual void setScissorRect(const ScissorRect& scissor) = 0;
+    virtual void setBlendConstant(const Color& color) = 0;
+    virtual void setStencilReference(uint32_t reference) = 0;
     virtual void draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t firstVertex = 0, uint32_t firstInstance = 0) = 0;
     virtual void drawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t firstIndex = 0, int32_t baseVertex = 0, uint32_t firstInstance = 0) = 0;
     virtual void drawIndirect(std::shared_ptr<Buffer> indirectBuffer, uint64_t indirectOffset) = 0;

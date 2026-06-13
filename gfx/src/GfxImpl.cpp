@@ -1324,6 +1324,30 @@ GfxResult gfxRenderPassEncoderSetScissorRect(GfxRenderPassEncoder encoder, const
     return backend->renderPassEncoderSetScissorRect(encoder, scissor);
 }
 
+GfxResult gfxRenderPassEncoderSetBlendConstant(GfxRenderPassEncoder encoder, const GfxColor* color)
+{
+    if (!encoder) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(encoder);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->renderPassEncoderSetBlendConstant(encoder, color);
+}
+
+GfxResult gfxRenderPassEncoderSetStencilReference(GfxRenderPassEncoder encoder, uint32_t reference)
+{
+    if (!encoder) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(encoder);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->renderPassEncoderSetStencilReference(encoder, reference);
+}
+
 GfxResult gfxRenderPassEncoderDraw(GfxRenderPassEncoder encoder, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
     if (!encoder) {

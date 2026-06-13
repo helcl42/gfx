@@ -103,6 +103,23 @@ void RenderPassEncoderImpl::setScissorRect(const ScissorRect& scissor)
     }
 }
 
+void RenderPassEncoderImpl::setBlendConstant(const Color& color)
+{
+    GfxColor gfxColor = { color.r, color.g, color.b, color.a };
+    GfxResult result = gfxRenderPassEncoderSetBlendConstant(m_handle, &gfxColor);
+    if (result != GFX_RESULT_SUCCESS) {
+        throw std::runtime_error("Failed to set blend constant");
+    }
+}
+
+void RenderPassEncoderImpl::setStencilReference(uint32_t reference)
+{
+    GfxResult result = gfxRenderPassEncoderSetStencilReference(m_handle, reference);
+    if (result != GFX_RESULT_SUCCESS) {
+        throw std::runtime_error("Failed to set stencil reference");
+    }
+}
+
 void RenderPassEncoderImpl::draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
     GfxResult result = gfxRenderPassEncoderDraw(m_handle, vertexCount, instanceCount, firstVertex, firstInstance);

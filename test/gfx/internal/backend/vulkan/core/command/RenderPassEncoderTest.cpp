@@ -238,6 +238,41 @@ TEST_F(VulkanRenderPassEncoderTest, SetScissorRect_WorksCorrectly)
     commandEncoder->end();
 }
 
+TEST_F(VulkanRenderPassEncoderTest, SetBlendConstant_WorksCorrectly)
+{
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+
+    commandEncoder->begin();
+
+    gfx::backend::vulkan::core::RenderPassEncoderBeginInfo beginInfo{};
+    VkClearColorValue clearColor = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+    beginInfo.colorClearValues = { clearColor };
+
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::RenderPassEncoder>(commandEncoder.get(), renderPass.get(), framebuffer.get(), beginInfo);
+
+    const float blendConstants[4] = { 0.25f, 0.5f, 0.75f, 1.0f };
+    EXPECT_NO_THROW(encoder->setBlendConstant(blendConstants));
+
+    commandEncoder->end();
+}
+
+TEST_F(VulkanRenderPassEncoderTest, SetStencilReference_WorksCorrectly)
+{
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+
+    commandEncoder->begin();
+
+    gfx::backend::vulkan::core::RenderPassEncoderBeginInfo beginInfo{};
+    VkClearColorValue clearColor = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+    beginInfo.colorClearValues = { clearColor };
+
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::RenderPassEncoder>(commandEncoder.get(), renderPass.get(), framebuffer.get(), beginInfo);
+
+    EXPECT_NO_THROW(encoder->setStencilReference(0x42));
+
+    commandEncoder->end();
+}
+
 // ============================================================================
 // Query Tests
 // ============================================================================

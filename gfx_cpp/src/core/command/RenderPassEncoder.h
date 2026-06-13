@@ -22,6 +22,8 @@ public:
 
     void setViewport(const Viewport& viewport) override;
     void setScissorRect(const ScissorRect& scissor) override;
+    void setBlendConstant(const Color& color) override;
+    void setStencilReference(uint32_t reference) override;
 
     void draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t firstVertex = 0, uint32_t firstInstance = 0) override;
     void drawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t firstIndex = 0, int32_t baseVertex = 0, uint32_t firstInstance = 0) override;

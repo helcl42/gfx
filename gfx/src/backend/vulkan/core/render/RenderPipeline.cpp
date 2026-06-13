@@ -119,10 +119,10 @@ RenderPipeline::RenderPipeline(Device* device, const RenderPipelineCreateInfo& c
     colorBlending.pAttachments = colorBlendAttachments.data();
 
     // Dynamic state
-    VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_BLEND_CONSTANTS, VK_DYNAMIC_STATE_STENCIL_REFERENCE };
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = 2;
+    dynamicState.dynamicStateCount = 4;
     dynamicState.pDynamicStates = dynamicStates;
 
     // Create depth stencil state if provided

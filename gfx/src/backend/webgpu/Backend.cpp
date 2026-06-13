@@ -516,6 +516,16 @@ GfxResult Backend::renderPassEncoderSetScissorRect(GfxRenderPassEncoder renderPa
     return m_commandComponent.renderPassEncoderSetScissorRect(renderPassEncoder, scissor);
 }
 
+GfxResult Backend::renderPassEncoderSetBlendConstant(GfxRenderPassEncoder renderPassEncoder, const GfxColor* color) const
+{
+    return m_commandComponent.renderPassEncoderSetBlendConstant(renderPassEncoder, color);
+}
+
+GfxResult Backend::renderPassEncoderSetStencilReference(GfxRenderPassEncoder renderPassEncoder, uint32_t reference) const
+{
+    return m_commandComponent.renderPassEncoderSetStencilReference(renderPassEncoder, reference);
+}
+
 GfxResult Backend::renderPassEncoderDraw(GfxRenderPassEncoder renderPassEncoder, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) const
 {
     return m_commandComponent.renderPassEncoderDraw(renderPassEncoder, vertexCount, instanceCount, firstVertex, firstInstance);

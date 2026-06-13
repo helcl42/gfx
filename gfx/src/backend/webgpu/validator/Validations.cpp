@@ -1321,6 +1321,22 @@ GfxResult validateRenderPassEncoderSetScissorRect(GfxRenderPassEncoder renderPas
     return GFX_RESULT_SUCCESS;
 }
 
+GfxResult validateRenderPassEncoderSetBlendConstant(GfxRenderPassEncoder renderPassEncoder, const GfxColor* color)
+{
+    if (!renderPassEncoder || !color) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
+GfxResult validateRenderPassEncoderSetStencilReference(GfxRenderPassEncoder renderPassEncoder)
+{
+    if (!renderPassEncoder) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult validateRenderPassEncoderDrawIndirect(GfxRenderPassEncoder renderPassEncoder, GfxBuffer indirectBuffer)
 {
     if (!renderPassEncoder || !indirectBuffer) {

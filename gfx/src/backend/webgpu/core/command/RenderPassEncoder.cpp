@@ -165,6 +165,22 @@ void RenderPassEncoder::setScissorRect(uint32_t x, uint32_t y, uint32_t width, u
     }
 }
 
+void RenderPassEncoder::setBlendConstant(const WGPUColor& color)
+{
+    // Blend constant is not supported in render bundles - only set on regular render pass
+    if (!m_bundleEncoder) {
+        wgpuRenderPassEncoderSetBlendConstant(m_encoder, &color);
+    }
+}
+
+void RenderPassEncoder::setStencilReference(uint32_t reference)
+{
+    // Stencil reference is not supported in render bundles - only set on regular render pass
+    if (!m_bundleEncoder) {
+        wgpuRenderPassEncoderSetStencilReference(m_encoder, reference);
+    }
+}
+
 void RenderPassEncoder::draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
     if (m_bundleEncoder) {

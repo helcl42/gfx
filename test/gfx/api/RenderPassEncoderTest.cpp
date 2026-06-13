@@ -134,6 +134,25 @@ TEST_P(GfxRenderPassEncoderTest, SetScissorRectWithNullScissor)
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
+TEST_P(GfxRenderPassEncoderTest, SetBlendConstantWithNullEncoder)
+{
+    GfxColor color = { 1.0f, 0.5f, 0.25f, 1.0f };
+    GfxResult result = gfxRenderPassEncoderSetBlendConstant(nullptr, &color);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_P(GfxRenderPassEncoderTest, SetBlendConstantWithNullColor)
+{
+    GfxResult result = gfxRenderPassEncoderSetBlendConstant(nullptr, nullptr);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_P(GfxRenderPassEncoderTest, SetStencilReferenceWithNullEncoder)
+{
+    GfxResult result = gfxRenderPassEncoderSetStencilReference(nullptr, 0x42);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
 TEST_P(GfxRenderPassEncoderTest, DrawWithNullEncoder)
 {
     GfxResult result = gfxRenderPassEncoderDraw(nullptr, 3, 1, 0, 0);

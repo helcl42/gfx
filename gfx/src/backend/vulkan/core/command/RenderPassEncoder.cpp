@@ -62,6 +62,13 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
 
     vkCmdBeginRenderPass(m_commandBuffer, &vkBeginInfo, beginInfo.bundleExecution ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS : VK_SUBPASS_CONTENTS_INLINE);
 
+    // Match WebGPU defaults: blend constant (0,0,0,0) and stencil reference 0 at pass begin
+    if (!beginInfo.bundleExecution) {
+        const float defaultBlendConstants[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        vkCmdSetBlendConstants(m_commandBuffer, defaultBlendConstants);
+        vkCmdSetStencilReference(m_commandBuffer, VK_STENCIL_FACE_FRONT_AND_BACK, 0);
+    }
+
     // Write start timestamp if requested
     if (m_passTimestampQueryPool != VK_NULL_HANDLE) {
         vkCmdWriteTimestamp(m_commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_passTimestampQueryPool, 0);
@@ -157,6 +164,16 @@ void RenderPassEncoder::setScissorRect(const ScissorRect& scissor)
     vkScissor.offset = { scissor.x, scissor.y };
     vkScissor.extent = { scissor.width, scissor.height };
     vkCmdSetScissor(m_commandBuffer, 0, 1, &vkScissor);
+}
+
+void RenderPassEncoder::setBlendConstant(const float color[4])
+{
+    vkCmdSetBlendConstants(m_commandBuffer, color);
+}
+
+void RenderPassEncoder::setStencilReference(uint32_t reference)
+{
+    vkCmdSetStencilReference(m_commandBuffer, VK_STENCIL_FACE_FRONT_AND_BACK, reference);
 }
 
 void RenderPassEncoder::draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
