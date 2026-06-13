@@ -460,6 +460,31 @@ TEST(GfxInstanceTestNonParam, DestroyNullInstance)
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
+// Contract: destroying a NULL handle is a safe no-op returning INVALID_ARGUMENT,
+// for every handle type (see MEMORY OWNERSHIP in gfx.h)
+TEST(GfxInstanceTestNonParam, AllDestroyFunctionsRejectNull)
+{
+    EXPECT_EQ(gfxInstanceDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxDeviceDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxSurfaceDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxSwapchainDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxBufferDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxTextureDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxTextureViewDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxSamplerDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxShaderDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxBindGroupLayoutDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxBindGroupDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxRenderPipelineDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxComputePipelineDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxRenderPassDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxFramebufferDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxCommandEncoderDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxFenceDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxSemaphoreDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxQuerySetDestroy(nullptr), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
 TEST(GfxInstanceTestNonParam, GetNativeHandleNullInstance)
 {
     void* handle = nullptr;

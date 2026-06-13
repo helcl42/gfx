@@ -187,6 +187,8 @@
 // - The library does NOT retain references to handles after a function returns
 // - The application MUST call gfxXxxDestroy() to free resources
 // - Calling destroy twice on the same handle is UNDEFINED BEHAVIOR
+// - Destroying a NULL handle is safe: it is a no-op that returns
+//   GFX_RESULT_ERROR_INVALID_ARGUMENT (nothing is destroyed)
 //
 // STRINGS:
 //
