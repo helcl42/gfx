@@ -640,9 +640,9 @@ GfxBlendFactor cppBlendFactorToCBlendFactor(BlendFactor factor)
     return static_cast<GfxBlendFactor>(factor);
 }
 
-GfxColorWriteMask cppColorWriteMaskToCColorWriteMask(ColorWriteMask mask)
+GfxColorWriteMaskFlags cppColorWriteMaskToCColorWriteMask(ColorWriteMask mask)
 {
-    return static_cast<GfxColorWriteMask>(static_cast<uint32_t>(mask));
+    return static_cast<GfxColorWriteMaskFlags>(static_cast<uint32_t>(mask));
 }
 
 GfxPrimitiveTopology cppPrimitiveTopologyToCPrimitiveTopology(PrimitiveTopology topology)

@@ -1701,7 +1701,7 @@ core::RenderPipelineCreateInfo gfxDescriptorToRenderPipelineCreateInfo(const Gfx
             core::ColorTargetState vkTarget{};
             vkTarget.format = gfxFormatToVkFormat(target.format);
 
-            // Convert GfxColorWriteMask to VkColorComponentFlags
+            // Convert GfxColorWriteMaskFlags to VkColorComponentFlags
             vkTarget.writeMask = 0;
             if (target.writeMask & 0x1) {
                 vkTarget.writeMask |= VK_COLOR_COMPONENT_R_BIT;

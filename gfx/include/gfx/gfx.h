@@ -810,8 +810,8 @@ typedef enum {
     GFX_COLOR_WRITE_MASK_ALPHA = 0x8,
     GFX_COLOR_WRITE_MASK_ALL = GFX_COLOR_WRITE_MASK_RED | GFX_COLOR_WRITE_MASK_GREEN | GFX_COLOR_WRITE_MASK_BLUE | GFX_COLOR_WRITE_MASK_ALPHA,
     GFX_COLOR_WRITE_MASK_MAX_ENUM = 0x7FFFFFFF
-} GfxColorWriteMaskBits;
-typedef uint32_t GfxColorWriteMask;
+} GfxColorWriteMaskFlagBits;
+typedef uint32_t GfxColorWriteMaskFlags;
 
 typedef enum {
     GFX_BIND_GROUP_ENTRY_TYPE_BUFFER = 0,
@@ -1463,7 +1463,7 @@ typedef struct {
 typedef struct {
     GfxFormat format;
     const GfxBlendState* blend; // NULL if not used
-    GfxColorWriteMask writeMask; // Combination of GfxColorWriteMask flags
+    GfxColorWriteMaskFlags writeMask; // Combination of GFX_COLOR_WRITE_MASK_* flags
 } GfxColorTargetState;
 
 typedef struct {
