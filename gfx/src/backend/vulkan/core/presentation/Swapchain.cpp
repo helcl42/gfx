@@ -6,6 +6,7 @@
 #include "../resource/TextureView.h"
 #include "../system/Adapter.h"
 #include "../system/Device.h"
+#include "../system/Queue.h"
 
 #include <stdexcept>
 
@@ -142,8 +143,9 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
         m_textureViews.push_back(std::make_unique<TextureView>(m_textures[i].get(), viewCreateInfo));
     }
 
-    // Get present queue (assume queue family 0)
-    vkGetDeviceQueue(m_device->handle(), 0, 0, &m_presentQueue);
+    // Present on the device's default queue (previously this fetched raw queue (0,0),
+    // which is invalid when custom queue requests don't include family 0 index 0)
+    m_presentQueue = m_device->getQueue();
 
     // Don't pre-acquire an image - let explicit acquire handle it
     m_currentImageIndex = 0;
@@ -235,7 +237,7 @@ VkResult Swapchain::present(const std::vector<VkSemaphore>& waitSemaphores)
     presentInfo.pSwapchains = &m_swapchain;
     presentInfo.pImageIndices = &m_currentImageIndex;
 
-    return vkQueuePresentKHR(m_presentQueue, &presentInfo);
+    return m_presentQueue->present(presentInfo);
 }
 
 } // namespace gfx::backend::vulkan::core

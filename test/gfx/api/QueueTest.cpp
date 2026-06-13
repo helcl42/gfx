@@ -1,6 +1,9 @@
 #include "CommonTest.h"
 
+#include <atomic>
 #include <cstring>
+#include <thread>
+#include <vector>
 
 // C API tests compiled with C++ for GoogleTest compatibility
 
@@ -157,6 +160,71 @@ TEST_P(GfxQueueTest, SubmitWithEmptyDescriptor)
 
     result = gfxQueueSubmit(queue, &submitDesc);
     EXPECT_EQ(result, GFX_RESULT_SUCCESS);
+}
+
+// Test: Concurrent queue operations from multiple threads on the SAME queue.
+// The API guarantees internal synchronization for queue operations (see THREADING MODEL).
+TEST_P(GfxQueueTest, ConcurrentQueueOperationsAreThreadSafe)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    // A texture for gfxQueueWriteTexture (exercises the internal staging-submit path)
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { 16, 16, 1 };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.usage = GFX_FLAGS(GFX_TEXTURE_USAGE_COPY_DST | GFX_TEXTURE_USAGE_TEXTURE_BINDING);
+
+    GfxTexture texture = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &texture), GFX_RESULT_SUCCESS);
+
+    constexpr int kThreads = 4;
+    constexpr int kIterations = 25;
+    std::atomic<int> failures{ 0 };
+
+    std::vector<std::thread> threads;
+    threads.reserve(kThreads);
+    for (int t = 0; t < kThreads; ++t) {
+        threads.emplace_back([&, t]() {
+            std::vector<uint8_t> pixels(16 * 16 * 4, static_cast<uint8_t>(t));
+            for (int i = 0; i < kIterations; ++i) {
+                if (t % 2 == 0) {
+                    // Empty submit from this thread
+                    GfxSubmitDescriptor submitDesc = {};
+                    if (gfxQueueSubmit(queue, &submitDesc) != GFX_RESULT_SUCCESS) {
+                        ++failures;
+                    }
+                } else {
+                    // Texture write from this thread (internally submits + waits)
+                    GfxWriteTextureDescriptor writeDesc = {};
+                    writeDesc.texture = texture;
+                    writeDesc.extent = { 16, 16, 1 };
+                    writeDesc.finalLayout = GFX_TEXTURE_LAYOUT_SHADER_READ_ONLY;
+                    if (gfxQueueWriteTexture(queue, &writeDesc, pixels.data(), pixels.size()) != GFX_RESULT_SUCCESS) {
+                        ++failures;
+                    }
+                }
+            }
+        });
+    }
+
+    // Main thread concurrently waits for the queue to go idle a few times
+    for (int i = 0; i < 5; ++i) {
+        EXPECT_EQ(gfxQueueWaitIdle(queue), GFX_RESULT_SUCCESS);
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_EQ(failures.load(), 0);
+
+    gfxQueueWaitIdle(queue);
+    gfxTextureDestroy(texture);
 }
 
 // Test: Queue write buffer with NULL queue

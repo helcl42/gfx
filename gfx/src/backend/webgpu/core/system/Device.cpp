@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <vector>
 
 namespace gfx::backend::webgpu::core {
 
@@ -54,14 +55,29 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
 
     wgpuDesc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&deviceTogglesDesc);
 
+    std::vector<WGPUFeatureName> requiredFeatures;
+
     // Request timestamp query feature only when the extension is enabled and the adapter supports it
-    static const WGPUFeatureName timestampFeature[] = { WGPUFeatureName_TimestampQuery };
     const bool wantsTimestamp = std::find(createInfo.enabledExtensions.begin(), createInfo.enabledExtensions.end(),
                                     std::string(extensions::TIMESTAMP_QUERY))
         != createInfo.enabledExtensions.end();
     if (wantsTimestamp && wgpuAdapterHasFeature(adapter->handle(), WGPUFeatureName_TimestampQuery)) {
-        wgpuDesc.requiredFeatures = timestampFeature;
-        wgpuDesc.requiredFeatureCount = 1;
+        requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
+    }
+
+    // Dawn native is NOT thread-safe by default; enable implicit device synchronization
+    // so queue operations are internally synchronized as the API threading contract promises
+    if (wgpuAdapterHasFeature(adapter->handle(), WGPUFeatureName_ImplicitDeviceSynchronization)) {
+        requiredFeatures.push_back(WGPUFeatureName_ImplicitDeviceSynchronization);
+    } else {
+        gfx::common::Logger::instance().logWarning(
+            "WebGPU adapter does not support implicit device synchronization - "
+            "concurrent queue operations from multiple threads are NOT safe on this device");
+    }
+
+    if (!requiredFeatures.empty()) {
+        wgpuDesc.requiredFeatures = requiredFeatures.data();
+        wgpuDesc.requiredFeatureCount = requiredFeatures.size();
     }
 #endif
 

@@ -252,6 +252,15 @@ Device::~Device()
 
 void Device::waitIdle()
 {
+    // vkDeviceWaitIdle requires external host synchronization on all of the device's queues.
+    // Lock ordering is map mutex first, then queue mutexes - same order as queueMutex() callers,
+    // so this cannot deadlock with concurrent submit/present.
+    std::lock_guard<std::mutex> mapLock(m_queueMutexMapMutex);
+    std::vector<std::unique_lock<std::mutex>> queueLocks;
+    queueLocks.reserve(m_queueMutexes.size());
+    for (auto& [queue, mutex] : m_queueMutexes) {
+        queueLocks.emplace_back(mutex);
+    }
     vkDeviceWaitIdle(m_device);
 }
 
@@ -270,6 +279,14 @@ Queue* Device::getQueueByIndex(uint32_t queueFamilyIndex, uint32_t queueIndex)
     uint64_t key = makeQueueKey(queueFamilyIndex, queueIndex);
     auto it = m_queues.find(key);
     return (it != m_queues.end()) ? it->second.get() : nullptr;
+}
+
+std::mutex& Device::queueMutex(VkQueue queue)
+{
+    // unordered_map guarantees reference stability, so the returned mutex
+    // stays valid while the Device is alive
+    std::lock_guard<std::mutex> lock(m_queueMutexMapMutex);
+    return m_queueMutexes[queue];
 }
 
 Adapter* Device::getAdapter()

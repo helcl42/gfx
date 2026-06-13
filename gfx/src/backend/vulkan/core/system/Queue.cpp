@@ -14,6 +14,8 @@
 
 #include "common/Logger.h"
 
+#include <mutex>
+
 #include <cstring>
 #include <stdexcept>
 
@@ -135,11 +137,27 @@ VkResult Queue::submit(const SubmitInfo& submitInfo)
         fence = submitInfo.signalFence->handle();
     }
 
-    return vkQueueSubmit(m_queue, 1, &vkSubmitInfo, fence);
+    return submitRaw(vkSubmitInfo, fence);
+}
+
+VkResult Queue::submitRaw(const VkSubmitInfo& submitInfo, VkFence fence)
+{
+    // vkQueueSubmit requires external host synchronization on the queue
+    std::lock_guard<std::mutex> lock(m_device->queueMutex(m_queue));
+    return vkQueueSubmit(m_queue, 1, &submitInfo, fence);
+}
+
+VkResult Queue::present(const VkPresentInfoKHR& presentInfo)
+{
+    // vkQueuePresentKHR requires external host synchronization on the queue
+    std::lock_guard<std::mutex> lock(m_device->queueMutex(m_queue));
+    return vkQueuePresentKHR(m_queue, &presentInfo);
 }
 
 void Queue::waitIdle()
 {
+    // vkQueueWaitIdle requires external host synchronization on the queue
+    std::lock_guard<std::mutex> lock(m_device->queueMutex(m_queue));
     vkQueueWaitIdle(m_queue);
 }
 

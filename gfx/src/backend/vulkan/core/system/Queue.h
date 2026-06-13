@@ -25,6 +25,10 @@ public:
     QueueInfo getInfo() const;
 
     VkResult submit(const SubmitInfo& submitInfo);
+    // Submit a raw VkSubmitInfo with the queue's host-synchronization lock held
+    VkResult submitRaw(const VkSubmitInfo& submitInfo, VkFence fence);
+    // Present with the queue's host-synchronization lock held
+    VkResult present(const VkPresentInfoKHR& presentInfo);
     void waitIdle();
 
     // Write data directly to a buffer by mapping it

@@ -71,7 +71,9 @@ void CommandExecutor::execute(const std::function<void(VkCommandBuffer)>& record
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    vkQueueSubmit(m_queue->handle(), 1, &submitInfo, fence);
+    // submitRaw holds the queue's host-synchronization lock; the fence wait
+    // does not need it, so it stays outside
+    m_queue->submitRaw(submitInfo, fence);
     vkWaitForFences(m_device, 1, &fence, VK_TRUE, UINT64_MAX);
 
     // Cleanup

@@ -328,7 +328,9 @@
 //   ✓ gfxQueueSubmit() - Internal synchronization, safe to call from multiple threads
 //   ✓ gfxQueueWriteBuffer() - Internal synchronization
 //   ✓ gfxQueueWriteTexture() - Internal synchronization
-//   → The implementation uses a mutex internally for queue operations
+//   ✓ gfxQueueWaitIdle() / gfxDeviceWaitIdle() - Internal synchronization
+//   ✓ gfxSwapchainPresent() - Internal synchronization (shares the queue's mutex)
+//   → The implementation uses a per-queue mutex internally for all queue operations
 //   → Multiple threads can submit to the same queue simultaneously
 //
 // Resource Destruction (Requires External Sync):
@@ -1798,10 +1800,10 @@ typedef struct {
 // - Array + count parameters follow Vulkan style: pass NULL to query count
 //
 // THREAD SAFETY:
-// - Object creation/destruction functions are NOT thread-safe
-// - Multiple threads can submit to different queues simultaneously
-// - Single queue must not be accessed from multiple threads concurrently
-// - Command encoder recording is NOT thread-safe (one per thread)
+// See the THREADING MODEL section at the top of this header for the full contract. In short:
+// - Queue operations (submit, write, present, wait idle) are internally synchronized
+// - Command encoder recording is NOT thread-safe (use one encoder per thread)
+// - Other operations on the SAME object require external synchronization
 //
 
 // Version query function - Returns the runtime library version

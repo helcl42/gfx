@@ -10,6 +10,7 @@ namespace gfx::backend::vulkan::core {
 
 class Surface;
 class Device;
+class Queue;
 class Texture;
 class TextureView;
 
@@ -40,7 +41,7 @@ private:
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
     Device* m_device = nullptr;
     Surface* m_surface = nullptr;
-    VkQueue m_presentQueue = VK_NULL_HANDLE;
+    Queue* m_presentQueue = nullptr;
     std::vector<VkImage> m_images;
     std::vector<std::unique_ptr<Texture>> m_textures;
     std::vector<std::unique_ptr<TextureView>> m_textureViews;
