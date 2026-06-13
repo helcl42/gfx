@@ -234,9 +234,9 @@
 //   gfxCommandEncoderEnd(encoder);
 //   gfxQueueSubmit(queue, &submitDesc); // submitDesc contains encoder
 //   → Encoder is BORROWED by gfxQueueSubmit (reads commands, doesn't store encoder)
-//   → After submit returns, you can destroy the encoder
-//   → Encoder must remain valid during the submit call
-//   → Commands are copied to internal GPU command buffer
+//   → The GPU executes the encoder's command buffer after submit; wait for the
+//     submit fence before destroying or re-Begin-ing the encoder
+//   → Encoder must remain valid until the GPU has finished executing the submission
 //
 // RESOURCE DEPENDENCIES:
 //
@@ -1939,6 +1939,31 @@ GFX_API GfxResult gfxDeviceCreateFramebuffer(GfxDevice device, const GfxFramebuf
 GFX_API GfxResult gfxFramebufferDestroy(GfxFramebuffer framebuffer);
 
 // CommandEncoder functions
+//
+// LIFECYCLE:
+//   create -> (Begin) -> [record commands] -> End -> submit -> wait (fence) -> Begin -> [record] -> End -> submit -> ...
+//   (Begin) after create is optional - a new encoder is already recording
+// - A newly created encoder is immediately ready to record (no Begin needed;
+//   calling Begin on a fresh encoder is allowed and simply restarts the empty recording)
+// - gfxCommandEncoderEnd finishes recording; required before submitting the encoder
+// - Each ended recording may be submitted AT MOST ONCE (one-time-submit semantics);
+//   re-record via Begin to submit again
+// - gfxCommandEncoderBegin RESETS the encoder (discarding any recorded commands) and starts
+//   a fresh recording - use it to reuse an encoder for the next frame/batch (there is no
+//   separate reset operation; Begin fills that role, like D3D12's command list Reset)
+// - Before Begin or Destroy, the GPU must have finished executing the encoder's previous
+//   submission (wait on the submit fence); resetting or destroying an encoder whose
+//   commands are still executing is undefined behavior
+//
+// RENDER BUNDLE ENCODERS (gfxDeviceCreateRenderBundleCommandEncoder) differ:
+// - Recording starts at gfxCommandEncoderBeginRenderPass, which supplies the compatible
+//   render pass (creation alone is not ready to record)
+// - The begin descriptor's framebuffer and clear values are ignored for bundles
+// - Record draw commands via the returned GfxRenderPassEncoder, then End it and End the
+//   encoder; execute the bundle in another render pass via gfxRenderPassEncoderExecuteBundles
+//   (the enclosing pass must use bundleExecution = true)
+// - Dynamic state (viewport, scissor, blend constant, stencil reference) cannot be set
+//   inside a bundle - it is inherited from the enclosing render pass
 GFX_API GfxResult gfxDeviceCreateCommandEncoder(GfxDevice device, const GfxCommandEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder);
 GFX_API GfxResult gfxDeviceCreateRenderBundleCommandEncoder(GfxDevice device, const GfxRenderBundleEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder);
 GFX_API GfxResult gfxCommandEncoderDestroy(GfxCommandEncoder commandEncoder);
@@ -1955,7 +1980,10 @@ GFX_API GfxResult gfxCommandEncoderGenerateMipmapsRange(GfxCommandEncoder comman
 GFX_API GfxResult gfxCommandEncoderWriteTimestamp(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t queryIndex);
 GFX_API GfxResult gfxCommandEncoderResetQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount);
 GFX_API GfxResult gfxCommandEncoderResolveQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount, GfxBuffer destinationBuffer, uint64_t destinationOffset);
+// Finishes recording; must be called before submitting the encoder
 GFX_API GfxResult gfxCommandEncoderEnd(GfxCommandEncoder commandEncoder);
+// Resets the encoder (discards recorded commands) and starts a fresh recording.
+// Only valid once the GPU has finished executing the encoder's previous submission.
 GFX_API GfxResult gfxCommandEncoderBegin(GfxCommandEncoder commandEncoder);
 
 // RenderPassEncoder functions

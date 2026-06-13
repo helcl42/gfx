@@ -34,6 +34,7 @@ GfxResult CommandComponent::deviceCreateCommandEncoder(GfxDevice device, const G
     try {
         auto* dev = converter::toNative<core::Device>(device);
         auto* encoder = new core::CommandEncoder(dev);
+        encoder->begin();
         *outEncoder = converter::toGfx<GfxCommandEncoder>(encoder);
         return GFX_RESULT_SUCCESS;
     } catch (const std::exception& e) {

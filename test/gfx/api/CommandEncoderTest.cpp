@@ -209,6 +209,66 @@ TEST_P(GfxCommandEncoderTest, CopyBufferToBuffer)
     gfxBufferDestroy(dstBuffer);
 }
 
+// Lifecycle contract: a fresh encoder records without Begin; after submit + fence wait
+// Begin resets it for reuse
+TEST_P(GfxCommandEncoderTest, EncoderLifecycleRecordSubmitReuse)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor srcBufferDesc = {};
+    srcBufferDesc.size = 256;
+    srcBufferDesc.usage = GFX_BUFFER_USAGE_COPY_SRC;
+    srcBufferDesc.memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL;
+    GfxBuffer srcBuffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &srcBufferDesc, &srcBuffer), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor dstBufferDesc = {};
+    dstBufferDesc.size = 256;
+    dstBufferDesc.usage = GFX_BUFFER_USAGE_COPY_DST;
+    dstBufferDesc.memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL;
+    GfxBuffer dstBuffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &dstBufferDesc, &dstBuffer), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoder encoder = nullptr;
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    encoderDesc.label = "lifecycle_encoder";
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxFenceDescriptor fenceDesc = {};
+    GfxFence fence = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFence(device, &fenceDesc, &fence), GFX_RESULT_SUCCESS);
+
+    GfxCopyBufferToBufferDescriptor copyDesc = {};
+    copyDesc.source = srcBuffer;
+    copyDesc.destination = dstBuffer;
+    copyDesc.size = 256;
+
+    for (int i = 0; i < 3; ++i) {
+        if (i > 0) {
+            // Reuse: reset the encoder once the previous submission completed
+            ASSERT_EQ(gfxCommandEncoderBegin(encoder), GFX_RESULT_SUCCESS);
+        }
+        // A fresh (or re-begun) encoder records without any further setup
+        ASSERT_EQ(gfxCommandEncoderCopyBufferToBuffer(encoder, &copyDesc), GFX_RESULT_SUCCESS);
+        ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+        GfxSubmitDescriptor submitDesc = {};
+        submitDesc.commandEncoders = &encoder;
+        submitDesc.commandEncoderCount = 1;
+        submitDesc.signalFence = fence;
+        ASSERT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+
+        ASSERT_EQ(gfxFenceWait(fence, GFX_TIMEOUT_INFINITE), GFX_RESULT_SUCCESS);
+        ASSERT_EQ(gfxFenceReset(fence), GFX_RESULT_SUCCESS);
+    }
+
+    gfxFenceDestroy(fence);
+    gfxCommandEncoderDestroy(encoder);
+    gfxBufferDestroy(srcBuffer);
+    gfxBufferDestroy(dstBuffer);
+}
+
 TEST_P(GfxCommandEncoderTest, CopyBufferToTextureWithNullEncoder)
 {
     GfxCopyBufferToTextureDescriptor copyDesc = {};
