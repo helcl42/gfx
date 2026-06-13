@@ -1,6 +1,7 @@
 #ifndef GFX_GFX_H
 #define GFX_GFX_H
 
+// Language requirements: C11 (anonymous unions) or C++11 and later
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -610,6 +611,8 @@ typedef enum {
     GFX_TEXTURE_TYPE_1D = 0,
     GFX_TEXTURE_TYPE_2D = 1,
     GFX_TEXTURE_TYPE_3D = 2,
+    // Cube textures: size.width == size.height, size.depth == 1, arrayLayerCount == 6
+    // (layer order +X, -X, +Y, -Y, +Z, -Z); sample via a GFX_TEXTURE_VIEW_TYPE_CUBE view
     GFX_TEXTURE_TYPE_CUBE = 3,
     GFX_TEXTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } GfxTextureType;
@@ -1079,6 +1082,30 @@ typedef struct {
     GfxOrigin2D origin;
     GfxExtent2D extent;
 } GfxScissorRect;
+
+// Indirect command buffer layouts. Indirect buffers passed to the DrawIndirect /
+// DrawIndexedIndirect / DispatchIndirect functions must contain one of these structs
+// (tightly packed, identical on both backends) at the given offset.
+typedef struct {
+    uint32_t vertexCount;
+    uint32_t instanceCount;
+    uint32_t firstVertex;
+    uint32_t firstInstance;
+} GfxDrawIndirectCommand;
+
+typedef struct {
+    uint32_t indexCount;
+    uint32_t instanceCount;
+    uint32_t firstIndex;
+    int32_t baseVertex;
+    uint32_t firstInstance;
+} GfxDrawIndexedIndirectCommand;
+
+typedef struct {
+    uint32_t workgroupCountX;
+    uint32_t workgroupCountY;
+    uint32_t workgroupCountZ;
+} GfxDispatchIndirectCommand;
 
 typedef struct {
     GfxPipelineStageFlags srcStageMask;
@@ -2084,7 +2111,9 @@ GFX_API GfxResult gfxRenderPassEncoderSetBlendConstant(GfxRenderPassEncoder rend
 GFX_API GfxResult gfxRenderPassEncoderSetStencilReference(GfxRenderPassEncoder renderPassEncoder, uint32_t reference);
 GFX_API GfxResult gfxRenderPassEncoderDraw(GfxRenderPassEncoder renderPassEncoder, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
 GFX_API GfxResult gfxRenderPassEncoderDrawIndexed(GfxRenderPassEncoder renderPassEncoder, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance);
+// indirectBuffer must contain a GfxDrawIndirectCommand at indirectOffset (one draw per call)
 GFX_API GfxResult gfxRenderPassEncoderDrawIndirect(GfxRenderPassEncoder renderPassEncoder, GfxBuffer indirectBuffer, uint64_t indirectOffset);
+// indirectBuffer must contain a GfxDrawIndexedIndirectCommand at indirectOffset (one draw per call)
 GFX_API GfxResult gfxRenderPassEncoderDrawIndexedIndirect(GfxRenderPassEncoder renderPassEncoder, GfxBuffer indirectBuffer, uint64_t indirectOffset);
 GFX_API GfxResult gfxRenderPassEncoderBeginOcclusionQuery(GfxRenderPassEncoder renderPassEncoder, GfxQuerySet querySet, uint32_t queryIndex);
 GFX_API GfxResult gfxRenderPassEncoderEndOcclusionQuery(GfxRenderPassEncoder renderPassEncoder);
@@ -2095,6 +2124,7 @@ GFX_API GfxResult gfxRenderPassEncoderExecuteBundles(GfxRenderPassEncoder render
 GFX_API GfxResult gfxComputePassEncoderSetPipeline(GfxComputePassEncoder computePassEncoder, GfxComputePipeline pipeline);
 GFX_API GfxResult gfxComputePassEncoderSetBindGroup(GfxComputePassEncoder computePassEncoder, uint32_t index, GfxBindGroup bindGroup, const uint32_t* dynamicOffsets, uint32_t dynamicOffsetCount);
 GFX_API GfxResult gfxComputePassEncoderDispatch(GfxComputePassEncoder computePassEncoder, uint32_t workgroupCountX, uint32_t workgroupCountY, uint32_t workgroupCountZ);
+// indirectBuffer must contain a GfxDispatchIndirectCommand at indirectOffset
 GFX_API GfxResult gfxComputePassEncoderDispatchIndirect(GfxComputePassEncoder computePassEncoder, GfxBuffer indirectBuffer, uint64_t indirectOffset);
 GFX_API GfxResult gfxComputePassEncoderEnd(GfxComputePassEncoder computePassEncoder);
 

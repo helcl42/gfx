@@ -346,6 +346,12 @@ GfxAddressMode cppAddressModeToCAddressMode(AddressMode mode)
     return static_cast<GfxAddressMode>(mode);
 }
 
+// The wrapper's indirect command structs must be bit-identical to the C API's -
+// applications write them directly into indirect buffers without conversion
+static_assert(sizeof(DrawIndirectCommand) == sizeof(GfxDrawIndirectCommand), "DrawIndirectCommand must match GfxDrawIndirectCommand");
+static_assert(sizeof(DrawIndexedIndirectCommand) == sizeof(GfxDrawIndexedIndirectCommand), "DrawIndexedIndirectCommand must match GfxDrawIndexedIndirectCommand");
+static_assert(sizeof(DispatchIndirectCommand) == sizeof(GfxDispatchIndirectCommand), "DispatchIndirectCommand must match GfxDispatchIndirectCommand");
+
 void convertAdapterDescriptor(const AdapterDescriptor& input, GfxAdapterDescriptor& output)
 {
     output.adapterIndex = input.adapterIndex;

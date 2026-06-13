@@ -825,6 +825,30 @@ struct ScissorRect {
     }
 };
 
+// Indirect command buffer layouts. Indirect buffers passed to drawIndirect /
+// drawIndexedIndirect / dispatchIndirect must contain one of these structs
+// (tightly packed, identical on both backends) at the given offset.
+struct DrawIndirectCommand {
+    uint32_t vertexCount = 0;
+    uint32_t instanceCount = 0;
+    uint32_t firstVertex = 0;
+    uint32_t firstInstance = 0;
+};
+
+struct DrawIndexedIndirectCommand {
+    uint32_t indexCount = 0;
+    uint32_t instanceCount = 0;
+    uint32_t firstIndex = 0;
+    int32_t baseVertex = 0;
+    uint32_t firstInstance = 0;
+};
+
+struct DispatchIndirectCommand {
+    uint32_t workgroupCountX = 0;
+    uint32_t workgroupCountY = 0;
+    uint32_t workgroupCountZ = 0;
+};
+
 // ============================================================================
 // Platform Abstraction
 // ============================================================================
