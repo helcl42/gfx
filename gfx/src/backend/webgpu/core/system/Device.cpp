@@ -21,6 +21,91 @@ namespace {
     {
         return std::find(enabledExtensions.begin(), enabledExtensions.end(), std::string(name)) != enabledExtensions.end();
     }
+
+#ifndef __EMSCRIPTEN__
+    // Maps the requested GFX extensions to required WGPU features, throwing when the
+    // adapter cannot deliver a requested feature (matches the Vulkan backend behavior)
+    std::vector<WGPUFeatureName> collectRequiredFeatures(WGPUAdapter adapter, const DeviceCreateInfo& createInfo)
+    {
+        std::vector<WGPUFeatureName> requiredFeatures;
+
+        // Request timestamp query feature only when the extension is enabled and the adapter supports it
+        if (isExtensionRequested(createInfo.enabledExtensions, extensions::TIMESTAMP_QUERY)
+            && wgpuAdapterHasFeature(adapter, WGPUFeatureName_TimestampQuery)) {
+            requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
+        }
+
+        const std::pair<const char*, WGPUFeatureName> compressionFeatures[] = {
+            { extensions::TEXTURE_COMPRESSION_BC, WGPUFeatureName_TextureCompressionBC },
+            { extensions::TEXTURE_COMPRESSION_ETC2, WGPUFeatureName_TextureCompressionETC2 },
+            { extensions::TEXTURE_COMPRESSION_ASTC, WGPUFeatureName_TextureCompressionASTC },
+        };
+        for (const auto& [extName, feature] : compressionFeatures) {
+            if (isExtensionRequested(createInfo.enabledExtensions, extName)) {
+                if (!wgpuAdapterHasFeature(adapter, feature)) {
+                    throw std::runtime_error(std::string("Texture compression extension not supported by this adapter: ") + extName);
+                }
+                requiredFeatures.push_back(feature);
+            }
+        }
+
+        // Dawn native is NOT thread-safe by default; enable implicit device synchronization
+        // so queue operations are internally synchronized as the API threading contract promises
+        if (wgpuAdapterHasFeature(adapter, WGPUFeatureName_ImplicitDeviceSynchronization)) {
+            requiredFeatures.push_back(WGPUFeatureName_ImplicitDeviceSynchronization);
+        } else {
+            gfx::common::Logger::instance().logWarning(
+                "WebGPU adapter does not support implicit device synchronization - "
+                "concurrent queue operations from multiple threads are NOT safe on this device");
+        }
+
+        return requiredFeatures;
+    }
+#endif // __EMSCRIPTEN__
+
+    // Issues wgpuAdapterRequestDevice and synchronously waits for the result, throwing on failure
+    WGPUDevice requestDeviceSync(Adapter* adapter, const WGPUDeviceDescriptor& wgpuDesc)
+    {
+        struct DeviceRequestContext {
+            WGPUDevice device;
+            bool completed;
+            WGPURequestDeviceStatus status;
+        } context = { nullptr, false, WGPURequestDeviceStatus_Error };
+
+        WGPURequestDeviceCallbackInfo callbackInfo = WGPU_REQUEST_DEVICE_CALLBACK_INFO_INIT;
+        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+        callbackInfo.callback = [](WGPURequestDeviceStatus status, WGPUDevice device, WGPUStringView message, void* userdata1, void* userdata2) {
+            auto* ctx = static_cast<DeviceRequestContext*>(userdata1);
+            ctx->status = status;
+            ctx->completed = true;
+
+            if (status == WGPURequestDeviceStatus_Success && device) {
+                ctx->device = device;
+            } else if (message.data) {
+                gfx::common::Logger::instance().logError("Error: Failed to request device: {}",
+                    std::string_view(message.data, message.length));
+            }
+            (void)userdata2; // Unused
+        };
+        callbackInfo.userdata1 = &context;
+
+        WGPUFuture future = wgpuAdapterRequestDevice(adapter->handle(), &wgpuDesc, callbackInfo);
+
+        // Use WaitAny to properly wait for the callback
+        if (adapter->getInstance()) {
+            WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
+            waitInfo.future = future;
+            wgpuInstanceWaitAny(adapter->getInstance()->handle(), 1, &waitInfo, UINT64_MAX);
+        }
+
+        if (!context.completed) {
+            throw std::runtime_error("Device request timed out");
+        }
+        if (!context.device) {
+            throw std::runtime_error("Failed to request device");
+        }
+        return context.device;
+    }
 } // anonymous namespace
 
 // Constructor 1: Request device from adapter with createInfo
@@ -34,15 +119,13 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
 
     WGPUUncapturedErrorCallbackInfo errorCallbackInfo = WGPU_UNCAPTURED_ERROR_CALLBACK_INFO_INIT;
     errorCallbackInfo.callback = [](WGPUDevice const*, WGPUErrorType type, WGPUStringView message, void*, void*) {
-        gfx::common::Logger::instance().logError("[WebGPU Uncaptured Error] Type: {}, Message: {}",
-            static_cast<int>(type), std::string_view(message.data, message.length));
+        gfx::common::Logger::instance().logError("[WebGPU Uncaptured Error] Type: {}, Message: {}", static_cast<int>(type), std::string_view(message.data, message.length));
     };
 
     WGPUDeviceLostCallbackInfo deviceLostCallbackInfo = WGPU_DEVICE_LOST_CALLBACK_INFO_INIT;
     deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
     deviceLostCallbackInfo.callback = [](WGPUDevice const*, WGPUDeviceLostReason reason, WGPUStringView message, void*, void*) {
-        gfx::common::Logger::instance().logError("[WebGPU Device Lost] Reason: {}, Message: {}",
-            static_cast<int>(reason), std::string_view(message.data, message.length));
+        gfx::common::Logger::instance().logError("[WebGPU Device Lost] Reason: {}, Message: {}", static_cast<int>(reason), std::string_view(message.data, message.length));
     };
 
     WGPUDeviceDescriptor wgpuDesc = WGPU_DEVICE_DESCRIPTOR_INIT;
@@ -70,88 +153,16 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
 
     wgpuDesc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&deviceTogglesDesc);
 
-    std::vector<WGPUFeatureName> requiredFeatures;
-
-    // Request timestamp query feature only when the extension is enabled and the adapter supports it
-    if (isExtensionRequested(createInfo.enabledExtensions, extensions::TIMESTAMP_QUERY)
-        && wgpuAdapterHasFeature(adapter->handle(), WGPUFeatureName_TimestampQuery)) {
-        requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
-    }
-
-    // Texture compression families: request the WGPU feature when the GFX extension is
-    // enabled; fail device creation if the adapter cannot deliver it (matches Vulkan)
-    const std::pair<const char*, WGPUFeatureName> compressionFeatures[] = {
-        { extensions::TEXTURE_COMPRESSION_BC, WGPUFeatureName_TextureCompressionBC },
-        { extensions::TEXTURE_COMPRESSION_ETC2, WGPUFeatureName_TextureCompressionETC2 },
-        { extensions::TEXTURE_COMPRESSION_ASTC, WGPUFeatureName_TextureCompressionASTC },
-    };
-    for (const auto& [extName, feature] : compressionFeatures) {
-        if (isExtensionRequested(createInfo.enabledExtensions, extName)) {
-            if (!wgpuAdapterHasFeature(adapter->handle(), feature)) {
-                throw std::runtime_error(std::string("Texture compression extension not supported by this adapter: ") + extName);
-            }
-            requiredFeatures.push_back(feature);
-        }
-    }
-
-    // Dawn native is NOT thread-safe by default; enable implicit device synchronization
-    // so queue operations are internally synchronized as the API threading contract promises
-    if (wgpuAdapterHasFeature(adapter->handle(), WGPUFeatureName_ImplicitDeviceSynchronization)) {
-        requiredFeatures.push_back(WGPUFeatureName_ImplicitDeviceSynchronization);
-    } else {
-        gfx::common::Logger::instance().logWarning(
-            "WebGPU adapter does not support implicit device synchronization - "
-            "concurrent queue operations from multiple threads are NOT safe on this device");
-    }
-
+    std::vector<WGPUFeatureName> requiredFeatures = collectRequiredFeatures(adapter->handle(), createInfo);
     if (!requiredFeatures.empty()) {
         wgpuDesc.requiredFeatures = requiredFeatures.data();
         wgpuDesc.requiredFeatureCount = requiredFeatures.size();
     }
+#else
+    (void)createInfo; // Extensions map to Dawn-only features; nothing to request on Emscripten
 #endif
 
-    // DeviceCreateInfo is currently empty, but we keep it for future extensibility
-    (void)createInfo;
-
-    struct DeviceRequestContext {
-        WGPUDevice* outDevice;
-        bool completed;
-        WGPURequestDeviceStatus status;
-    } context = { &m_device, false, WGPURequestDeviceStatus_Error };
-
-    WGPURequestDeviceCallbackInfo callbackInfo = WGPU_REQUEST_DEVICE_CALLBACK_INFO_INIT;
-    callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-    callbackInfo.callback = [](WGPURequestDeviceStatus status, WGPUDevice device, WGPUStringView message, void* userdata1, void* userdata2) {
-        auto* ctx = static_cast<DeviceRequestContext*>(userdata1);
-        ctx->status = status;
-        ctx->completed = true;
-
-        if (status == WGPURequestDeviceStatus_Success && device) {
-            *ctx->outDevice = device;
-        } else if (message.data) {
-            gfx::common::Logger::instance().logError("Error: Failed to request device: {}",
-                std::string_view(message.data, message.length));
-        }
-        (void)userdata2; // Unused
-    };
-    callbackInfo.userdata1 = &context;
-
-    WGPUFuture future = wgpuAdapterRequestDevice(adapter->handle(), &wgpuDesc, callbackInfo);
-
-    // Use WaitAny to properly wait for the callback
-    if (adapter->getInstance()) {
-        WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
-        waitInfo.future = future;
-        wgpuInstanceWaitAny(adapter->getInstance()->handle(), 1, &waitInfo, UINT64_MAX);
-    }
-
-    if (!context.completed) {
-        throw std::runtime_error("Device request timed out");
-    }
-
-    if (!m_device) {
-        throw std::runtime_error("Failed to request device");
-    }
+    m_device = requestDeviceSync(adapter, wgpuDesc);
 
     // Create queue
     WGPUQueue wgpuQueue = wgpuDeviceGetQueue(m_device);

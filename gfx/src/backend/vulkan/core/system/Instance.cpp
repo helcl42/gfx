@@ -106,97 +106,100 @@ namespace {
         return false;
     }
 
-} // namespace
-
-Instance::Instance(const InstanceCreateInfo& createInfo)
-{
-    // Extensions
-    std::vector<const char*> extensions = {};
+    // Collects the instance extension names to request: surface/platform extensions,
+    // portability enumeration, debug utils, and native pNext passthrough extensions.
+    // Throws if any required extension is unavailable.
+    std::vector<const char*> collectInstanceExtensions(const InstanceCreateInfo& createInfo, const std::vector<VkExtensionProperties>& availableExtensions, bool validationEnabled)
+    {
+        std::vector<const char*> extensions = {};
 #ifndef GFX_HEADLESS_BUILD
-    if (isExtensionEnabled(createInfo.enabledExtensions, extensions::SURFACE)) {
-        extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+        if (isExtensionEnabled(createInfo.enabledExtensions, extensions::SURFACE)) {
+            extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 #ifdef GFX_HAS_WIN32
-        extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+            extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #endif
 #ifdef GFX_HAS_ANDROID
-        extensions.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
+            extensions.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
 #endif
 #ifdef GFX_HAS_X11
-        extensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+            extensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
 #endif
 #ifdef GFX_HAS_XCB
-        extensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
+            extensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
 #endif
 #ifdef GFX_HAS_WAYLAND
-        extensions.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
+            extensions.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
 #endif
 #if defined(GFX_HAS_COCOA) || defined(GFX_HAS_UIKIT)
-        extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
+            extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
 #endif
-    }
+        }
 #endif // GFX_HEADLESS_BUILD
 
-    const auto availableExtensions = enumerateAvailableExtensions();
-
 #ifdef VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
-    // MoltenVK / portability drivers require portability enumeration at instance creation.
-    if (isExtensionAvailable(availableExtensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
-        extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-    }
+        // MoltenVK / portability drivers require portability enumeration at instance creation.
+        if (isExtensionAvailable(availableExtensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
+            extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+        }
 #endif
 
-    m_validationEnabled = isExtensionEnabled(createInfo.enabledExtensions, extensions::DEBUG);
-    if (m_validationEnabled) {
-        if (isExtensionAvailable(availableExtensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME)) {
-            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-        } else if (isExtensionAvailable(availableExtensions, VK_EXT_DEBUG_REPORT_EXTENSION_NAME)) {
-            extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+        if (validationEnabled) {
+            if (isExtensionAvailable(availableExtensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME)) {
+                extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            } else if (isExtensionAvailable(availableExtensions, VK_EXT_DEBUG_REPORT_EXTENSION_NAME)) {
+                extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+            }
         }
-    }
 
-    // Add native (raw Vulkan) extensions from pNext chain
-    const GfxChainHeader* header = static_cast<const GfxChainHeader*>(createInfo.pNext);
-    while (header) {
-        if (header->sType == GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR) {
-            const auto* nativeDesc = reinterpret_cast<const GfxNativeExtensionsDescriptor*>(header);
-            if (nativeDesc->nativeExtensions && nativeDesc->nativeExtensionCount > 0) {
-                for (uint32_t i = 0; i < nativeDesc->nativeExtensionCount; ++i) {
-                    if (isExtensionAvailable(availableExtensions, nativeDesc->nativeExtensions[i])) {
-                        extensions.push_back(nativeDesc->nativeExtensions[i]);
+        // Add native (raw Vulkan) extensions from pNext chain
+        const GfxChainHeader* header = static_cast<const GfxChainHeader*>(createInfo.pNext);
+        while (header) {
+            if (header->sType == GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR) {
+                const auto* nativeDesc = reinterpret_cast<const GfxNativeExtensionsDescriptor*>(header);
+                if (nativeDesc->nativeExtensions && nativeDesc->nativeExtensionCount > 0) {
+                    for (uint32_t i = 0; i < nativeDesc->nativeExtensionCount; ++i) {
+                        if (isExtensionAvailable(availableExtensions, nativeDesc->nativeExtensions[i])) {
+                            extensions.push_back(nativeDesc->nativeExtensions[i]);
+                        }
                     }
                 }
             }
+            header = static_cast<const GfxChainHeader*>(header->pNext);
         }
-        header = static_cast<const GfxChainHeader*>(header->pNext);
+
+        for (const char* requestedExt : extensions) {
+            if (!isExtensionAvailable(availableExtensions, requestedExt)) {
+                std::string errorMsg = "Required Vulkan extension not available: ";
+                errorMsg += requestedExt;
+                throw std::runtime_error(errorMsg);
+            }
+        }
+
+        return extensions;
     }
 
-    // Check if all requested extensions are availables
-    for (const char* requestedExt : extensions) {
-        if (!isExtensionAvailable(availableExtensions, requestedExt)) {
-            std::string errorMsg = "Required Vulkan extension not available: ";
-            errorMsg += requestedExt;
-            throw std::runtime_error(errorMsg);
+    // Returns the validation layer when requested and available
+    std::vector<const char*> collectInstanceLayers(const std::vector<VkLayerProperties>& availableLayers, bool validationEnabled)
+    {
+        std::vector<const char*> layers;
+        if (validationEnabled) {
+            static const char* validationLayerName = "VK_LAYER_KHRONOS_validation";
+            if (isLayerAvailable(availableLayers, validationLayerName)) {
+                layers.push_back(validationLayerName);
+            }
         }
+        return layers;
     }
+} // anonymous namespace
 
-    // Layers
+Instance::Instance(const InstanceCreateInfo& createInfo)
+{
+    const auto availableExtensions = enumerateAvailableExtensions();
     const auto availableLayers = enumerateAvailableLayers();
 
-    std::vector<const char*> layers;
-    if (m_validationEnabled) {
-        static const char* validationLayerName = "VK_LAYER_KHRONOS_validation";
-        if (isLayerAvailable(availableLayers, validationLayerName)) {
-            layers.push_back(validationLayerName);
-        }
-    }
-
-    for (const char* requestedLayer : layers) {
-        if (!isLayerAvailable(availableLayers, requestedLayer)) {
-            std::string errorMsg = "Required Vulkan layer not available: ";
-            errorMsg += requestedLayer;
-            throw std::runtime_error(errorMsg);
-        }
-    }
+    m_validationEnabled = isExtensionEnabled(createInfo.enabledExtensions, extensions::DEBUG);
+    std::vector<const char*> extensions = collectInstanceExtensions(createInfo, availableExtensions, m_validationEnabled);
+    std::vector<const char*> layers = collectInstanceLayers(availableLayers, m_validationEnabled);
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -209,16 +212,15 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
     VkInstanceCreateInfo vkCreateInfo{};
     vkCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     vkCreateInfo.pApplicationInfo = &appInfo;
+    vkCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    vkCreateInfo.ppEnabledExtensionNames = extensions.data();
+    vkCreateInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
+    vkCreateInfo.ppEnabledLayerNames = layers.data();
 
     // Set portability enumeration flag if available (not guarded by macro since it's an enum value)
     if (isExtensionAvailable(availableExtensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
         vkCreateInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
     }
-
-    vkCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-    vkCreateInfo.ppEnabledExtensionNames = extensions.data();
-    vkCreateInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
-    vkCreateInfo.ppEnabledLayerNames = layers.data();
 
     VkResult result = vkCreateInstance(&vkCreateInfo, nullptr, &m_instance);
     if (result != VK_SUCCESS) {

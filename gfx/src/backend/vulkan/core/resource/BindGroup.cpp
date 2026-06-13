@@ -8,35 +8,51 @@
 
 namespace gfx::backend::vulkan::core {
 
+namespace {
+    // Creates a descriptor pool sized exactly for the given entries (one set)
+    VkDescriptorPool createExactSizePool(VkDevice device, const std::vector<BindGroupEntry>& entries)
+    {
+        std::unordered_map<VkDescriptorType, uint32_t> descriptorCounts;
+        for (const auto& entry : entries) {
+            ++descriptorCounts[entry.descriptorType];
+        }
+
+        std::vector<VkDescriptorPoolSize> poolSizes;
+        poolSizes.reserve(descriptorCounts.size());
+        for (const auto& [type, count] : descriptorCounts) {
+            poolSizes.push_back({ type, count });
+        }
+
+        VkDescriptorPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = 1; // Each BindGroup only allocates one descriptor set
+
+        VkDescriptorPool pool = VK_NULL_HANDLE;
+        if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &pool) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create descriptor pool");
+        }
+        return pool;
+    }
+
+    VkWriteDescriptorSet makeWrite(VkDescriptorSet set, const BindGroupEntry& entry)
+    {
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = set;
+        write.dstBinding = entry.binding;
+        write.dstArrayElement = entry.arrayElement;
+        write.descriptorType = entry.descriptorType;
+        write.descriptorCount = 1;
+        return write;
+    }
+} // anonymous namespace
+
 BindGroup::BindGroup(Device* device, const BindGroupCreateInfo& createInfo)
     : m_device(device)
 {
-    // Count actual descriptors needed by type
-    std::unordered_map<VkDescriptorType, uint32_t> descriptorCounts;
-
-    for (const auto& entry : createInfo.entries) {
-        ++descriptorCounts[entry.descriptorType];
-    }
-
-    // Create descriptor pool with exact sizes
-    std::vector<VkDescriptorPoolSize> poolSizes;
-    for (const auto& [type, count] : descriptorCounts) {
-        VkDescriptorPoolSize poolSize{};
-        poolSize.type = type;
-        poolSize.descriptorCount = count;
-        poolSizes.push_back(poolSize);
-    }
-
-    VkDescriptorPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-    poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = 1; // Each BindGroup only allocates one descriptor set
-
-    VkResult result = vkCreateDescriptorPool(m_device->handle(), &poolInfo, nullptr, &m_pool);
-    if (result != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create descriptor pool");
-    }
+    m_pool = createExactSizePool(m_device->handle(), createInfo.entries);
 
     // Allocate descriptor set
     VkDescriptorSetLayout setLayout = createInfo.layout;
@@ -47,86 +63,47 @@ BindGroup::BindGroup(Device* device, const BindGroupCreateInfo& createInfo)
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts = &setLayout;
 
-    result = vkAllocateDescriptorSets(m_device->handle(), &allocInfo, &m_descriptorSet);
+    VkResult result = vkAllocateDescriptorSets(m_device->handle(), &allocInfo, &m_descriptorSet);
     if (result != VK_SUCCESS) {
         throw std::runtime_error("Failed to allocate descriptor set");
     }
 
-    // Update descriptor set
-    // Build all the descriptor info arrays first
+    // Build the descriptor writes; the info arrays are reserved up front so the
+    // pointers stored in each write stay valid until vkUpdateDescriptorSets
     std::vector<VkDescriptorBufferInfo> bufferInfos;
     std::vector<VkDescriptorImageInfo> imageInfos;
     std::vector<VkWriteDescriptorSet> descriptorWrites;
-
-    // Reserve space to avoid reallocation and pointer invalidation
     bufferInfos.reserve(createInfo.entries.size());
     imageInfos.reserve(createInfo.entries.size());
     descriptorWrites.reserve(createInfo.entries.size());
 
-    // Track indices for buffer and image infos
-    size_t bufferInfoIndex = 0;
-    size_t imageInfoIndex = 0;
-
     for (const auto& entry : createInfo.entries) {
-        uint32_t arrayElement = entry.arrayElement;
+        VkWriteDescriptorSet write = makeWrite(m_descriptorSet, entry);
 
-        if (entry.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || entry.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
-            VkDescriptorBufferInfo bufferInfo{};
-            bufferInfo.buffer = entry.buffer;
-            bufferInfo.offset = entry.bufferOffset;
-            bufferInfo.range = entry.bufferSize;
-            bufferInfos.push_back(bufferInfo);
-
-            VkWriteDescriptorSet descriptorWrite{};
-            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet = m_descriptorSet;
-            descriptorWrite.dstBinding = entry.binding;
-            descriptorWrite.dstArrayElement = arrayElement;
-            descriptorWrite.descriptorType = entry.descriptorType;
-            descriptorWrite.descriptorCount = 1;
-            descriptorWrite.pBufferInfo = &bufferInfos[bufferInfoIndex++];
-
-            descriptorWrites.push_back(descriptorWrite);
-        } else if (entry.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER) {
-            VkDescriptorImageInfo imageInfo{};
-            imageInfo.sampler = entry.sampler;
-            imageInfo.imageView = VK_NULL_HANDLE;
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageInfos.push_back(imageInfo);
-
-            VkWriteDescriptorSet descriptorWrite{};
-            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet = m_descriptorSet;
-            descriptorWrite.dstBinding = entry.binding;
-            descriptorWrite.dstArrayElement = arrayElement;
-            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-            descriptorWrite.descriptorCount = 1;
-            descriptorWrite.pImageInfo = &imageInfos[imageInfoIndex++];
-
-            descriptorWrites.push_back(descriptorWrite);
-        } else if (entry.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || entry.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
-            VkDescriptorImageInfo imageInfo{};
-            imageInfo.sampler = VK_NULL_HANDLE;
-            imageInfo.imageView = entry.imageView;
-            imageInfo.imageLayout = entry.imageLayout;
-            imageInfos.push_back(imageInfo);
-
-            VkWriteDescriptorSet descriptorWrite{};
-            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet = m_descriptorSet;
-            descriptorWrite.dstBinding = entry.binding;
-            descriptorWrite.dstArrayElement = arrayElement;
-            descriptorWrite.descriptorType = entry.descriptorType;
-            descriptorWrite.descriptorCount = 1;
-            descriptorWrite.pImageInfo = &imageInfos[imageInfoIndex++];
-
-            descriptorWrites.push_back(descriptorWrite);
+        switch (entry.descriptorType) {
+        case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+        case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+            bufferInfos.push_back({ entry.buffer, entry.bufferOffset, entry.bufferSize });
+            write.pBufferInfo = &bufferInfos.back();
+            break;
+        case VK_DESCRIPTOR_TYPE_SAMPLER:
+            imageInfos.push_back({ entry.sampler, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED });
+            write.pImageInfo = &imageInfos.back();
+            break;
+        case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+        case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+            imageInfos.push_back({ VK_NULL_HANDLE, entry.imageView, entry.imageLayout });
+            write.pImageInfo = &imageInfos.back();
+            break;
+        default:
+            continue; // Unknown descriptor type - skip
         }
+
+        descriptorWrites.push_back(write);
     }
 
     if (!descriptorWrites.empty()) {
-        vkUpdateDescriptorSets(m_device->handle(), static_cast<uint32_t>(descriptorWrites.size()),
-            descriptorWrites.data(), 0, nullptr);
+        vkUpdateDescriptorSets(m_device->handle(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
 }
 

@@ -38,6 +38,10 @@ public:
     VkResult present(const std::vector<VkSemaphore>& waitSemaphores);
 
 private:
+    void createImageWrappers();
+    void destroyImageWrappers();
+
+private:
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
     Device* m_device = nullptr;
     Surface* m_surface = nullptr;

@@ -474,45 +474,41 @@ core::SwapchainCreateInfo gfxDescriptorToWebGPUSwapchainCreateInfo(const GfxSwap
     return createInfo;
 }
 
-core::BindGroupLayoutCreateInfo gfxDescriptorToWebGPUBindGroupLayoutCreateInfo(const GfxBindGroupLayoutDescriptor* descriptor)
-{
-    core::BindGroupLayoutCreateInfo createInfo{};
+namespace {
+    WGPUShaderStage gfxShaderStageToWGPU(GfxShaderStageFlags visibility)
+    {
+        WGPUShaderStage flags = WGPUShaderStage_None;
+        if (visibility & GFX_SHADER_STAGE_VERTEX) {
+            flags |= WGPUShaderStage_Vertex;
+        }
+        if (visibility & GFX_SHADER_STAGE_FRAGMENT) {
+            flags |= WGPUShaderStage_Fragment;
+        }
+        if (visibility & GFX_SHADER_STAGE_COMPUTE) {
+            flags |= WGPUShaderStage_Compute;
+        }
+        return flags;
+    }
 
-    for (uint32_t i = 0; i < descriptor->entryCount; ++i) {
-        const auto& entry = descriptor->entries[i];
-
+    core::BindGroupLayoutEntry convertBindGroupLayoutEntry(const GfxBindGroupLayoutEntry& entry)
+    {
         core::BindGroupLayoutEntry layoutEntry{};
         layoutEntry.binding = entry.binding;
         layoutEntry.count = entry.count > 0 ? entry.count : 1;
+        layoutEntry.visibility = gfxShaderStageToWGPU(entry.visibility);
 
-        // Convert visibility flags (bitwise)
-        layoutEntry.visibility = WGPUShaderStage_None;
-        if (entry.visibility & GFX_SHADER_STAGE_VERTEX) {
-            layoutEntry.visibility |= WGPUShaderStage_Vertex;
-        }
-        if (entry.visibility & GFX_SHADER_STAGE_FRAGMENT) {
-            layoutEntry.visibility |= WGPUShaderStage_Fragment;
-        }
-        if (entry.visibility & GFX_SHADER_STAGE_COMPUTE) {
-            layoutEntry.visibility |= WGPUShaderStage_Compute;
-        }
-
-        // Initialize all to Undefined - only set the one we need
+        // All binding-type fields default to Undefined; set only the active one
         layoutEntry.bufferType = WGPUBufferBindingType_Undefined;
         layoutEntry.bufferHasDynamicOffset = WGPU_FALSE;
         layoutEntry.bufferMinBindingSize = 0;
-
         layoutEntry.samplerType = WGPUSamplerBindingType_Undefined;
-
         layoutEntry.textureSampleType = WGPUTextureSampleType_Undefined;
         layoutEntry.textureViewDimension = WGPUTextureViewDimension_Undefined;
         layoutEntry.textureMultisampled = WGPU_FALSE;
-
         layoutEntry.storageTextureAccess = WGPUStorageTextureAccess_Undefined;
         layoutEntry.storageTextureFormat = WGPUTextureFormat_Undefined;
         layoutEntry.storageTextureViewDimension = WGPUTextureViewDimension_Undefined;
 
-        // Convert GfxBindingType to WebGPU binding types
         switch (entry.type) {
         case GFX_BINDING_TYPE_BUFFER:
             layoutEntry.bufferType = WGPUBufferBindingType_Uniform;
@@ -536,10 +532,16 @@ core::BindGroupLayoutCreateInfo gfxDescriptorToWebGPUBindGroupLayoutCreateInfo(c
             // Unknown type - leave as Undefined
             break;
         }
-
-        createInfo.entries.push_back(layoutEntry);
+        return layoutEntry;
     }
+} // anonymous namespace
 
+core::BindGroupLayoutCreateInfo gfxDescriptorToWebGPUBindGroupLayoutCreateInfo(const GfxBindGroupLayoutDescriptor* descriptor)
+{
+    core::BindGroupLayoutCreateInfo createInfo{};
+    for (uint32_t i = 0; i < descriptor->entryCount; ++i) {
+        createInfo.entries.push_back(convertBindGroupLayoutEntry(descriptor->entries[i]));
+    }
     return createInfo;
 }
 
@@ -588,35 +590,21 @@ core::BindGroupCreateInfo gfxDescriptorToWebGPUBindGroupCreateInfo(const GfxBind
     return createInfo;
 }
 
-core::RenderPipelineCreateInfo gfxDescriptorToWebGPURenderPipelineCreateInfo(const GfxRenderPipelineDescriptor* descriptor)
-{
-    core::RenderPipelineCreateInfo createInfo{};
+namespace {
+    core::VertexState convertVertexState(const GfxVertexState& vertex)
+    {
+        core::VertexState vkVertex{};
+        auto* vertexShader = toNative<Shader>(vertex.module);
+        vkVertex.module = vertexShader->handle();
+        vkVertex.entryPoint = vertex.entryPoint;
 
-    // Extract bind group layouts
-    if (descriptor->bindGroupLayoutCount > 0 && descriptor->bindGroupLayouts) {
-        createInfo.bindGroupLayouts.reserve(descriptor->bindGroupLayoutCount);
-        for (uint32_t i = 0; i < descriptor->bindGroupLayoutCount; ++i) {
-            auto* layout = toNative<BindGroupLayout>(descriptor->bindGroupLayouts[i]);
-            createInfo.bindGroupLayouts.push_back(layout->handle());
-        }
-    }
-
-    // Vertex state
-    auto* vertexShader = toNative<Shader>(descriptor->vertex->module);
-    createInfo.vertex.module = vertexShader->handle();
-    createInfo.vertex.entryPoint = descriptor->vertex->entryPoint;
-
-    // Convert vertex buffers
-    if (descriptor->vertex->bufferCount > 0) {
-        createInfo.vertex.buffers.reserve(descriptor->vertex->bufferCount);
-
-        for (uint32_t i = 0; i < descriptor->vertex->bufferCount; ++i) {
-            const auto& buffer = descriptor->vertex->buffers[i];
+        vkVertex.buffers.reserve(vertex.bufferCount);
+        for (uint32_t i = 0; i < vertex.bufferCount; ++i) {
+            const auto& buffer = vertex.buffers[i];
             VertexBufferLayout vbLayout{};
             vbLayout.arrayStride = buffer.arrayStride;
             vbLayout.stepMode = gfxVertexStepModeToWGPU(buffer.stepMode);
 
-            // Convert attributes
             vbLayout.attributes.reserve(buffer.attributeCount);
             for (uint32_t j = 0; j < buffer.attributeCount; ++j) {
                 const auto& attr = buffer.attributes[j];
@@ -627,88 +615,109 @@ core::RenderPipelineCreateInfo gfxDescriptorToWebGPURenderPipelineCreateInfo(con
                 vbLayout.attributes.push_back(vbAttr);
             }
 
-            createInfo.vertex.buffers.push_back(std::move(vbLayout));
+            vkVertex.buffers.push_back(std::move(vbLayout));
         }
+        return vkVertex;
     }
 
-    // Fragment state (optional)
-    if (descriptor->fragment) {
+    // Color targets take their format from the render pass; writeMask/blend come
+    // from the fragment descriptor when an entry is provided for that index
+    ColorTargetState convertColorTarget(WGPUTextureFormat format, const GfxColorTargetState* target)
+    {
+        ColorTargetState colorTarget{};
+        colorTarget.format = format;
+
+        if (!target) {
+            colorTarget.writeMask = GFX_COLOR_WRITE_MASK_ALL; // Default when not specified
+            return colorTarget;
+        }
+
+        colorTarget.writeMask = target->writeMask;
+        if (target->blend) {
+            BlendState blend{};
+            blend.color.operation = gfxBlendOperationToWGPU(target->blend->color.operation);
+            blend.color.srcFactor = gfxBlendFactorToWGPU(target->blend->color.srcFactor);
+            blend.color.dstFactor = gfxBlendFactorToWGPU(target->blend->color.dstFactor);
+            blend.alpha.operation = gfxBlendOperationToWGPU(target->blend->alpha.operation);
+            blend.alpha.srcFactor = gfxBlendFactorToWGPU(target->blend->alpha.srcFactor);
+            blend.alpha.dstFactor = gfxBlendFactorToWGPU(target->blend->alpha.dstFactor);
+            colorTarget.blend = blend;
+        }
+        return colorTarget;
+    }
+
+    FragmentState convertFragmentState(const GfxFragmentState& fragment, const RenderPass& renderPass)
+    {
         FragmentState fragState{};
-        auto* fragmentShader = toNative<Shader>(descriptor->fragment->module);
+        auto* fragmentShader = toNative<Shader>(fragment.module);
         fragState.module = fragmentShader->handle();
-        fragState.entryPoint = descriptor->fragment->entryPoint;
+        fragState.entryPoint = fragment.entryPoint;
 
-        // RenderPass is mandatory - always extract formats from it
-        auto* renderPass = toNative<RenderPass>(descriptor->renderPass);
-        const auto& rpInfo = renderPass->getCreateInfo();
-
-        // Use render pass formats, blend/writeMask from fragment descriptor if provided
+        // One target per render pass color attachment; the format always comes from
+        // the render pass, blend/writeMask from the matching fragment target if present
+        const auto& rpInfo = renderPass.getCreateInfo();
         fragState.targets.reserve(rpInfo.colorAttachments.size());
-
         for (uint32_t i = 0; i < rpInfo.colorAttachments.size(); ++i) {
-            ColorTargetState colorTarget{};
-            colorTarget.format = rpInfo.colorAttachments[i].format;
-
-            // Use writeMask and blend from fragment descriptor if available
-            if (descriptor->fragment->targetCount > i) {
-                const auto& target = descriptor->fragment->targets[i];
-                colorTarget.writeMask = target.writeMask;
-
-                if (target.blend) {
-                    BlendState blend{};
-                    blend.color.operation = gfxBlendOperationToWGPU(target.blend->color.operation);
-                    blend.color.srcFactor = gfxBlendFactorToWGPU(target.blend->color.srcFactor);
-                    blend.color.dstFactor = gfxBlendFactorToWGPU(target.blend->color.dstFactor);
-                    blend.alpha.operation = gfxBlendOperationToWGPU(target.blend->alpha.operation);
-                    blend.alpha.srcFactor = gfxBlendFactorToWGPU(target.blend->alpha.srcFactor);
-                    blend.alpha.dstFactor = gfxBlendFactorToWGPU(target.blend->alpha.dstFactor);
-                    colorTarget.blend = blend;
-                }
-            } else {
-                // Default write mask if not specified
-                colorTarget.writeMask = GFX_COLOR_WRITE_MASK_ALL;
-            }
-
-            fragState.targets.push_back(std::move(colorTarget));
+            const GfxColorTargetState* target = (fragment.targetCount > i) ? &fragment.targets[i] : nullptr;
+            fragState.targets.push_back(convertColorTarget(rpInfo.colorAttachments[i].format, target));
         }
-
-        createInfo.fragment = std::move(fragState);
+        return fragState;
     }
 
-    // Primitive state
+    DepthStencilState convertDepthStencilState(const GfxDepthStencilState& depthStencil)
+    {
+        DepthStencilState dsState{};
+        dsState.format = gfxFormatToWGPUFormat(depthStencil.format);
+        dsState.depthWriteEnabled = depthStencil.depthWriteEnabled;
+        dsState.depthCompare = gfxCompareFunctionToWGPU(depthStencil.depthCompare);
+
+        dsState.stencilFront.compare = gfxCompareFunctionToWGPU(depthStencil.stencilFront.compare);
+        dsState.stencilFront.failOp = gfxStencilOperationToWGPU(depthStencil.stencilFront.failOp);
+        dsState.stencilFront.depthFailOp = gfxStencilOperationToWGPU(depthStencil.stencilFront.depthFailOp);
+        dsState.stencilFront.passOp = gfxStencilOperationToWGPU(depthStencil.stencilFront.passOp);
+
+        dsState.stencilBack.compare = gfxCompareFunctionToWGPU(depthStencil.stencilBack.compare);
+        dsState.stencilBack.failOp = gfxStencilOperationToWGPU(depthStencil.stencilBack.failOp);
+        dsState.stencilBack.depthFailOp = gfxStencilOperationToWGPU(depthStencil.stencilBack.depthFailOp);
+        dsState.stencilBack.passOp = gfxStencilOperationToWGPU(depthStencil.stencilBack.passOp);
+
+        dsState.stencilReadMask = depthStencil.stencilReadMask;
+        dsState.stencilWriteMask = depthStencil.stencilWriteMask;
+        dsState.depthBias = depthStencil.depthBias;
+        dsState.depthBiasSlopeScale = depthStencil.depthBiasSlopeScale;
+        dsState.depthBiasClamp = depthStencil.depthBiasClamp;
+        return dsState;
+    }
+} // anonymous namespace
+
+core::RenderPipelineCreateInfo gfxDescriptorToWebGPURenderPipelineCreateInfo(const GfxRenderPipelineDescriptor* descriptor)
+{
+    core::RenderPipelineCreateInfo createInfo{};
+
+    if (descriptor->bindGroupLayoutCount > 0 && descriptor->bindGroupLayouts) {
+        createInfo.bindGroupLayouts.reserve(descriptor->bindGroupLayoutCount);
+        for (uint32_t i = 0; i < descriptor->bindGroupLayoutCount; ++i) {
+            auto* layout = toNative<BindGroupLayout>(descriptor->bindGroupLayouts[i]);
+            createInfo.bindGroupLayouts.push_back(layout->handle());
+        }
+    }
+
+    createInfo.vertex = convertVertexState(*descriptor->vertex);
+    if (descriptor->fragment) {
+        // RenderPass is mandatory - color target formats come from it
+        auto* renderPass = toNative<RenderPass>(descriptor->renderPass);
+        createInfo.fragment = convertFragmentState(*descriptor->fragment, *renderPass);
+    }
+
     createInfo.primitive.topology = gfxPrimitiveTopologyToWGPU(descriptor->primitive->topology);
     createInfo.primitive.frontFace = gfxFrontFaceToWGPU(descriptor->primitive->frontFace);
     createInfo.primitive.cullMode = gfxCullModeToWGPU(descriptor->primitive->cullMode);
     createInfo.primitive.stripIndexFormat = gfxIndexFormatToWGPU(descriptor->primitive->stripIndexFormat);
 
-    // Depth/stencil state (optional)
     if (descriptor->depthStencil) {
-        DepthStencilState dsState{};
-        dsState.format = gfxFormatToWGPUFormat(descriptor->depthStencil->format);
-        dsState.depthWriteEnabled = descriptor->depthStencil->depthWriteEnabled;
-        dsState.depthCompare = gfxCompareFunctionToWGPU(descriptor->depthStencil->depthCompare);
-
-        // Stencil state
-        dsState.stencilFront.compare = gfxCompareFunctionToWGPU(descriptor->depthStencil->stencilFront.compare);
-        dsState.stencilFront.failOp = gfxStencilOperationToWGPU(descriptor->depthStencil->stencilFront.failOp);
-        dsState.stencilFront.depthFailOp = gfxStencilOperationToWGPU(descriptor->depthStencil->stencilFront.depthFailOp);
-        dsState.stencilFront.passOp = gfxStencilOperationToWGPU(descriptor->depthStencil->stencilFront.passOp);
-
-        dsState.stencilBack.compare = gfxCompareFunctionToWGPU(descriptor->depthStencil->stencilBack.compare);
-        dsState.stencilBack.failOp = gfxStencilOperationToWGPU(descriptor->depthStencil->stencilBack.failOp);
-        dsState.stencilBack.depthFailOp = gfxStencilOperationToWGPU(descriptor->depthStencil->stencilBack.depthFailOp);
-        dsState.stencilBack.passOp = gfxStencilOperationToWGPU(descriptor->depthStencil->stencilBack.passOp);
-
-        dsState.stencilReadMask = descriptor->depthStencil->stencilReadMask;
-        dsState.stencilWriteMask = descriptor->depthStencil->stencilWriteMask;
-        dsState.depthBias = descriptor->depthStencil->depthBias;
-        dsState.depthBiasSlopeScale = descriptor->depthStencil->depthBiasSlopeScale;
-        dsState.depthBiasClamp = descriptor->depthStencil->depthBiasClamp;
-
-        createInfo.depthStencil = std::move(dsState);
+        createInfo.depthStencil = convertDepthStencilState(*descriptor->depthStencil);
     }
 
-    // Multisample state
     createInfo.sampleCount = descriptor->sampleCount;
 
     return createInfo;
@@ -1822,22 +1831,35 @@ GfxExtent3D wgpuExtent3DToGfxExtent3D(const WGPUExtent3D& extent)
     return { extent.width, extent.height, extent.depthOrArrayLayers };
 }
 
-core::RenderPassCreateInfo gfxRenderPassDescriptorToRenderPassCreateInfo(const GfxRenderPassDescriptor* descriptor)
-{
-    core::RenderPassCreateInfo createInfo{};
-
-    // For WebGPU, RenderPass stores ops info (views come from framebuffer at begin time)
-    // Convert color attachment ops
-    for (uint32_t i = 0; i < descriptor->colorAttachmentCount; ++i) {
-        const GfxRenderPassColorAttachment& colorAtt = descriptor->colorAttachments[i];
-        const GfxRenderPassColorAttachmentTarget& target = colorAtt.target;
-
+namespace {
+    // WebGPU render passes store ops/formats only; views come from the framebuffer at begin time
+    RenderPassColorAttachment convertColorAttachment(const GfxRenderPassColorAttachmentTarget& target)
+    {
         RenderPassColorAttachment attachment{};
         attachment.format = gfxFormatToWGPUFormat(target.format);
         attachment.loadOp = gfxLoadOpToWGPULoadOp(target.ops.loadOp);
         attachment.storeOp = gfxStoreOpToWGPUStoreOp(target.ops.storeOp);
+        return attachment;
+    }
 
-        createInfo.colorAttachments.push_back(attachment);
+    RenderPassDepthStencilAttachment convertDepthStencilAttachment(const GfxRenderPassDepthStencilAttachmentTarget& target)
+    {
+        RenderPassDepthStencilAttachment attachment{};
+        attachment.format = gfxFormatToWGPUFormat(target.format);
+        attachment.depthLoadOp = gfxLoadOpToWGPULoadOp(target.depthOps.loadOp);
+        attachment.depthStoreOp = gfxStoreOpToWGPUStoreOp(target.depthOps.storeOp);
+        attachment.stencilLoadOp = gfxLoadOpToWGPULoadOp(target.stencilOps.loadOp);
+        attachment.stencilStoreOp = gfxStoreOpToWGPUStoreOp(target.stencilOps.storeOp);
+        return attachment;
+    }
+} // anonymous namespace
+
+core::RenderPassCreateInfo gfxRenderPassDescriptorToRenderPassCreateInfo(const GfxRenderPassDescriptor* descriptor)
+{
+    core::RenderPassCreateInfo createInfo{};
+
+    for (uint32_t i = 0; i < descriptor->colorAttachmentCount; ++i) {
+        createInfo.colorAttachments.push_back(convertColorAttachment(descriptor->colorAttachments[i].target));
     }
 
     // Store sample count from first color attachment (all must match)
@@ -1847,19 +1869,8 @@ core::RenderPassCreateInfo gfxRenderPassDescriptorToRenderPassCreateInfo(const G
         createInfo.sampleCount = static_cast<uint32_t>(descriptor->depthStencilAttachment->target.sampleCount);
     }
 
-    // Convert depth/stencil attachment ops if present
     if (descriptor->depthStencilAttachment) {
-        const GfxRenderPassDepthStencilAttachment& depthAtt = *descriptor->depthStencilAttachment;
-        const GfxRenderPassDepthStencilAttachmentTarget& target = depthAtt.target;
-
-        RenderPassDepthStencilAttachment depthStencilAttachment{};
-        depthStencilAttachment.format = gfxFormatToWGPUFormat(target.format);
-        depthStencilAttachment.depthLoadOp = gfxLoadOpToWGPULoadOp(target.depthOps.loadOp);
-        depthStencilAttachment.depthStoreOp = gfxStoreOpToWGPUStoreOp(target.depthOps.storeOp);
-        depthStencilAttachment.stencilLoadOp = gfxLoadOpToWGPULoadOp(target.stencilOps.loadOp);
-        depthStencilAttachment.stencilStoreOp = gfxStoreOpToWGPUStoreOp(target.stencilOps.storeOp);
-
-        createInfo.depthStencilAttachment = depthStencilAttachment;
+        createInfo.depthStencilAttachment = convertDepthStencilAttachment(descriptor->depthStencilAttachment->target);
     }
 
     return createInfo;

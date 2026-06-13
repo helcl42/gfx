@@ -1784,51 +1784,55 @@ core::SwapchainCreateInfo gfxDescriptorToSwapchainCreateInfo(const GfxSwapchainD
     return createInfo;
 }
 
-core::BindGroupLayoutCreateInfo gfxDescriptorToBindGroupLayoutCreateInfo(const GfxBindGroupLayoutDescriptor* descriptor)
-{
-    core::BindGroupLayoutCreateInfo createInfo{};
+namespace {
+    VkDescriptorType gfxBindingTypeToVkDescriptorType(GfxBindingType type)
+    {
+        switch (type) {
+        case GFX_BINDING_TYPE_BUFFER:
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        case GFX_BINDING_TYPE_SAMPLER:
+            return VK_DESCRIPTOR_TYPE_SAMPLER;
+        case GFX_BINDING_TYPE_TEXTURE:
+            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        case GFX_BINDING_TYPE_STORAGE_TEXTURE:
+            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        default:
+            return VkDescriptorType{}; // Unknown type - value-initialized, as before
+        }
+    }
 
-    for (uint32_t i = 0; i < descriptor->entryCount; ++i) {
-        const auto& entry = descriptor->entries[i];
+    VkShaderStageFlags gfxShaderStageToVkStageFlags(GfxShaderStageFlags visibility)
+    {
+        VkShaderStageFlags flags = 0;
+        if (visibility & GFX_SHADER_STAGE_VERTEX) {
+            flags |= VK_SHADER_STAGE_VERTEX_BIT;
+        }
+        if (visibility & GFX_SHADER_STAGE_FRAGMENT) {
+            flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+        }
+        if (visibility & GFX_SHADER_STAGE_COMPUTE) {
+            flags |= VK_SHADER_STAGE_COMPUTE_BIT;
+        }
+        return flags;
+    }
 
+    core::BindGroupLayoutEntry convertBindGroupLayoutEntry(const GfxBindGroupLayoutEntry& entry)
+    {
         core::BindGroupLayoutEntry layoutEntry{};
         layoutEntry.binding = entry.binding;
         layoutEntry.descriptorCount = entry.count > 0 ? entry.count : 1;
-
-        // Convert GfxBindingType to VkDescriptorType
-        switch (entry.type) {
-        case GFX_BINDING_TYPE_BUFFER:
-            layoutEntry.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            break;
-        case GFX_BINDING_TYPE_SAMPLER:
-            layoutEntry.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-            break;
-        case GFX_BINDING_TYPE_TEXTURE:
-            layoutEntry.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            break;
-        case GFX_BINDING_TYPE_STORAGE_TEXTURE:
-            layoutEntry.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            break;
-        default:
-            // Unknown type - leave as Undefined
-            break;
-        }
-
-        // Convert GfxShaderStage to VkShaderStageFlags
-        layoutEntry.stageFlags = 0;
-        if (entry.visibility & GFX_SHADER_STAGE_VERTEX) {
-            layoutEntry.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
-        }
-        if (entry.visibility & GFX_SHADER_STAGE_FRAGMENT) {
-            layoutEntry.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
-        }
-        if (entry.visibility & GFX_SHADER_STAGE_COMPUTE) {
-            layoutEntry.stageFlags |= VK_SHADER_STAGE_COMPUTE_BIT;
-        }
-
-        createInfo.entries.push_back(layoutEntry);
+        layoutEntry.descriptorType = gfxBindingTypeToVkDescriptorType(entry.type);
+        layoutEntry.stageFlags = gfxShaderStageToVkStageFlags(entry.visibility);
+        return layoutEntry;
     }
+} // anonymous namespace
 
+core::BindGroupLayoutCreateInfo gfxDescriptorToBindGroupLayoutCreateInfo(const GfxBindGroupLayoutDescriptor* descriptor)
+{
+    core::BindGroupLayoutCreateInfo createInfo{};
+    for (uint32_t i = 0; i < descriptor->entryCount; ++i) {
+        createInfo.entries.push_back(convertBindGroupLayoutEntry(descriptor->entries[i]));
+    }
     return createInfo;
 }
 
@@ -1880,112 +1884,140 @@ core::BindGroupCreateInfo gfxDescriptorToBindGroupCreateInfo(const GfxBindGroupD
     return createInfo;
 }
 
+namespace {
+    VkColorComponentFlags gfxColorWriteMaskToVk(GfxColorWriteMaskFlags writeMask)
+    {
+        VkColorComponentFlags vkMask = 0;
+        if (writeMask & GFX_COLOR_WRITE_MASK_RED) {
+            vkMask |= VK_COLOR_COMPONENT_R_BIT;
+        }
+        if (writeMask & GFX_COLOR_WRITE_MASK_GREEN) {
+            vkMask |= VK_COLOR_COMPONENT_G_BIT;
+        }
+        if (writeMask & GFX_COLOR_WRITE_MASK_BLUE) {
+            vkMask |= VK_COLOR_COMPONENT_B_BIT;
+        }
+        if (writeMask & GFX_COLOR_WRITE_MASK_ALPHA) {
+            vkMask |= VK_COLOR_COMPONENT_A_BIT;
+        }
+        return vkMask;
+    }
+
+    core::ColorTargetState convertColorTarget(const GfxColorTargetState& target)
+    {
+        core::ColorTargetState vkTarget{};
+        vkTarget.format = gfxFormatToVkFormat(target.format);
+        vkTarget.writeMask = gfxColorWriteMaskToVk(target.writeMask);
+
+        VkPipelineColorBlendAttachmentState blendState{};
+        blendState.colorWriteMask = vkTarget.writeMask;
+        if (target.blend) {
+            blendState.blendEnable = VK_TRUE;
+            blendState.srcColorBlendFactor = gfxBlendFactorToVkBlendFactor(target.blend->color.srcFactor);
+            blendState.dstColorBlendFactor = gfxBlendFactorToVkBlendFactor(target.blend->color.dstFactor);
+            blendState.colorBlendOp = gfxBlendOpToVkBlendOp(target.blend->color.operation);
+            blendState.srcAlphaBlendFactor = gfxBlendFactorToVkBlendFactor(target.blend->alpha.srcFactor);
+            blendState.dstAlphaBlendFactor = gfxBlendFactorToVkBlendFactor(target.blend->alpha.dstFactor);
+            blendState.alphaBlendOp = gfxBlendOpToVkBlendOp(target.blend->alpha.operation);
+        } else {
+            blendState.blendEnable = VK_FALSE;
+        }
+
+        vkTarget.blendState = blendState;
+        return vkTarget;
+    }
+
+    // Resolves the entry point: caller-provided name, or the shader's default if empty
+    const char* resolveEntryPoint(const char* requested, core::Shader* shader)
+    {
+        return (requested && requested[0] != '\0') ? requested : shader->entryPoint();
+    }
+
+    core::VertexState convertVertexState(const GfxVertexState& vertex)
+    {
+        core::VertexState vkVertex{};
+        auto* vertShader = converter::toNative<core::Shader>(vertex.module);
+        vkVertex.module = vertShader->handle();
+        vkVertex.entryPoint = resolveEntryPoint(vertex.entryPoint, vertShader);
+
+        for (uint32_t i = 0; i < vertex.bufferCount; ++i) {
+            const auto& bufferLayout = vertex.buffers[i];
+
+            core::VertexBufferLayout vkBufferLayout{};
+            vkBufferLayout.arrayStride = bufferLayout.arrayStride;
+            vkBufferLayout.inputRate = gfxVertexStepModeToVkVertexInputRate(bufferLayout.stepMode);
+
+            for (uint32_t j = 0; j < bufferLayout.attributeCount; ++j) {
+                const auto& attr = bufferLayout.attributes[j];
+
+                VkVertexInputAttributeDescription attribute{};
+                attribute.binding = i;
+                attribute.location = attr.shaderLocation;
+                attribute.offset = static_cast<uint32_t>(attr.offset);
+                attribute.format = gfxFormatToVkFormat(attr.format);
+
+                vkBufferLayout.attributes.push_back(attribute);
+            }
+
+            vkVertex.buffers.push_back(vkBufferLayout);
+        }
+        return vkVertex;
+    }
+
+    core::FragmentState convertFragmentState(const GfxFragmentState& fragment)
+    {
+        core::FragmentState vkFragment{};
+        auto* fragShader = converter::toNative<core::Shader>(fragment.module);
+        vkFragment.module = fragShader->handle();
+        vkFragment.entryPoint = resolveEntryPoint(fragment.entryPoint, fragShader);
+
+        for (uint32_t i = 0; i < fragment.targetCount; ++i) {
+            vkFragment.targets.push_back(convertColorTarget(fragment.targets[i]));
+        }
+        return vkFragment;
+    }
+
+    core::PrimitiveState convertPrimitiveState(const GfxPrimitiveState& primitive)
+    {
+        core::PrimitiveState vkPrimitive{};
+        vkPrimitive.topology = gfxPrimitiveTopologyToVkPrimitiveTopology(primitive.topology);
+        vkPrimitive.polygonMode = gfxPolygonModeToVkPolygonMode(primitive.polygonMode);
+        vkPrimitive.cullMode = gfxCullModeToVkCullMode(primitive.cullMode);
+        vkPrimitive.frontFace = gfxFrontFaceToVkFrontFace(primitive.frontFace);
+        return vkPrimitive;
+    }
+
+    core::DepthStencilState convertDepthStencilState(const GfxDepthStencilState& depthStencil)
+    {
+        core::DepthStencilState vkDepthStencil{};
+        vkDepthStencil.format = gfxFormatToVkFormat(depthStencil.format);
+        vkDepthStencil.depthWriteEnabled = depthStencil.depthWriteEnabled;
+        vkDepthStencil.depthCompareOp = gfxCompareOpToVkCompareOp(depthStencil.depthCompare);
+        return vkDepthStencil;
+    }
+} // anonymous namespace
+
 core::RenderPipelineCreateInfo gfxDescriptorToRenderPipelineCreateInfo(const GfxRenderPipelineDescriptor* descriptor)
 {
     core::RenderPipelineCreateInfo createInfo{};
 
-    // Render pass (if provided)
     if (descriptor->renderPass) {
-        auto* renderPass = converter::toNative<core::RenderPass>(descriptor->renderPass);
-        createInfo.renderPass = renderPass->handle();
+        createInfo.renderPass = converter::toNative<core::RenderPass>(descriptor->renderPass)->handle();
     }
 
-    // Bind group layouts
     for (uint32_t i = 0; i < descriptor->bindGroupLayoutCount; ++i) {
         auto* layout = converter::toNative<core::BindGroupLayout>(descriptor->bindGroupLayouts[i]);
         createInfo.bindGroupLayouts.push_back(layout->handle());
     }
 
-    // Vertex state
-    auto* vertShader = converter::toNative<core::Shader>(descriptor->vertex->module);
-    createInfo.vertex.module = vertShader->handle();
-    createInfo.vertex.entryPoint = (descriptor->vertex->entryPoint && descriptor->vertex->entryPoint[0] != '\0') ? descriptor->vertex->entryPoint : vertShader->entryPoint();
-
-    for (uint32_t i = 0; i < descriptor->vertex->bufferCount; ++i) {
-        const auto& bufferLayout = descriptor->vertex->buffers[i];
-
-        core::VertexBufferLayout vkBufferLayout{};
-        vkBufferLayout.arrayStride = bufferLayout.arrayStride;
-        vkBufferLayout.inputRate = gfxVertexStepModeToVkVertexInputRate(bufferLayout.stepMode);
-
-        for (uint32_t j = 0; j < bufferLayout.attributeCount; ++j) {
-            const auto& attr = bufferLayout.attributes[j];
-
-            VkVertexInputAttributeDescription attribute{};
-            attribute.binding = i;
-            attribute.location = attr.shaderLocation;
-            attribute.offset = static_cast<uint32_t>(attr.offset);
-            attribute.format = gfxFormatToVkFormat(attr.format);
-
-            vkBufferLayout.attributes.push_back(attribute);
-        }
-
-        createInfo.vertex.buffers.push_back(vkBufferLayout);
-    }
-
-    // Fragment state
+    createInfo.vertex = convertVertexState(*descriptor->vertex);
     if (descriptor->fragment) {
-        auto* fragShader = converter::toNative<core::Shader>(descriptor->fragment->module);
-        createInfo.fragment.module = fragShader->handle();
-        createInfo.fragment.entryPoint = (descriptor->fragment->entryPoint && descriptor->fragment->entryPoint[0] != '\0') ? descriptor->fragment->entryPoint : fragShader->entryPoint();
-
-        for (uint32_t i = 0; i < descriptor->fragment->targetCount; ++i) {
-            const auto& target = descriptor->fragment->targets[i];
-
-            core::ColorTargetState vkTarget{};
-            vkTarget.format = gfxFormatToVkFormat(target.format);
-
-            // Convert GfxColorWriteMaskFlags to VkColorComponentFlags
-            vkTarget.writeMask = 0;
-            if (target.writeMask & 0x1) {
-                vkTarget.writeMask |= VK_COLOR_COMPONENT_R_BIT;
-            }
-            if (target.writeMask & 0x2) {
-                vkTarget.writeMask |= VK_COLOR_COMPONENT_G_BIT;
-            }
-            if (target.writeMask & 0x4) {
-                vkTarget.writeMask |= VK_COLOR_COMPONENT_B_BIT;
-            }
-            if (target.writeMask & 0x8) {
-                vkTarget.writeMask |= VK_COLOR_COMPONENT_A_BIT;
-            }
-
-            VkPipelineColorBlendAttachmentState blendState{};
-            blendState.colorWriteMask = vkTarget.writeMask;
-
-            if (target.blend) {
-                blendState.blendEnable = VK_TRUE;
-                blendState.srcColorBlendFactor = gfxBlendFactorToVkBlendFactor(target.blend->color.srcFactor);
-                blendState.dstColorBlendFactor = gfxBlendFactorToVkBlendFactor(target.blend->color.dstFactor);
-                blendState.colorBlendOp = gfxBlendOpToVkBlendOp(target.blend->color.operation);
-                blendState.srcAlphaBlendFactor = gfxBlendFactorToVkBlendFactor(target.blend->alpha.srcFactor);
-                blendState.dstAlphaBlendFactor = gfxBlendFactorToVkBlendFactor(target.blend->alpha.dstFactor);
-                blendState.alphaBlendOp = gfxBlendOpToVkBlendOp(target.blend->alpha.operation);
-            } else {
-                blendState.blendEnable = VK_FALSE;
-            }
-
-            vkTarget.blendState = blendState;
-            createInfo.fragment.targets.push_back(vkTarget);
-        }
+        createInfo.fragment = convertFragmentState(*descriptor->fragment);
     }
-
-    // Primitive state
-    createInfo.primitive.topology = gfxPrimitiveTopologyToVkPrimitiveTopology(descriptor->primitive->topology);
-    createInfo.primitive.polygonMode = gfxPolygonModeToVkPolygonMode(descriptor->primitive->polygonMode);
-    createInfo.primitive.cullMode = gfxCullModeToVkCullMode(descriptor->primitive->cullMode);
-    createInfo.primitive.frontFace = gfxFrontFaceToVkFrontFace(descriptor->primitive->frontFace);
-
-    // Depth stencil state
+    createInfo.primitive = convertPrimitiveState(*descriptor->primitive);
     if (descriptor->depthStencil) {
-        core::DepthStencilState depthStencil{};
-        depthStencil.format = gfxFormatToVkFormat(descriptor->depthStencil->format);
-        depthStencil.depthWriteEnabled = descriptor->depthStencil->depthWriteEnabled;
-        depthStencil.depthCompareOp = gfxCompareOpToVkCompareOp(descriptor->depthStencil->depthCompare);
-        createInfo.depthStencil = depthStencil;
+        createInfo.depthStencil = convertDepthStencilState(*descriptor->depthStencil);
     }
-
-    // Sample count
     createInfo.sampleCount = sampleCountToVkSampleCount(descriptor->sampleCount);
 
     return createInfo;
@@ -2025,69 +2057,57 @@ core::SubmitInfo gfxDescriptorToSubmitInfo(const GfxSubmitDescriptor* descriptor
     return submitInfo;
 }
 
+namespace {
+    core::RenderPassColorAttachmentTarget convertColorAttachmentTarget(const GfxRenderPassColorAttachmentTarget& target)
+    {
+        core::RenderPassColorAttachmentTarget vkTarget{};
+        vkTarget.format = gfxFormatToVkFormat(target.format);
+        vkTarget.sampleCount = sampleCountToVkSampleCount(target.sampleCount);
+        vkTarget.loadOp = gfxLoadOpToVkLoadOp(target.ops.loadOp);
+        vkTarget.storeOp = gfxStoreOpToVkStoreOp(target.ops.storeOp);
+        vkTarget.finalLayout = gfxLayoutToVkImageLayout(target.finalLayout);
+        return vkTarget;
+    }
+
+    core::RenderPassDepthStencilAttachmentTarget convertDepthStencilAttachmentTarget(const GfxRenderPassDepthStencilAttachmentTarget& target)
+    {
+        core::RenderPassDepthStencilAttachmentTarget vkTarget{};
+        vkTarget.format = gfxFormatToVkFormat(target.format);
+        vkTarget.sampleCount = sampleCountToVkSampleCount(target.sampleCount);
+        vkTarget.depthLoadOp = gfxLoadOpToVkLoadOp(target.depthOps.loadOp);
+        vkTarget.depthStoreOp = gfxStoreOpToVkStoreOp(target.depthOps.storeOp);
+        vkTarget.stencilLoadOp = gfxLoadOpToVkLoadOp(target.stencilOps.loadOp);
+        vkTarget.stencilStoreOp = gfxStoreOpToVkStoreOp(target.stencilOps.storeOp);
+        vkTarget.finalLayout = gfxLayoutToVkImageLayout(target.finalLayout);
+        return vkTarget;
+    }
+} // anonymous namespace
+
 core::RenderPassCreateInfo gfxRenderPassDescriptorToRenderPassCreateInfo(const GfxRenderPassDescriptor* descriptor)
 {
     core::RenderPassCreateInfo createInfo{};
 
-    // Convert color attachments
+    // Convert color attachments (each with an optional resolve target)
     for (uint32_t i = 0; i < descriptor->colorAttachmentCount; ++i) {
         const GfxRenderPassColorAttachment& colorAtt = descriptor->colorAttachments[i];
-        const GfxRenderPassColorAttachmentTarget& target = colorAtt.target;
 
         core::RenderPassColorAttachment attachment{};
-        attachment.target.format = gfxFormatToVkFormat(target.format);
-        attachment.target.sampleCount = sampleCountToVkSampleCount(target.sampleCount);
-        attachment.target.loadOp = gfxLoadOpToVkLoadOp(target.ops.loadOp);
-        attachment.target.storeOp = gfxStoreOpToVkStoreOp(target.ops.storeOp);
-        attachment.target.finalLayout = gfxLayoutToVkImageLayout(target.finalLayout);
-
-        // Convert resolve target if present
+        attachment.target = convertColorAttachmentTarget(colorAtt.target);
         if (colorAtt.resolveTarget) {
-            const GfxRenderPassColorAttachmentTarget& resolveTarget = *colorAtt.resolveTarget;
-
-            core::RenderPassColorAttachmentTarget resolveTargetInfo{};
-            resolveTargetInfo.format = gfxFormatToVkFormat(resolveTarget.format);
-            resolveTargetInfo.sampleCount = sampleCountToVkSampleCount(resolveTarget.sampleCount);
-            resolveTargetInfo.loadOp = gfxLoadOpToVkLoadOp(resolveTarget.ops.loadOp);
-            resolveTargetInfo.storeOp = gfxStoreOpToVkStoreOp(resolveTarget.ops.storeOp);
-            resolveTargetInfo.finalLayout = gfxLayoutToVkImageLayout(resolveTarget.finalLayout);
-
-            attachment.resolveTarget = resolveTargetInfo;
+            attachment.resolveTarget = convertColorAttachmentTarget(*colorAtt.resolveTarget);
         }
-
         createInfo.colorAttachments.push_back(attachment);
     }
 
-    // Convert depth/stencil attachment
+    // Convert depth/stencil attachment (with an optional resolve target)
     if (descriptor->depthStencilAttachment) {
         const GfxRenderPassDepthStencilAttachment& depthAtt = *descriptor->depthStencilAttachment;
-        const GfxRenderPassDepthStencilAttachmentTarget& target = depthAtt.target;
 
         core::RenderPassDepthStencilAttachment depthStencilAttachment{};
-        depthStencilAttachment.target.format = gfxFormatToVkFormat(target.format);
-        depthStencilAttachment.target.sampleCount = sampleCountToVkSampleCount(target.sampleCount);
-        depthStencilAttachment.target.depthLoadOp = gfxLoadOpToVkLoadOp(target.depthOps.loadOp);
-        depthStencilAttachment.target.depthStoreOp = gfxStoreOpToVkStoreOp(target.depthOps.storeOp);
-        depthStencilAttachment.target.stencilLoadOp = gfxLoadOpToVkLoadOp(target.stencilOps.loadOp);
-        depthStencilAttachment.target.stencilStoreOp = gfxStoreOpToVkStoreOp(target.stencilOps.storeOp);
-        depthStencilAttachment.target.finalLayout = gfxLayoutToVkImageLayout(target.finalLayout);
-
-        // Convert resolve target if present
+        depthStencilAttachment.target = convertDepthStencilAttachmentTarget(depthAtt.target);
         if (depthAtt.resolveTarget) {
-            const GfxRenderPassDepthStencilAttachmentTarget& resolveTarget = *depthAtt.resolveTarget;
-
-            core::RenderPassDepthStencilAttachmentTarget resolveTargetInfo{};
-            resolveTargetInfo.format = gfxFormatToVkFormat(resolveTarget.format);
-            resolveTargetInfo.sampleCount = sampleCountToVkSampleCount(resolveTarget.sampleCount);
-            resolveTargetInfo.depthLoadOp = gfxLoadOpToVkLoadOp(resolveTarget.depthOps.loadOp);
-            resolveTargetInfo.depthStoreOp = gfxStoreOpToVkStoreOp(resolveTarget.depthOps.storeOp);
-            resolveTargetInfo.stencilLoadOp = gfxLoadOpToVkLoadOp(resolveTarget.stencilOps.loadOp);
-            resolveTargetInfo.stencilStoreOp = gfxStoreOpToVkStoreOp(resolveTarget.stencilOps.storeOp);
-            resolveTargetInfo.finalLayout = gfxLayoutToVkImageLayout(resolveTarget.finalLayout);
-
-            depthStencilAttachment.resolveTarget = resolveTargetInfo;
+            depthStencilAttachment.resolveTarget = convertDepthStencilAttachmentTarget(*depthAtt.resolveTarget);
         }
-
         createInfo.depthStencilAttachment = depthStencilAttachment;
     }
 

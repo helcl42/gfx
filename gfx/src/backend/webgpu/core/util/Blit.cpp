@@ -259,8 +259,7 @@ void Blit::execute3D(WGPUCommandEncoder commandEncoder, WGPUTexture srcTexture, 
     WGPUComputePassEncoder computePass = wgpuCommandEncoderBeginComputePass(commandEncoder, &passDesc);
     wgpuComputePassEncoderSetPipeline(computePass, m_pipeline3D);
     wgpuComputePassEncoderSetBindGroup(computePass, 0, bindGroup, 0, nullptr);
-    wgpuComputePassEncoderDispatchWorkgroups(computePass,
-        (dstWidth + 3) / 4, (dstHeight + 3) / 4, (dstDepth + 3) / 4);
+    wgpuComputePassEncoderDispatchWorkgroups(computePass, (dstWidth + 3) / 4, (dstHeight + 3) / 4, (dstDepth + 3) / 4);
     wgpuComputePassEncoderEnd(computePass);
 
     // Cleanup
@@ -353,15 +352,10 @@ void Blit::execute2D(WGPUCommandEncoder commandEncoder, WGPUTexture srcTexture, 
     wgpuRenderPassEncoderSetBindGroup(renderPass, 0, bindGroup, 0, nullptr);
 
     // Set viewport to destination region for proper scaling
-    wgpuRenderPassEncoderSetViewport(renderPass,
-        static_cast<float>(dstOrigin.x), static_cast<float>(dstOrigin.y),
-        static_cast<float>(dstExtent.width), static_cast<float>(dstExtent.height),
-        0.0f, 1.0f);
+    wgpuRenderPassEncoderSetViewport(renderPass, static_cast<float>(dstOrigin.x), static_cast<float>(dstOrigin.y), static_cast<float>(dstExtent.width), static_cast<float>(dstExtent.height), 0.0f, 1.0f);
 
     // Set scissor to destination region
-    wgpuRenderPassEncoderSetScissorRect(renderPass,
-        dstOrigin.x, dstOrigin.y,
-        dstExtent.width, dstExtent.height);
+    wgpuRenderPassEncoderSetScissorRect(renderPass, dstOrigin.x, dstOrigin.y, dstExtent.width, dstExtent.height);
 
     wgpuRenderPassEncoderDraw(renderPass, 4, 1, 0, 0);
     wgpuRenderPassEncoderEnd(renderPass);

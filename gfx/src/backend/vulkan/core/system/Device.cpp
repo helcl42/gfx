@@ -64,6 +64,161 @@ namespace {
         }
         return false;
     }
+
+    bool hasExtension(uint64_t enabledExtensions, DeviceExtension extension)
+    {
+        return (enabledExtensions & static_cast<uint64_t>(extension)) != 0;
+    }
+
+    // Translates the enabled GFX extensions into VkPhysicalDeviceFeatures,
+    // throwing if the hardware lacks a requested feature
+    VkPhysicalDeviceFeatures buildEnabledFeatures(uint64_t enabledExtensions, const VkPhysicalDeviceFeatures& availableFeatures)
+    {
+        VkPhysicalDeviceFeatures deviceFeatures{};
+
+        if (hasExtension(enabledExtensions, DeviceExtension::AnisotropicFiltering)) {
+            if (!availableFeatures.samplerAnisotropy) {
+                throw std::runtime_error("Anisotropic filtering is not supported by this device");
+            }
+            deviceFeatures.samplerAnisotropy = VK_TRUE;
+        }
+
+        if (hasExtension(enabledExtensions, DeviceExtension::OcclusionQueryPrecise)) {
+            if (!availableFeatures.occlusionQueryPrecise) {
+                throw std::runtime_error("Precise occlusion queries are not supported by this device");
+            }
+            deviceFeatures.occlusionQueryPrecise = VK_TRUE;
+        }
+
+        // Note: TIMESTAMP_QUERY needs no feature bit or device extension - it is available
+        // when timestampValidBits > 0 on the graphics queue, which the Adapter already
+        // verified before reporting the extension as supported.
+
+        if (hasExtension(enabledExtensions, DeviceExtension::NonSolidFill)) {
+            if (!availableFeatures.fillModeNonSolid) {
+                throw std::runtime_error("Non-solid fill mode is not supported by this device");
+            }
+            deviceFeatures.fillModeNonSolid = VK_TRUE;
+        }
+
+        if (hasExtension(enabledExtensions, DeviceExtension::TextureCompressionBC)) {
+            if (!availableFeatures.textureCompressionBC) {
+                throw std::runtime_error("BC texture compression is not supported by this device");
+            }
+            deviceFeatures.textureCompressionBC = VK_TRUE;
+        }
+        if (hasExtension(enabledExtensions, DeviceExtension::TextureCompressionETC2)) {
+            if (!availableFeatures.textureCompressionETC2) {
+                throw std::runtime_error("ETC2 texture compression is not supported by this device");
+            }
+            deviceFeatures.textureCompressionETC2 = VK_TRUE;
+        }
+        if (hasExtension(enabledExtensions, DeviceExtension::TextureCompressionASTC)) {
+            if (!availableFeatures.textureCompressionASTC_LDR) {
+                throw std::runtime_error("ASTC texture compression is not supported by this device");
+            }
+            deviceFeatures.textureCompressionASTC_LDR = VK_TRUE;
+        }
+
+        return deviceFeatures;
+    }
+
+    // Collects the Vulkan device extension names to request: extension-mapped GFX
+    // extensions, native pNext passthrough extensions, and the portability subset.
+    // Throws if any required extension is unavailable on the adapter.
+    std::vector<const char*> collectRequestedExtensions(uint64_t enabledExtensions, const DeviceCreateInfo& createInfo, const std::vector<VkExtensionProperties>& availableExtensions)
+    {
+        std::vector<const char*> requestedExtensions;
+#ifndef GFX_HEADLESS_BUILD
+        if (hasExtension(enabledExtensions, DeviceExtension::Swapchain)) {
+            requestedExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+        }
+#endif // GFX_HEADLESS_BUILD
+        if (hasExtension(enabledExtensions, DeviceExtension::TimelineSemaphore)) {
+            requestedExtensions.push_back(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
+        }
+        if (hasExtension(enabledExtensions, DeviceExtension::Multiview)) {
+            requestedExtensions.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME);
+        }
+
+        // Add native (raw Vulkan) device extensions from the pNext chain
+        const GfxChainHeader* header = static_cast<const GfxChainHeader*>(createInfo.pNext);
+        while (header) {
+            if (header->sType == GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR) {
+                const auto* nativeDesc = reinterpret_cast<const GfxNativeExtensionsDescriptor*>(header);
+                if (nativeDesc->nativeExtensions && nativeDesc->nativeExtensionCount > 0) {
+                    for (uint32_t i = 0; i < nativeDesc->nativeExtensionCount; ++i) {
+                        if (isExtensionAvailable(availableExtensions, nativeDesc->nativeExtensions[i])) {
+                            requestedExtensions.push_back(nativeDesc->nativeExtensions[i]);
+                        }
+                    }
+                }
+            }
+            header = static_cast<const GfxChainHeader*>(header->pNext);
+        }
+
+        constexpr const char* portabilitySubsetExtension = "VK_KHR_portability_subset";
+        if (isExtensionAvailable(availableExtensions, portabilitySubsetExtension)) {
+            requestedExtensions.push_back(portabilitySubsetExtension);
+        }
+
+        for (const char* requestedExt : requestedExtensions) {
+            if (!isExtensionAvailable(availableExtensions, requestedExt)) {
+                std::string errorMsg = "Required Vulkan device extension not available: ";
+                errorMsg += requestedExt;
+                throw std::runtime_error(errorMsg);
+            }
+        }
+
+        return requestedExtensions;
+    }
+
+    // Returns the queue requests to create: the caller's, or one default graphics queue
+    std::vector<DeviceCreateInfo::QueueRequest> resolveQueueRequests(const DeviceCreateInfo& createInfo, uint32_t defaultGraphicsFamily)
+    {
+        if (createInfo.queueRequests.empty()) {
+            return { { defaultGraphicsFamily, 0, 1.0f } };
+        }
+        return createInfo.queueRequests;
+    }
+
+    // Queue create-infos together with the priority arrays they point into
+    struct QueueCreateInfos {
+        std::vector<std::vector<float>> priorityStorage;
+        std::vector<VkDeviceQueueCreateInfo> infos;
+    };
+
+    // Builds one VkDeviceQueueCreateInfo per requested family
+    QueueCreateInfos buildQueueCreateInfos(const std::vector<DeviceCreateInfo::QueueRequest>& queueRequests)
+    {
+        // Group queue requests by family and find max queue index per family
+        std::unordered_map<uint32_t, uint32_t> maxQueueIndexPerFamily;
+        for (const auto& req : queueRequests) {
+            maxQueueIndexPerFamily[req.queueFamilyIndex] = std::max(maxQueueIndexPerFamily[req.queueFamilyIndex], req.queueIndex);
+        }
+
+        QueueCreateInfos result;
+        for (const auto& [familyIndex, maxIndex] : maxQueueIndexPerFamily) {
+            uint32_t queueCount = maxIndex + 1;
+            std::vector<float> priorities(queueCount, 1.0f);
+
+            // Set specified priorities
+            for (const auto& req : queueRequests) {
+                if (req.queueFamilyIndex == familyIndex) {
+                    priorities[req.queueIndex] = req.priority;
+                }
+            }
+
+            VkDeviceQueueCreateInfo queueCreateInfo{};
+            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queueCreateInfo.queueFamilyIndex = familyIndex;
+            queueCreateInfo.queueCount = queueCount;
+            queueCreateInfo.pQueuePriorities = priorities.data();
+            result.infos.push_back(queueCreateInfo);
+            result.priorityStorage.push_back(std::move(priorities));
+        }
+        return result;
+    }
 } // anonymous namespace
 
 Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
@@ -74,111 +229,11 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     // actually be enabled (missing device feature), this constructor throws - so
     // on any live Device a set bit means the feature IS enabled on the VkDevice.
 
-    // Query available device features
-    const auto& availableFeatures = m_adapter->getFeatures();
+    VkPhysicalDeviceFeatures deviceFeatures = buildEnabledFeatures(m_enabledExtensions, m_adapter->getFeatures());
+    std::vector<const char*> requestedExtensions = collectRequestedExtensions(m_enabledExtensions, createInfo, m_adapter->enumerateExtensionProperties());
 
-    // Device features
-    VkPhysicalDeviceFeatures deviceFeatures{};
-
-    // Device extensions
-    std::vector<const char*> requestedExtensions;
-#ifndef GFX_HEADLESS_BUILD
-    if (isExtensionEnabled(DeviceExtension::Swapchain)) {
-        requestedExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    }
-#endif // GFX_HEADLESS_BUILD
-
-    // Enable timeline semaphore extension if requested
     bool timelineSemaphoreEnabled = isExtensionEnabled(DeviceExtension::TimelineSemaphore);
-    if (timelineSemaphoreEnabled) {
-        requestedExtensions.push_back(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
-    }
-
-    // Enable multiview extension if requested
     bool multiviewEnabled = isExtensionEnabled(DeviceExtension::Multiview);
-    if (multiviewEnabled) {
-        requestedExtensions.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME);
-    }
-
-    // Enable anisotropic filtering if requested
-    if (isExtensionEnabled(DeviceExtension::AnisotropicFiltering)) {
-        if (!availableFeatures.samplerAnisotropy) {
-            throw std::runtime_error("Anisotropic filtering is not supported by this device");
-        }
-        deviceFeatures.samplerAnisotropy = VK_TRUE;
-    }
-
-    // Enable precise occlusion queries if requested
-    if (isExtensionEnabled(DeviceExtension::OcclusionQueryPrecise)) {
-        if (!availableFeatures.occlusionQueryPrecise) {
-            throw std::runtime_error("Precise occlusion queries are not supported by this device");
-        }
-        deviceFeatures.occlusionQueryPrecise = VK_TRUE;
-    }
-
-    // Note: TIMESTAMP_QUERY needs no feature bit or device extension - it is available
-    // when timestampValidBits > 0 on the graphics queue, which the Adapter already
-    // verified before reporting the extension as supported.
-
-    // Enable non-solid fill mode if requested
-    if (isExtensionEnabled(DeviceExtension::NonSolidFill)) {
-        if (!availableFeatures.fillModeNonSolid) {
-            throw std::runtime_error("Non-solid fill mode is not supported by this device");
-        }
-        deviceFeatures.fillModeNonSolid = VK_TRUE;
-    }
-
-    // Enable texture compression families if requested
-    if (isExtensionEnabled(DeviceExtension::TextureCompressionBC)) {
-        if (!availableFeatures.textureCompressionBC) {
-            throw std::runtime_error("BC texture compression is not supported by this device");
-        }
-        deviceFeatures.textureCompressionBC = VK_TRUE;
-    }
-    if (isExtensionEnabled(DeviceExtension::TextureCompressionETC2)) {
-        if (!availableFeatures.textureCompressionETC2) {
-            throw std::runtime_error("ETC2 texture compression is not supported by this device");
-        }
-        deviceFeatures.textureCompressionETC2 = VK_TRUE;
-    }
-    if (isExtensionEnabled(DeviceExtension::TextureCompressionASTC)) {
-        if (!availableFeatures.textureCompressionASTC_LDR) {
-            throw std::runtime_error("ASTC texture compression is not supported by this device");
-        }
-        deviceFeatures.textureCompressionASTC_LDR = VK_TRUE;
-    }
-
-    // Check if all requested extensions are available
-    const auto availableExtensions = m_adapter->enumerateExtensionProperties();
-
-    // Add native (raw Vulkan) device extensions from pNext chain
-    const GfxChainHeader* header = static_cast<const GfxChainHeader*>(createInfo.pNext);
-    while (header) {
-        if (header->sType == GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR) {
-            const auto* nativeDesc = reinterpret_cast<const GfxNativeExtensionsDescriptor*>(header);
-            if (nativeDesc->nativeExtensions && nativeDesc->nativeExtensionCount > 0) {
-                for (uint32_t i = 0; i < nativeDesc->nativeExtensionCount; ++i) {
-                    if (isExtensionAvailable(availableExtensions, nativeDesc->nativeExtensions[i])) {
-                        requestedExtensions.push_back(nativeDesc->nativeExtensions[i]);
-                    }
-                }
-            }
-        }
-        header = static_cast<const GfxChainHeader*>(header->pNext);
-    }
-
-    constexpr const char* portabilitySubsetExtension = "VK_KHR_portability_subset";
-    if (isExtensionAvailable(availableExtensions, portabilitySubsetExtension)) {
-        requestedExtensions.push_back(portabilitySubsetExtension);
-    }
-
-    for (const char* requestedExt : requestedExtensions) {
-        if (!isExtensionAvailable(availableExtensions, requestedExt)) {
-            std::string errorMsg = "Required Vulkan device extension not available: ";
-            errorMsg += requestedExt;
-            throw std::runtime_error(errorMsg);
-        }
-    }
 
     // Timeline semaphore features (VK_KHR_timeline_semaphore extension for Vulkan 1.1)
     VkPhysicalDeviceTimelineSemaphoreFeatures timelineSemaphoreFeatures{};
@@ -196,44 +251,8 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
         multiviewFeatures.multiview = VK_TRUE;
     }
 
-    // Determine which queues to create
-    std::vector<DeviceCreateInfo::QueueRequest> queueRequests;
-    if (createInfo.queueRequests.empty()) {
-        // Default: create one graphics queue
-        queueRequests.push_back({ m_adapter->getGraphicsQueueFamily(), 0, 1.0f });
-    } else {
-        queueRequests = createInfo.queueRequests;
-    }
-
-    // Group queue requests by family and find max queue index per family
-    std::unordered_map<uint32_t, uint32_t> maxQueueIndexPerFamily;
-    for (const auto& req : queueRequests) {
-        maxQueueIndexPerFamily[req.queueFamilyIndex] = std::max(maxQueueIndexPerFamily[req.queueFamilyIndex], req.queueIndex);
-    }
-
-    // Build VkDeviceQueueCreateInfo for each family
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::vector<std::vector<float>> priorityStorage; // Keep priorities alive
-
-    for (const auto& [familyIndex, maxIndex] : maxQueueIndexPerFamily) {
-        uint32_t queueCount = maxIndex + 1;
-        std::vector<float> priorities(queueCount, 1.0f);
-
-        // Set specified priorities
-        for (const auto& req : queueRequests) {
-            if (req.queueFamilyIndex == familyIndex) {
-                priorities[req.queueIndex] = req.priority;
-            }
-        }
-
-        VkDeviceQueueCreateInfo queueCreateInfo{};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = familyIndex;
-        queueCreateInfo.queueCount = queueCount;
-        queueCreateInfo.pQueuePriorities = priorities.data();
-        queueCreateInfos.push_back(queueCreateInfo);
-        priorityStorage.push_back(std::move(priorities));
-    }
+    std::vector<DeviceCreateInfo::QueueRequest> queueRequests = resolveQueueRequests(createInfo, m_adapter->getGraphicsQueueFamily());
+    QueueCreateInfos queueCreateInfos = buildQueueCreateInfos(queueRequests);
 
     void* pNext = nullptr;
     if (multiviewEnabled) {
@@ -245,8 +264,8 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     VkDeviceCreateInfo vkCreateInfo{};
     vkCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     vkCreateInfo.pNext = pNext;
-    vkCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-    vkCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
+    vkCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.infos.size());
+    vkCreateInfo.pQueueCreateInfos = queueCreateInfos.infos.data();
     vkCreateInfo.pEnabledFeatures = &deviceFeatures;
     vkCreateInfo.enabledExtensionCount = static_cast<uint32_t>(requestedExtensions.size());
     vkCreateInfo.ppEnabledExtensionNames = requestedExtensions.data();
@@ -273,10 +292,7 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     }
 
     // Create VMA allocator
-    m_allocator = std::make_unique<Allocator>(
-        m_adapter->getInstance()->handle(),
-        m_adapter->handle(),
-        m_device);
+    m_allocator = std::make_unique<Allocator>(m_adapter->getInstance()->handle(), m_adapter->handle(), m_device);
 }
 
 Device::~Device()
