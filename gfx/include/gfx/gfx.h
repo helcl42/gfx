@@ -614,6 +614,7 @@ typedef enum {
     GFX_PIPELINE_STAGE_COMPUTE_SHADER = 0x00000800,
     GFX_PIPELINE_STAGE_TRANSFER = 0x00001000,
     GFX_PIPELINE_STAGE_BOTTOM_OF_PIPE = 0x00002000,
+    GFX_PIPELINE_STAGE_HOST = 0x00004000, // Host (CPU) access to mapped memory (matches Vulkan)
     GFX_PIPELINE_STAGE_ALL_GRAPHICS = 0x00008000, // All graphics pipeline stages (dedicated bit, matches Vulkan)
     GFX_PIPELINE_STAGE_ALL_COMMANDS = 0x00010000,
     GFX_PIPELINE_STAGE_MAX_ENUM = 0x7FFFFFFF
@@ -635,8 +636,10 @@ typedef enum {
     GFX_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE = 1 << 10, // 0x400
     GFX_ACCESS_TRANSFER_READ = 1 << 11, // 0x800
     GFX_ACCESS_TRANSFER_WRITE = 1 << 12, // 0x1000
-    GFX_ACCESS_MEMORY_READ = 1 << 14, // 0x4000
-    GFX_ACCESS_MEMORY_WRITE = 1 << 15, // 0x8000
+    GFX_ACCESS_HOST_READ = 1 << 13, // 0x2000 - host (CPU) reads of mapped memory (use with GFX_PIPELINE_STAGE_HOST)
+    GFX_ACCESS_HOST_WRITE = 1 << 14, // 0x4000 - host (CPU) writes to mapped memory (use with GFX_PIPELINE_STAGE_HOST)
+    GFX_ACCESS_MEMORY_READ = 1 << 15, // 0x8000
+    GFX_ACCESS_MEMORY_WRITE = 1 << 16, // 0x10000
     GFX_ACCESS_MAX_ENUM = 0x7FFFFFFF
 } GfxAccessFlagBits;
 typedef uint32_t GfxAccessFlags;

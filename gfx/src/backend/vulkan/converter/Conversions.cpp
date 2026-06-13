@@ -830,10 +830,10 @@ GfxAccessFlags vkAccessFlagsToGfxAccessFlags(VkAccessFlags vkAccessFlags)
         flags = GFX_FLAGS(flags | GFX_ACCESS_TRANSFER_WRITE);
     }
     if (vkAccessFlags & VK_ACCESS_HOST_READ_BIT) {
-        flags = GFX_FLAGS(flags | GFX_ACCESS_MEMORY_READ);
+        flags = GFX_FLAGS(flags | GFX_ACCESS_HOST_READ);
     }
     if (vkAccessFlags & VK_ACCESS_HOST_WRITE_BIT) {
-        flags = GFX_FLAGS(flags | GFX_ACCESS_MEMORY_WRITE);
+        flags = GFX_FLAGS(flags | GFX_ACCESS_HOST_WRITE);
     }
     if (vkAccessFlags & VK_ACCESS_MEMORY_READ_BIT) {
         flags = GFX_FLAGS(flags | GFX_ACCESS_MEMORY_READ);
@@ -1148,6 +1148,9 @@ VkPipelineStageFlags gfxPipelineStageFlagsToVkPipelineStageFlags(GfxPipelineStag
     if (gfxStage & GFX_PIPELINE_STAGE_BOTTOM_OF_PIPE) {
         vkStage |= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
     }
+    if (gfxStage & GFX_PIPELINE_STAGE_HOST) {
+        vkStage |= VK_PIPELINE_STAGE_HOST_BIT;
+    }
     if (gfxStage & GFX_PIPELINE_STAGE_ALL_GRAPHICS) {
         vkStage |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
     }
@@ -1198,6 +1201,12 @@ VkAccessFlags gfxAccessFlagsToVkAccessFlags(GfxAccessFlags gfxAccessFlags)
     }
     if (gfxAccessFlags & GFX_ACCESS_TRANSFER_WRITE) {
         vkAccessFlags |= VK_ACCESS_TRANSFER_WRITE_BIT;
+    }
+    if (gfxAccessFlags & GFX_ACCESS_HOST_READ) {
+        vkAccessFlags |= VK_ACCESS_HOST_READ_BIT;
+    }
+    if (gfxAccessFlags & GFX_ACCESS_HOST_WRITE) {
+        vkAccessFlags |= VK_ACCESS_HOST_WRITE_BIT;
     }
     if (gfxAccessFlags & GFX_ACCESS_MEMORY_READ) {
         vkAccessFlags |= VK_ACCESS_MEMORY_READ_BIT;

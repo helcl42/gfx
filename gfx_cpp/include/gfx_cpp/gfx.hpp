@@ -572,6 +572,7 @@ enum class PipelineStage : uint32_t {
     ComputeShader = 1 << 11, // 0x00000800
     Transfer = 1 << 12, // 0x00001000
     BottomOfPipe = 1 << 13, // 0x00002000
+    Host = 1 << 14, // 0x00004000 - host (CPU) access to mapped memory (matches Vulkan)
     AllGraphics = 1 << 15, // 0x00008000 - all graphics pipeline stages (dedicated bit, matches Vulkan)
     AllCommands = 1 << 16 // 0x00010000
 };
@@ -591,8 +592,10 @@ enum class AccessFlags : uint32_t {
     DepthStencilAttachmentWrite = 1 << 10,
     TransferRead = 1 << 11,
     TransferWrite = 1 << 12,
-    MemoryRead = 1 << 14,
-    MemoryWrite = 1 << 15
+    HostRead = 1 << 13, // host (CPU) reads of mapped memory (use with PipelineStage::Host)
+    HostWrite = 1 << 14, // host (CPU) writes to mapped memory (use with PipelineStage::Host)
+    MemoryRead = 1 << 15,
+    MemoryWrite = 1 << 16
 };
 
 // ============================================================================

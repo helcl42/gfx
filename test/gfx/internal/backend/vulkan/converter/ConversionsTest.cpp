@@ -404,6 +404,30 @@ TEST(VulkanConversionsTest, GfxPipelineStageAllCommands_ConvertsToVkAllCommandsO
     EXPECT_EQ(result, static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT));
 }
 
+TEST(VulkanConversionsTest, GfxPipelineStageHost_ConvertsToVkHostBit)
+{
+    VkPipelineStageFlags result = gfx::backend::vulkan::converter::gfxPipelineStageFlagsToVkPipelineStageFlags(GFX_PIPELINE_STAGE_HOST);
+    EXPECT_EQ(result, static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_HOST_BIT));
+}
+
+TEST(VulkanConversionsTest, GfxAccessHostFlags_RoundTripToVulkan)
+{
+    VkAccessFlags vkFlags = gfx::backend::vulkan::converter::gfxAccessFlagsToVkAccessFlags(GFX_FLAGS(GFX_ACCESS_HOST_READ | GFX_ACCESS_HOST_WRITE));
+    EXPECT_EQ(vkFlags, static_cast<VkAccessFlags>(VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT));
+
+    GfxAccessFlags gfxFlags = gfx::backend::vulkan::converter::vkAccessFlagsToGfxAccessFlags(VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT);
+    EXPECT_EQ(gfxFlags, GFX_FLAGS(GFX_ACCESS_HOST_READ | GFX_ACCESS_HOST_WRITE));
+}
+
+TEST(VulkanConversionsTest, GfxAccessMemoryFlags_RoundTripToVulkan)
+{
+    VkAccessFlags vkFlags = gfx::backend::vulkan::converter::gfxAccessFlagsToVkAccessFlags(GFX_FLAGS(GFX_ACCESS_MEMORY_READ | GFX_ACCESS_MEMORY_WRITE));
+    EXPECT_EQ(vkFlags, static_cast<VkAccessFlags>(VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT));
+
+    GfxAccessFlags gfxFlags = gfx::backend::vulkan::converter::vkAccessFlagsToGfxAccessFlags(VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
+    EXPECT_EQ(gfxFlags, GFX_FLAGS(GFX_ACCESS_MEMORY_READ | GFX_ACCESS_MEMORY_WRITE));
+}
+
 TEST(VulkanConversionsTest, GfxMemoryBarrierToMemoryBarrier_MultipleStages_ConvertsCorrectly)
 {
     GfxMemoryBarrier gfxBarrier = {
