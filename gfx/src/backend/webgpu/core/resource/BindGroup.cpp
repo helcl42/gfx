@@ -6,16 +6,9 @@
 
 namespace gfx::backend::webgpu::core {
 
-BindGroup::BindGroup(Device* device, const BindGroupCreateInfo& createInfo)
-    : m_device(device)
-{
-    WGPUBindGroupDescriptor desc = WGPU_BIND_GROUP_DESCRIPTOR_INIT;
-    desc.layout = createInfo.layout;
-
-    std::vector<WGPUBindGroupEntry> wgpuEntries;
-    wgpuEntries.reserve(createInfo.entries.size());
-
-    for (const auto& entry : createInfo.entries) {
+namespace {
+    WGPUBindGroupEntry makeEntry(const BindGroupEntry& entry)
+    {
         WGPUBindGroupEntry wgpuEntry = WGPU_BIND_GROUP_ENTRY_INIT;
         // WebGPU binding_array convention: element i of an array binding is bound at binding + i
         wgpuEntry.binding = entry.binding + entry.arrayElement;
@@ -24,9 +17,22 @@ BindGroup::BindGroup(Device* device, const BindGroupCreateInfo& createInfo)
         wgpuEntry.size = entry.bufferSize;
         wgpuEntry.sampler = entry.sampler;
         wgpuEntry.textureView = entry.textureView;
-        wgpuEntries.push_back(wgpuEntry);
+        return wgpuEntry;
+    }
+} // anonymous namespace
+
+BindGroup::BindGroup(Device* device, const BindGroupCreateInfo& createInfo)
+    : m_device(device)
+{
+    std::vector<WGPUBindGroupEntry> wgpuEntries;
+    wgpuEntries.reserve(createInfo.entries.size());
+
+    for (const auto& entry : createInfo.entries) {
+        wgpuEntries.push_back(makeEntry(entry));
     }
 
+    WGPUBindGroupDescriptor desc = WGPU_BIND_GROUP_DESCRIPTOR_INIT;
+    desc.layout = createInfo.layout;
     desc.entries = wgpuEntries.data();
     desc.entryCount = static_cast<uint32_t>(wgpuEntries.size());
 

@@ -37,21 +37,19 @@ namespace {
 
     WGPURenderBundleEncoder createBundleEncoder(WGPUDevice device, const RenderPassCreateInfo& passInfo)
     {
-        WGPURenderBundleEncoderDescriptor desc = WGPU_RENDER_BUNDLE_ENCODER_DESCRIPTOR_INIT;
-
         std::vector<WGPUTextureFormat> colorFormats;
         for (const auto& colorAtt : passInfo.colorAttachments) {
             colorFormats.push_back(colorAtt.format);
         }
+
+        const WGPUTextureFormat depthStencilFormat = passInfo.depthStencilAttachment.has_value()
+            ? passInfo.depthStencilAttachment->format
+            : WGPUTextureFormat_Undefined;
+
+        WGPURenderBundleEncoderDescriptor desc = WGPU_RENDER_BUNDLE_ENCODER_DESCRIPTOR_INIT;
         desc.colorFormats = colorFormats.data();
         desc.colorFormatCount = static_cast<uint32_t>(colorFormats.size());
-
-        if (passInfo.depthStencilAttachment.has_value()) {
-            desc.depthStencilFormat = passInfo.depthStencilAttachment->format;
-        } else {
-            desc.depthStencilFormat = WGPUTextureFormat_Undefined;
-        }
-
+        desc.depthStencilFormat = depthStencilFormat;
         desc.sampleCount = passInfo.sampleCount;
 
         WGPURenderBundleEncoder encoder = wgpuDeviceCreateRenderBundleEncoder(device, &desc);

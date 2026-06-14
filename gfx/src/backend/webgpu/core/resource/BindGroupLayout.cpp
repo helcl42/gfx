@@ -6,14 +6,9 @@
 
 namespace gfx::backend::webgpu::core {
 
-BindGroupLayout::BindGroupLayout(Device* device, const BindGroupLayoutCreateInfo& createInfo)
-{
-    WGPUBindGroupLayoutDescriptor desc = WGPU_BIND_GROUP_LAYOUT_DESCRIPTOR_INIT;
-
-    std::vector<WGPUBindGroupLayoutEntry> wgpuEntries;
-    wgpuEntries.reserve(createInfo.entries.size());
-
-    for (const auto& entry : createInfo.entries) {
+namespace {
+    WGPUBindGroupLayoutEntry makeLayoutEntry(const BindGroupLayoutEntry& entry)
+    {
         WGPUBindGroupLayoutEntry wgpuEntry = WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT;
         wgpuEntry.binding = entry.binding;
         wgpuEntry.visibility = entry.visibility;
@@ -39,9 +34,20 @@ BindGroupLayout::BindGroupLayout(Device* device, const BindGroupLayoutCreateInfo
             wgpuEntry.storageTexture.viewDimension = entry.storageTextureViewDimension;
         }
 
-        wgpuEntries.push_back(wgpuEntry);
+        return wgpuEntry;
+    }
+} // anonymous namespace
+
+BindGroupLayout::BindGroupLayout(Device* device, const BindGroupLayoutCreateInfo& createInfo)
+{
+    std::vector<WGPUBindGroupLayoutEntry> wgpuEntries;
+    wgpuEntries.reserve(createInfo.entries.size());
+
+    for (const auto& entry : createInfo.entries) {
+        wgpuEntries.push_back(makeLayoutEntry(entry));
     }
 
+    WGPUBindGroupLayoutDescriptor desc = WGPU_BIND_GROUP_LAYOUT_DESCRIPTOR_INIT;
     desc.entryCount = static_cast<uint32_t>(wgpuEntries.size());
     desc.entries = wgpuEntries.data();
 

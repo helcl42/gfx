@@ -11,50 +11,54 @@
 
 #include "../../../../common/Logger.h"
 
+#include <optional>
 #include <stdexcept>
+#include <vector>
 
 namespace gfx::backend::webgpu::core {
 
-RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass* renderPass, Framebuffer* framebuffer, const RenderPassEncoderBeginInfo& beginInfo)
-{
-    // Combine render pass ops with framebuffer views
-    const RenderPassCreateInfo& passInfo = renderPass->getCreateInfo();
-    const FramebufferCreateInfo& fbInfo = framebuffer->getCreateInfo();
+namespace {
+    // Combine render pass color ops with framebuffer views and begin-info clear values
+    std::vector<WGPURenderPassColorAttachment> buildColorAttachments(
+        const RenderPassCreateInfo& passInfo, const FramebufferCreateInfo& fbInfo, const RenderPassEncoderBeginInfo& beginInfo)
+    {
+        std::vector<WGPURenderPassColorAttachment> attachments;
+        attachments.reserve(fbInfo.colorAttachmentViews.size());
 
-    WGPURenderPassDescriptor wgpuDesc = WGPU_RENDER_PASS_DESCRIPTOR_INIT;
+        for (size_t i = 0; i < fbInfo.colorAttachmentViews.size(); ++i) {
+            WGPURenderPassColorAttachment attachment = WGPU_RENDER_PASS_COLOR_ATTACHMENT_INIT;
+            // Get actual WGPUTextureView handle from TextureView pointer
+            attachment.view = fbInfo.colorAttachmentViews[i] ? fbInfo.colorAttachmentViews[i]->handle() : nullptr;
+            attachment.loadOp = passInfo.colorAttachments[i].loadOp;
+            attachment.storeOp = passInfo.colorAttachments[i].storeOp;
 
-    // Build color attachments directly with clear values from begin info
-    std::vector<WGPURenderPassColorAttachment> wgpuColorAttachments;
-    for (size_t i = 0; i < fbInfo.colorAttachmentViews.size(); ++i) {
-        WGPURenderPassColorAttachment attachment = WGPU_RENDER_PASS_COLOR_ATTACHMENT_INIT;
-        // Get actual WGPUTextureView handle from TextureView pointer
-        attachment.view = fbInfo.colorAttachmentViews[i] ? fbInfo.colorAttachmentViews[i]->handle() : nullptr;
-        attachment.loadOp = passInfo.colorAttachments[i].loadOp;
-        attachment.storeOp = passInfo.colorAttachments[i].storeOp;
+            // Set resolve target if provided
+            if (i < fbInfo.colorResolveTargetViews.size() && fbInfo.colorResolveTargetViews[i]) {
+                attachment.resolveTarget = fbInfo.colorResolveTargetViews[i]->handle();
+            }
 
-        // Set resolve target if provided
-        if (i < fbInfo.colorResolveTargetViews.size() && fbInfo.colorResolveTargetViews[i]) {
-            attachment.resolveTarget = fbInfo.colorResolveTargetViews[i]->handle();
+            // Set clear color from begin info
+            if (i < beginInfo.colorClearValues.size()) {
+                attachment.clearValue = beginInfo.colorClearValues[i];
+            }
+
+            attachments.push_back(attachment);
         }
 
-        // Set clear color from begin info
-        if (i < beginInfo.colorClearValues.size()) {
-            attachment.clearValue = beginInfo.colorClearValues[i];
+        return attachments;
+    }
+
+    // The depth/stencil attachment is optional - present only when the framebuffer has one
+    std::optional<WGPURenderPassDepthStencilAttachment> buildDepthStencilAttachment(
+        const RenderPassCreateInfo& passInfo, const FramebufferCreateInfo& fbInfo, const RenderPassEncoderBeginInfo& beginInfo)
+    {
+        if (!fbInfo.depthStencilAttachmentView) {
+            return std::nullopt;
         }
 
-        wgpuColorAttachments.push_back(attachment);
-    }
-
-    if (!wgpuColorAttachments.empty()) {
-        wgpuDesc.colorAttachments = wgpuColorAttachments.data();
-        wgpuDesc.colorAttachmentCount = static_cast<uint32_t>(wgpuColorAttachments.size());
-    }
-
-    // Build depth/stencil attachment directly
-    WGPURenderPassDepthStencilAttachment wgpuDepthStencil = WGPU_RENDER_PASS_DEPTH_STENCIL_ATTACHMENT_INIT;
-    if (fbInfo.depthStencilAttachmentView) {
         const auto& depthStencilAtt = passInfo.depthStencilAttachment.value();
 
+        WGPURenderPassDepthStencilAttachment wgpuDepthStencil = WGPU_RENDER_PASS_DEPTH_STENCIL_ATTACHMENT_INIT;
         // Get actual WGPUTextureView handle from TextureView pointer
         wgpuDepthStencil.view = fbInfo.depthStencilAttachmentView->handle();
         wgpuDepthStencil.depthLoadOp = depthStencilAtt.depthLoadOp;
@@ -73,7 +77,27 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
             wgpuDepthStencil.stencilClearValue = 0;
         }
 
-        wgpuDesc.depthStencilAttachment = &wgpuDepthStencil;
+        return wgpuDepthStencil;
+    }
+} // anonymous namespace
+
+RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass* renderPass, Framebuffer* framebuffer, const RenderPassEncoderBeginInfo& beginInfo)
+{
+    // Combine render pass ops with framebuffer views
+    const RenderPassCreateInfo& passInfo = renderPass->getCreateInfo();
+    const FramebufferCreateInfo& fbInfo = framebuffer->getCreateInfo();
+
+    std::vector<WGPURenderPassColorAttachment> wgpuColorAttachments = buildColorAttachments(passInfo, fbInfo, beginInfo);
+    std::optional<WGPURenderPassDepthStencilAttachment> wgpuDepthStencil = buildDepthStencilAttachment(passInfo, fbInfo, beginInfo);
+
+    // ...then assemble the descriptor in one place; the locals above outlive the create call
+    WGPURenderPassDescriptor wgpuDesc = WGPU_RENDER_PASS_DESCRIPTOR_INIT;
+    if (!wgpuColorAttachments.empty()) {
+        wgpuDesc.colorAttachments = wgpuColorAttachments.data();
+        wgpuDesc.colorAttachmentCount = static_cast<uint32_t>(wgpuColorAttachments.size());
+    }
+    if (wgpuDepthStencil.has_value()) {
+        wgpuDesc.depthStencilAttachment = &wgpuDepthStencil.value();
     }
 
     wgpuDesc.occlusionQuerySet = beginInfo.occlusionQuerySet;
