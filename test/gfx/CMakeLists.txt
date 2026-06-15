@@ -50,7 +50,7 @@ endif()
 
 if(NOT ENABLE_ASAN)
     gtest_discover_tests(gfx_api_test
-        DISCOVER_MODE_PRE_TEST
+        DISCOVERY_MODE PRE_TEST
     )
 endif()
 
@@ -85,7 +85,7 @@ target_include_directories(gfx_internal_test PRIVATE
 
 if(NOT ENABLE_ASAN)
     gtest_discover_tests(gfx_internal_test
-        DISCOVER_MODE_PRE_TEST
+        DISCOVERY_MODE PRE_TEST
     )
 endif()
 
@@ -143,7 +143,7 @@ if(BUILD_VULKAN_BACKEND AND NOT BUILD_FOR_WEB)
 
     if(NOT ENABLE_ASAN)
         gtest_discover_tests(gfx_internal_vulkan_test
-            DISCOVER_MODE_PRE_TEST
+            DISCOVERY_MODE PRE_TEST
         )
     endif()
     
@@ -222,7 +222,7 @@ if(BUILD_WEBGPU_BACKEND)
 
     if(NOT ENABLE_ASAN)
         gtest_discover_tests(gfx_internal_webgpu_test
-            DISCOVER_MODE_PRE_TEST
+            DISCOVERY_MODE PRE_TEST
         )
     endif()
     

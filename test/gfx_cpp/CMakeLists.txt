@@ -69,7 +69,7 @@ endif()
 
 if(NOT ENABLE_ASAN)
     gtest_discover_tests(gfx_cpp_api_test
-        DISCOVER_MODE_PRE_TEST
+        DISCOVERY_MODE PRE_TEST
     )
 endif()
 
@@ -126,6 +126,6 @@ endif()
 
 if(NOT ENABLE_ASAN)
     gtest_discover_tests(gfx_cpp_internal_test
-        DISCOVER_MODE_PRE_TEST
+        DISCOVERY_MODE PRE_TEST
     )
 endif()
