@@ -1457,6 +1457,7 @@ typedef struct {
     uint32_t maxComputeInvocationsPerWorkgroup; // Max product of workgroup size dimensions
     uint32_t maxComputeWorkgroupsPerDimension; // Max workgroup count per dispatch dimension
     uint32_t maxComputeWorkgroupStorageSize; // Max workgroup-shared memory in bytes
+    float timestampPeriod; // Nanoseconds per timestamp-query tick. Multiply a resolved timestamp delta by this to get elapsed time in nanoseconds: ns = (tEnd - tStart) * timestampPeriod.
 } GfxDeviceLimits;
 
 // Queue family properties

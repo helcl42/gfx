@@ -253,6 +253,7 @@ DeviceLimits cDeviceLimitsToCppDeviceLimits(const GfxDeviceLimits& cLimits)
     limits.maxComputeInvocationsPerWorkgroup = cLimits.maxComputeInvocationsPerWorkgroup;
     limits.maxComputeWorkgroupsPerDimension = cLimits.maxComputeWorkgroupsPerDimension;
     limits.maxComputeWorkgroupStorageSize = cLimits.maxComputeWorkgroupStorageSize;
+    limits.timestampPeriod = cLimits.timestampPeriod;
     return limits;
 }
 

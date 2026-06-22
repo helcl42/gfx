@@ -89,6 +89,7 @@ GfxDeviceLimits vkPropertiesToGfxDeviceLimits(const VkPhysicalDeviceProperties& 
     // WebGPU exposes a single per-dimension dispatch limit; use the most restrictive Vulkan dimension
     limits.maxComputeWorkgroupsPerDimension = std::min({ properties.limits.maxComputeWorkGroupCount[0], properties.limits.maxComputeWorkGroupCount[1], properties.limits.maxComputeWorkGroupCount[2] });
     limits.maxComputeWorkgroupStorageSize = properties.limits.maxComputeSharedMemorySize;
+    limits.timestampPeriod = properties.limits.timestampPeriod; // nanoseconds per timestamp tick
     return limits;
 }
 

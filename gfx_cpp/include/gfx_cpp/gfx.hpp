@@ -1365,6 +1365,7 @@ struct DeviceLimits {
     uint32_t maxComputeInvocationsPerWorkgroup = 0; // Max product of workgroup size dimensions
     uint32_t maxComputeWorkgroupsPerDimension = 0; // Max workgroup count per dispatch dimension
     uint32_t maxComputeWorkgroupStorageSize = 0; // Max workgroup-shared memory in bytes
+    float timestampPeriod = 0.0f; // Nanoseconds per timestamp-query tick. Multiply a resolved timestamp delta by this to get elapsed time in nanoseconds: ns = (tEnd - tStart) * timestampPeriod.
 };
 
 struct AdapterInfo {

@@ -592,6 +592,16 @@ TEST(VulkanConversionsTest, VkPropertiesToGfxDeviceLimits_CommonLimits_ConvertsC
     EXPECT_EQ(result.maxTextureArrayLayers, 2048u);
 }
 
+TEST(VulkanConversionsTest, VkPropertiesToGfxDeviceLimits_TimestampPeriod_ConvertsCorrectly)
+{
+    VkPhysicalDeviceProperties props{};
+    props.limits.timestampPeriod = 0.5f; // nanoseconds per tick
+
+    GfxDeviceLimits result = gfx::backend::vulkan::converter::vkPropertiesToGfxDeviceLimits(props);
+
+    EXPECT_FLOAT_EQ(result.timestampPeriod, 0.5f);
+}
+
 TEST(VulkanConversionsTest, VkPropertiesToGfxDeviceLimits_BufferLimits_ConvertsCorrectly)
 {
     VkPhysicalDeviceProperties props{};

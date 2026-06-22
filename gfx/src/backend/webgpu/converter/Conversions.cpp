@@ -90,6 +90,7 @@ GfxDeviceLimits wgpuLimitsToGfxDeviceLimits(const WGPULimits& limits)
     gfxLimits.maxComputeInvocationsPerWorkgroup = limits.maxComputeInvocationsPerWorkgroup;
     gfxLimits.maxComputeWorkgroupsPerDimension = limits.maxComputeWorkgroupsPerDimension;
     gfxLimits.maxComputeWorkgroupStorageSize = limits.maxComputeWorkgroupStorageSize;
+    gfxLimits.timestampPeriod = 1.0f; // WebGPU timestamp query values are already in nanoseconds
     return gfxLimits;
 }
 

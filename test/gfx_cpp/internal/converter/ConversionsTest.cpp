@@ -313,7 +313,8 @@ TEST(ConversionsTest, CDeviceLimitsToCppDeviceLimits)
         .maxTextureDimension1D = 16384,
         .maxTextureDimension2D = 16384,
         .maxTextureDimension3D = 2048,
-        .maxTextureArrayLayers = 2048
+        .maxTextureArrayLayers = 2048,
+        .timestampPeriod = 0.5f
     };
 
     auto cppLimits = cDeviceLimitsToCppDeviceLimits(cLimits);
@@ -327,6 +328,7 @@ TEST(ConversionsTest, CDeviceLimitsToCppDeviceLimits)
     EXPECT_EQ(cppLimits.maxTextureDimension2D, 16384);
     EXPECT_EQ(cppLimits.maxTextureDimension3D, 2048);
     EXPECT_EQ(cppLimits.maxTextureArrayLayers, 2048);
+    EXPECT_FLOAT_EQ(cppLimits.timestampPeriod, 0.5f);
 }
 
 // =============================================================================
