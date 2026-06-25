@@ -256,8 +256,20 @@ void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, 
     uint32_t blockWidth = 1;
     getVkFormatBlockDimensions(destination->getFormat(), &blockWidth, nullptr);
 
-    // Transition image layout to transfer dst optimal
-    destination->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevel, 1, arrayLayer, layerCount);
+    // A full-subresource copy overwrites all prior contents, so transition from UNDEFINED — always valid,
+    // and correct per array layer (the single tracked layout is wrong for individually-filled layers).
+    // Partial copies must preserve untouched texels, so they keep using the tracked layout.
+    const VkExtent3D baseSize = destination->getSize();
+    const uint32_t mipWidth = std::max(1u, baseSize.width >> mipLevel);
+    const uint32_t mipHeight = std::max(1u, baseSize.height >> mipLevel);
+    const uint32_t mipDepth = std::max(1u, baseSize.depth >> mipLevel);
+    const bool fullSubresource = origin.x == 0 && origin.y == 0 && origin.z == 0
+        && extent.width == mipWidth && extent.height == mipHeight && (!is3D || extent.depth == mipDepth);
+    if (fullSubresource) {
+        destination->transitionLayout(this, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevel, 1, arrayLayer, layerCount);
+    } else {
+        destination->transitionLayout(this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevel, 1, arrayLayer, layerCount);
+    }
 
     // Copy buffer to image
     VkBufferImageCopy region{};

@@ -128,10 +128,17 @@ void Texture::transitionLayout(CommandEncoder* encoder, VkImageLayout newLayout,
 
 void Texture::transitionLayout(VkCommandBuffer commandBuffer, VkImageLayout newLayout, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount)
 {
-    // Delegate to the private overload with explicit old layout
+    // Delegate to the explicit-old-layout overload using the tracked whole-image layout
     transitionLayout(commandBuffer, m_currentLayout, newLayout, baseMipLevel, levelCount, baseArrayLayer, layerCount);
 
     // Update the current layout
+    m_currentLayout = newLayout;
+}
+
+void Texture::transitionLayout(CommandEncoder* encoder, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount)
+{
+    transitionLayout(encoder->handle(), oldLayout, newLayout, baseMipLevel, levelCount, baseArrayLayer, layerCount);
+
     m_currentLayout = newLayout;
 }
 
