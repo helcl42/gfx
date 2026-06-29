@@ -67,11 +67,11 @@ if(WIN32 AND BUILD_SHARED_LIBS)
     endif()
 endif()
 
-if(NOT ENABLE_ASAN)
-    gtest_discover_tests(gfx_cpp_api_test
-        DISCOVERY_MODE PRE_TEST
-    )
-endif()
+gfx_apply_sanitizers(gfx_cpp_api_test)
+
+gtest_discover_tests(gfx_cpp_api_test
+    DISCOVERY_MODE PRE_TEST
+)
 
 # =============================================================================
 # Internal Tests - Always built
@@ -124,8 +124,8 @@ else()
     )
 endif()
 
-if(NOT ENABLE_ASAN)
-    gtest_discover_tests(gfx_cpp_internal_test
-        DISCOVERY_MODE PRE_TEST
-    )
-endif()
+gfx_apply_sanitizers(gfx_cpp_internal_test)
+
+gtest_discover_tests(gfx_cpp_internal_test
+    DISCOVERY_MODE PRE_TEST
+)

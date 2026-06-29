@@ -48,11 +48,11 @@ if(WIN32 AND BUILD_SHARED_LIBS)
     )
 endif()
 
-if(NOT ENABLE_ASAN)
-    gtest_discover_tests(gfx_api_test
-        DISCOVERY_MODE PRE_TEST
-    )
-endif()
+gfx_apply_sanitizers(gfx_api_test)
+
+gtest_discover_tests(gfx_api_test
+    DISCOVERY_MODE PRE_TEST
+)
 
 # =============================================================================
 # Internal Common Tests - Always built
@@ -83,11 +83,11 @@ target_include_directories(gfx_internal_test PRIVATE
     ${CMAKE_SOURCE_DIR}/gfx/src
 )
 
-if(NOT ENABLE_ASAN)
-    gtest_discover_tests(gfx_internal_test
-        DISCOVERY_MODE PRE_TEST
-    )
-endif()
+gfx_apply_sanitizers(gfx_internal_test)
+
+gtest_discover_tests(gfx_internal_test
+    DISCOVERY_MODE PRE_TEST
+)
 
 # =============================================================================
 # Vulkan Backend Tests - Only when Vulkan backend is enabled
@@ -141,12 +141,12 @@ if(BUILD_VULKAN_BACKEND AND NOT BUILD_FOR_WEB)
         ${CMAKE_SOURCE_DIR}/gfx/src
     )
 
-    if(NOT ENABLE_ASAN)
-        gtest_discover_tests(gfx_internal_vulkan_test
-            DISCOVERY_MODE PRE_TEST
-        )
-    endif()
-    
+    gfx_apply_sanitizers(gfx_internal_vulkan_test)
+
+    gtest_discover_tests(gfx_internal_vulkan_test
+        DISCOVERY_MODE PRE_TEST
+    )
+
     message(STATUS "Building Vulkan backend tests: gfx_internal_vulkan_test")
 endif()
 
@@ -220,11 +220,11 @@ if(BUILD_WEBGPU_BACKEND)
         endif()
     endif()
 
-    if(NOT ENABLE_ASAN)
-        gtest_discover_tests(gfx_internal_webgpu_test
-            DISCOVERY_MODE PRE_TEST
-        )
-    endif()
-    
+    gfx_apply_sanitizers(gfx_internal_webgpu_test)
+
+    gtest_discover_tests(gfx_internal_webgpu_test
+        DISCOVERY_MODE PRE_TEST
+    )
+
     message(STATUS "Building WebGPU backend tests: gfx_internal_webgpu_test")
 endif()
