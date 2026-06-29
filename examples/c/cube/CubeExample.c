@@ -2554,6 +2554,7 @@ static void render(CubeApp* app)
         .commandEncoders = &encoder,
         .commandEncoderCount = 1,
         .waitSemaphores = &frame->imageAvailableSemaphore,
+        .waitStages = (const GfxPipelineStageFlags[]){ GFX_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT },
         .waitSemaphoreCount = 1,
         .signalSemaphores = &app->renderFinishedSemaphores[imageIndex],
         .signalSemaphoreCount = 1,

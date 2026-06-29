@@ -1516,6 +1516,7 @@ void ComputeApp::render()
         gfx::SubmitDescriptor submitDescriptor{
             .commandEncoders = { encoder },
             .waitSemaphores = { frame.imageAvailableSemaphore },
+            .waitStages = { gfx::PipelineStage::ColorAttachmentOutput },
             .signalSemaphores = { renderFinishedSemaphores[imageIndex] },
             .signalFence = frame.inFlightFence
         };

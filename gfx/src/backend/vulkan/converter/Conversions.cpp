@@ -2051,6 +2051,10 @@ core::SubmitInfo gfxDescriptorToSubmitInfo(const GfxSubmitDescriptor* descriptor
     submitInfo.signalFence = converter::toNative<core::Fence>(descriptor->signalFence);
     submitInfo.waitSemaphores = reinterpret_cast<core::Semaphore* const*>(descriptor->waitSemaphores);
     submitInfo.waitValues = descriptor->waitValues;
+    submitInfo.waitStages.reserve(descriptor->waitSemaphoreCount);
+    for (uint32_t i = 0; i < descriptor->waitSemaphoreCount; ++i) {
+        submitInfo.waitStages.push_back(gfxPipelineStageFlagsToVkPipelineStageFlags(descriptor->waitStages[i]));
+    }
     submitInfo.waitSemaphoreCount = descriptor->waitSemaphoreCount;
     submitInfo.signalSemaphores = reinterpret_cast<core::Semaphore* const*>(descriptor->signalSemaphores);
     submitInfo.signalValues = descriptor->signalValues;

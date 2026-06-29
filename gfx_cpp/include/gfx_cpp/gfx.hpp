@@ -1386,6 +1386,9 @@ struct SubmitDescriptor {
     // Wait semaphores (must be signaled before execution)
     std::vector<std::shared_ptr<Semaphore>> waitSemaphores;
     std::vector<uint64_t> waitValues; // For timeline semaphores, empty for binary
+    // Pipeline stage each wait blocks on; one entry per wait semaphore. Required by the Vulkan
+    // backend when waitSemaphores is non-empty (ignored by WebGPU).
+    std::vector<PipelineStage> waitStages;
 
     // Signal semaphores (will be signaled after execution)
     std::vector<std::shared_ptr<Semaphore>> signalSemaphores;

@@ -1800,6 +1800,7 @@ typedef struct {
     // Wait semaphores (must be signaled before execution)
     const GfxSemaphore* waitSemaphores;
     const uint64_t* waitValues; // For timeline semaphores, NULL for binary
+    const GfxPipelineStageFlags* waitStages; // Pipeline stage(s) each wait blocks on; one per wait semaphore
     uint32_t waitSemaphoreCount;
 
     // Signal semaphores (will be signaled after execution)
@@ -1814,7 +1815,6 @@ typedef struct {
 typedef struct {
     GfxStructureType sType;
     const void* pNext;
-    // Wait semaphores (rendering must complete before present)
     const GfxSemaphore* waitSemaphores;
     uint32_t waitSemaphoreCount;
 } GfxPresentDescriptor;

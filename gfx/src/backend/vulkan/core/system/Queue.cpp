@@ -78,7 +78,7 @@ VkResult Queue::submit(const SubmitInfo& submitInfo)
     bool hasTimelineWait = false;
     for (uint32_t i = 0; i < submitInfo.waitSemaphoreCount; ++i) {
         waitSemaphores.push_back(submitInfo.waitSemaphores[i]->handle());
-        waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+        waitStages.push_back(submitInfo.waitStages[i]);
 
         if (submitInfo.waitSemaphores[i]->getType() == SemaphoreType::Timeline) {
             hasTimelineWait = true;

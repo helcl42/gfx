@@ -1906,6 +1906,7 @@ static void render(ComputeApp* app)
         .commandEncoders = &encoder,
         .waitSemaphoreCount = 1,
         .waitSemaphores = &frame->imageAvailableSemaphore,
+        .waitStages = (const GfxPipelineStageFlags[]){ GFX_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT },
         .signalSemaphoreCount = 1,
         .signalSemaphores = &app->renderFinishedSemaphores[imageIndex],
         .signalFence = frame->inFlightFence

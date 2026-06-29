@@ -43,9 +43,10 @@ Result QueueImpl::submit(const SubmitDescriptor& submitDescriptor)
     std::vector<GfxCommandEncoder> cEncoders;
     std::vector<GfxSemaphore> cWaitSems;
     std::vector<GfxSemaphore> cSignalSems;
+    std::vector<GfxPipelineStageFlags> cWaitStages;
 
     GfxSubmitDescriptor cDescriptor = {};
-    convertSubmitDescriptor(submitDescriptor, cDescriptor, cEncoders, cWaitSems, cSignalSems);
+    convertSubmitDescriptor(submitDescriptor, cDescriptor, cEncoders, cWaitSems, cSignalSems, cWaitStages);
 
     return cResultToCppResult(gfxQueueSubmit(m_handle, &cDescriptor));
 }

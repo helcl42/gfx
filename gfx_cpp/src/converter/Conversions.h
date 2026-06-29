@@ -109,7 +109,7 @@ GfxVertexStepMode cppVertexStepModeToCVertexStepMode(VertexStepMode mode);
 void convertAdapterDescriptor(const AdapterDescriptor& input, GfxAdapterDescriptor& output);
 
 // Submit descriptor conversion
-void convertSubmitDescriptor(const SubmitDescriptor& input, GfxSubmitDescriptor& output, std::vector<GfxCommandEncoder>& encoders, std::vector<GfxSemaphore>& waitSems, std::vector<GfxSemaphore>& signalSems);
+void convertSubmitDescriptor(const SubmitDescriptor& input, GfxSubmitDescriptor& output, std::vector<GfxCommandEncoder>& encoders, std::vector<GfxSemaphore>& waitSems, std::vector<GfxSemaphore>& signalSems, std::vector<GfxPipelineStageFlags>& waitStages);
 
 // Barrier conversions
 void convertMemoryBarrier(const MemoryBarrier& input, GfxMemoryBarrier& output);

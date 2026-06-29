@@ -1806,11 +1806,15 @@ void CubeApp::render()
             future.get();
         }
 
+        // Wait stage for each wait semaphore in the submits below (Vulkan only; ignored by WebGPU)
+        const GfxPipelineStageFlags colorOutputWaitStage = GFX_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT;
+
         // Submit clear encoder
         GfxSubmitDescriptor clearSubmit = {
             .commandEncoders = &frame.clearEncoder,
             .commandEncoderCount = 1,
             .waitSemaphores = &frame.imageAvailableSemaphore,
+            .waitStages = &colorOutputWaitStage,
             .waitSemaphoreCount = 1,
             .signalSemaphores = &frame.clearFinishedSemaphore,
             .signalSemaphoreCount = 1,
@@ -1831,6 +1835,7 @@ void CubeApp::render()
                 .commandEncoders = cubeEncoderArray.data(),
                 .commandEncoderCount = static_cast<uint32_t>(cubeEncoderArray.size()),
                 .waitSemaphores = &frame.clearFinishedSemaphore,
+                .waitStages = &colorOutputWaitStage,
                 .waitSemaphoreCount = 1,
                 .signalSemaphores = nullptr,
                 .signalSemaphoreCount = 0,
@@ -1857,6 +1862,7 @@ void CubeApp::render()
                 .commandEncoders = cubeEncoderArray.data(),
                 .commandEncoderCount = static_cast<uint32_t>(cubeEncoderArray.size()),
                 .waitSemaphores = &frame.clearFinishedSemaphore,
+                .waitStages = &colorOutputWaitStage,
                 .waitSemaphoreCount = 1,
                 .signalSemaphores = nullptr,
                 .signalSemaphoreCount = 0,
@@ -1916,10 +1922,13 @@ void CubeApp::render()
 
         gfxCommandEncoderEnd(encoder);
 
+        // Wait stage for the imageAvailable wait semaphore (Vulkan only; ignored by WebGPU)
+        const GfxPipelineStageFlags colorOutputWaitStage = GFX_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT;
         GfxSubmitDescriptor submitDescriptor = {
             .commandEncoders = &encoder,
             .commandEncoderCount = 1,
             .waitSemaphores = &frame.imageAvailableSemaphore,
+            .waitStages = &colorOutputWaitStage,
             .waitSemaphoreCount = 1,
             .signalSemaphores = &renderFinishedSemaphores[imageIndex],
             .signalSemaphoreCount = 1,

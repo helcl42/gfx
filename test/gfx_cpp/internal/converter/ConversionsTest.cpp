@@ -3,6 +3,9 @@
 
 #include <converter/Conversions.h>
 
+#include <stdexcept>
+#include <vector>
+
 namespace gfx {
 
 // =============================================================================
@@ -1096,7 +1099,7 @@ TEST(GfxCppConversionsTest, CSurfaceInfoToCppSurfaceInfo_ZeroValues_ConvertsCorr
 // TOOD
 
 // =============================================================================
-// Submit and Copy Conversions
+// Copy Conversions
 // =============================================================================
 
 // TOOD
@@ -1106,5 +1109,41 @@ TEST(GfxCppConversionsTest, CSurfaceInfoToCppSurfaceInfo_ZeroValues_ConvertsCorr
 // =============================================================================
 
 // TOOD
+
+// =============================================================================
+// Submit Descriptor Conversions (waitStages)
+// =============================================================================
+
+TEST(ConversionsTest, ConvertSubmitDescriptor_EmptyHasNullWaitStages)
+{
+    SubmitDescriptor desc;
+
+    GfxSubmitDescriptor out{};
+    std::vector<GfxCommandEncoder> encoders;
+    std::vector<GfxSemaphore> waitSems;
+    std::vector<GfxSemaphore> signalSems;
+    std::vector<GfxPipelineStageFlags> waitStages;
+    convertSubmitDescriptor(desc, out, encoders, waitSems, signalSems, waitStages);
+
+    EXPECT_EQ(out.waitSemaphoreCount, 0u);
+    EXPECT_EQ(out.waitStages, nullptr);
+}
+
+TEST(ConversionsTest, ConvertSubmitDescriptor_WaitStagesCountMismatchThrows)
+{
+    // A wait stage with no matching wait semaphore would produce an array the C side reads
+    // out of bounds (waitSemaphoreCount entries), so the converter must reject it.
+    SubmitDescriptor desc;
+    desc.waitStages = { PipelineStage::ColorAttachmentOutput };
+
+    GfxSubmitDescriptor out{};
+    std::vector<GfxCommandEncoder> encoders;
+    std::vector<GfxSemaphore> waitSems;
+    std::vector<GfxSemaphore> signalSems;
+    std::vector<GfxPipelineStageFlags> waitStages;
+    EXPECT_THROW(
+        convertSubmitDescriptor(desc, out, encoders, waitSems, signalSems, waitStages),
+        std::runtime_error);
+}
 
 } // namespace gfx

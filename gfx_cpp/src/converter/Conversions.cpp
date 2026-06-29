@@ -359,7 +359,7 @@ void convertAdapterDescriptor(const AdapterDescriptor& input, GfxAdapterDescript
     output.preference = cppAdapterPreferenceToCAdapterPreference(input.preference);
 }
 
-void convertSubmitDescriptor(const SubmitDescriptor& input, GfxSubmitDescriptor& output, std::vector<GfxCommandEncoder>& encoders, std::vector<GfxSemaphore>& waitSems, std::vector<GfxSemaphore>& signalSems)
+void convertSubmitDescriptor(const SubmitDescriptor& input, GfxSubmitDescriptor& output, std::vector<GfxCommandEncoder>& encoders, std::vector<GfxSemaphore>& waitSems, std::vector<GfxSemaphore>& signalSems, std::vector<GfxPipelineStageFlags>& waitStages)
 {
     // Convert command encoders
     encoders.clear();
@@ -391,6 +391,17 @@ void convertSubmitDescriptor(const SubmitDescriptor& input, GfxSubmitDescriptor&
         signalSems.push_back(impl->getHandle());
     }
 
+    // Convert wait stages (one per wait semaphore; consumed by the Vulkan backend, ignored by WebGPU)
+    waitStages.clear();
+    for (auto stage : input.waitStages) {
+        waitStages.push_back(cppPipelineStageToCPipelineStage(stage));
+    }
+    // Guard against an undersized array: the C side reads waitSemaphoreCount entries from waitStages,
+    // so a partial list would be an out-of-bounds read. Empty is allowed (left null below).
+    if (!waitStages.empty() && waitStages.size() != waitSems.size()) {
+        throw std::runtime_error("SubmitDescriptor::waitStages must have one entry per wait semaphore");
+    }
+
     // Populate output descriptor
     output = {};
     output.sType = GFX_STRUCTURE_TYPE_SUBMIT_DESCRIPTOR;
@@ -399,6 +410,7 @@ void convertSubmitDescriptor(const SubmitDescriptor& input, GfxSubmitDescriptor&
     output.commandEncoderCount = static_cast<uint32_t>(encoders.size());
     output.waitSemaphores = waitSems.data();
     output.waitSemaphoreCount = static_cast<uint32_t>(waitSems.size());
+    output.waitStages = waitStages.empty() ? nullptr : waitStages.data();
     output.signalSemaphores = signalSems.data();
     output.signalSemaphoreCount = static_cast<uint32_t>(signalSems.size());
 

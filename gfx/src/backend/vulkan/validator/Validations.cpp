@@ -1207,6 +1207,9 @@ GfxResult validateQueueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitD
     if (!queue || !submitDescriptor) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
+    if (submitDescriptor->waitSemaphoreCount > 0 && (!submitDescriptor->waitSemaphores || !submitDescriptor->waitStages)) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
     return GFX_RESULT_SUCCESS;
 }
 

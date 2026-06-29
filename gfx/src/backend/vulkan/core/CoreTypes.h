@@ -467,6 +467,7 @@ struct SubmitInfo {
     Fence* signalFence;
     Semaphore* const* waitSemaphores;
     const uint64_t* waitValues;
+    std::vector<VkPipelineStageFlags> waitStages; // One per wait semaphore (owned: converted from gfx stages)
     uint32_t waitSemaphoreCount;
     Semaphore* const* signalSemaphores;
     const uint64_t* signalValues;

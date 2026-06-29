@@ -1322,6 +1322,7 @@ void CubeApp::render()
         gfx::SubmitDescriptor submitDescriptor{
             .commandEncoders = { commandEncoder },
             .waitSemaphores = { frame.imageAvailableSemaphore },
+            .waitStages = { gfx::PipelineStage::ColorAttachmentOutput },
             .signalSemaphores = { renderFinishedSemaphores[imageIndex] },
             .signalFence = frame.inFlightFence
         };

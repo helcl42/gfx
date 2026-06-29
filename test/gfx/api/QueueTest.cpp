@@ -161,6 +161,34 @@ TEST_P(GfxQueueTest, SubmitWithEmptyDescriptor)
     EXPECT_EQ(result, GFX_RESULT_SUCCESS);
 }
 
+// Test: Vulkan requires a waitStages entry per wait semaphore. The validator must reject a
+// submit that has wait semaphores but a NULL waitStages array (rejected before any GPU wait,
+// so no deadlock). WebGPU ignores waitStages, so this requirement is Vulkan-only.
+TEST_P(GfxQueueTest, SubmitWithWaitSemaphoresRequiresWaitStages)
+{
+    if (GetParam() != GFX_BACKEND_VULKAN) {
+        GTEST_SKIP() << "waitStages is a Vulkan-only requirement; WebGPU ignores it";
+    }
+
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    GfxSemaphoreDescriptor semDesc = {};
+    semDesc.sType = GFX_STRUCTURE_TYPE_SEMAPHORE_DESCRIPTOR;
+    semDesc.type = GFX_SEMAPHORE_TYPE_BINARY;
+    GfxSemaphore semaphore = nullptr;
+    ASSERT_EQ(gfxDeviceCreateSemaphore(device, &semDesc, &semaphore), GFX_RESULT_SUCCESS);
+
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.waitSemaphores = &semaphore;
+    submitDesc.waitSemaphoreCount = 1;
+    submitDesc.waitStages = nullptr; // missing -> must be rejected
+
+    EXPECT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    gfxSemaphoreDestroy(semaphore);
+}
+
 // Test: Concurrent queue operations from multiple threads on the SAME queue.
 // The API guarantees internal synchronization for queue operations (see THREADING MODEL).
 TEST_P(GfxQueueTest, ConcurrentQueueOperationsAreThreadSafe)
