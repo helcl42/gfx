@@ -187,15 +187,19 @@ void CommandEncoder::pipelineBarrier(const MemoryBarrier* memoryBarriers, uint32
     for (uint32_t i = 0; i < bufferBarrierCount; ++i) {
         const auto& barrier = bufferBarriers[i];
 
+        const bool bufferQfot = barrier.srcQueueFamilyIndex != barrier.dstQueueFamilyIndex
+            && barrier.srcQueueFamilyIndex != VK_QUEUE_FAMILY_IGNORED
+            && barrier.dstQueueFamilyIndex != VK_QUEUE_FAMILY_IGNORED;
+
         VkBufferMemoryBarrier vkBarrier{};
         vkBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         vkBarrier.buffer = barrier.buffer->handle();
         vkBarrier.offset = barrier.offset;
-        vkBarrier.size = barrier.size == 0 ? VK_WHOLE_SIZE : barrier.size;
+        vkBarrier.size = barrier.size;
         vkBarrier.srcAccessMask = barrier.srcAccessMask;
         vkBarrier.dstAccessMask = barrier.dstAccessMask;
-        vkBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        vkBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        vkBarrier.srcQueueFamilyIndex = bufferQfot ? barrier.srcQueueFamilyIndex : VK_QUEUE_FAMILY_IGNORED;
+        vkBarrier.dstQueueFamilyIndex = bufferQfot ? barrier.dstQueueFamilyIndex : VK_QUEUE_FAMILY_IGNORED;
 
         bufferMemoryBarriers.push_back(vkBarrier);
 
@@ -221,8 +225,12 @@ void CommandEncoder::pipelineBarrier(const MemoryBarrier* memoryBarriers, uint32
         vkBarrier.srcAccessMask = barrier.srcAccessMask;
         vkBarrier.dstAccessMask = barrier.dstAccessMask;
 
-        vkBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        vkBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        // Ownership transfer only when BOTH indices name concrete families and differ (see buffer barrier).
+        const bool imageQfot = barrier.srcQueueFamilyIndex != barrier.dstQueueFamilyIndex
+            && barrier.srcQueueFamilyIndex != VK_QUEUE_FAMILY_IGNORED
+            && barrier.dstQueueFamilyIndex != VK_QUEUE_FAMILY_IGNORED;
+        vkBarrier.srcQueueFamilyIndex = imageQfot ? barrier.srcQueueFamilyIndex : VK_QUEUE_FAMILY_IGNORED;
+        vkBarrier.dstQueueFamilyIndex = imageQfot ? barrier.dstQueueFamilyIndex : VK_QUEUE_FAMILY_IGNORED;
 
         imageBarriers.push_back(vkBarrier);
 
@@ -241,7 +249,8 @@ void CommandEncoder::copyBufferToBuffer(Buffer* source, uint64_t sourceOffset, B
     VkBufferCopy copyRegion{};
     copyRegion.srcOffset = sourceOffset;
     copyRegion.dstOffset = destinationOffset;
-    copyRegion.size = size;
+    // vkCmdCopyBuffer has no whole-size sentinel, so resolve GFX_WHOLE_SIZE to the rest of the source.
+    copyRegion.size = (size == VK_WHOLE_SIZE) ? (source->getInfo().size - sourceOffset) : size;
 
     vkCmdCopyBuffer(m_commandBuffer, source->handle(), destination->handle(), 1, &copyRegion);
 }

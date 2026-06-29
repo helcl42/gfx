@@ -6,6 +6,7 @@
 #include "backend/vulkan/core/query/QuerySet.h"
 #include "backend/vulkan/core/resource/Buffer.h"
 #include "backend/vulkan/core/resource/Texture.h"
+#include "backend/vulkan/core/system/Adapter.h"
 #include "backend/vulkan/core/system/Device.h"
 #include "backend/vulkan/core/util/Utils.h"
 #include "util/Utils.h"
@@ -746,7 +747,28 @@ GfxResult validateAdapterCreateDevice(GfxAdapter adapter, const GfxDeviceDescrip
     if (!adapter || !outDevice) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    return validateDeviceDescriptor(descriptor);
+
+    GfxResult descriptorResult = validateDeviceDescriptor(descriptor);
+    if (descriptorResult != GFX_RESULT_SUCCESS) {
+        return descriptorResult;
+    }
+
+    // Validate each requested queue family/index against the physical device's actual queue families.
+    // Without this, an out-of-range family index would flow straight into vkCreateDevice.
+    if (descriptor != nullptr && descriptor->queueRequests != nullptr) {
+        const auto queueFamilies = converter::toNative<core::Adapter>(adapter)->getQueueFamilyProperties();
+        for (uint32_t i = 0; i < descriptor->queueRequestCount; ++i) {
+            const GfxQueueRequest& request = descriptor->queueRequests[i];
+            if (request.queueFamilyIndex >= queueFamilies.size()) {
+                return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+            }
+            if (request.queueIndex >= queueFamilies[request.queueFamilyIndex].queueCount) {
+                return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+            }
+        }
+    }
+
+    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult validateAdapterGetNativeHandle(GfxAdapter adapter, void** outHandle)

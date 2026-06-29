@@ -454,6 +454,8 @@ void convertBufferBarrier(const BufferBarrier& input, GfxBufferBarrier& output)
     output.dstAccessMask = cppAccessFlagsToCAccessFlags(input.dstAccessMask);
     output.offset = input.offset;
     output.size = input.size;
+    output.srcQueueFamilyIndex = input.srcQueueFamilyIndex;
+    output.dstQueueFamilyIndex = input.dstQueueFamilyIndex;
 }
 
 void convertTextureBarrier(const TextureBarrier& input, GfxTextureBarrier& output)
@@ -479,6 +481,8 @@ void convertTextureBarrier(const TextureBarrier& input, GfxTextureBarrier& outpu
     output.mipLevelCount = input.mipLevelCount;
     output.baseArrayLayer = input.baseArrayLayer;
     output.arrayLayerCount = input.arrayLayerCount;
+    output.srcQueueFamilyIndex = input.srcQueueFamilyIndex;
+    output.dstQueueFamilyIndex = input.dstQueueFamilyIndex;
 }
 
 void convertCopyBufferToBufferDescriptor(const CopyBufferToBufferDescriptor& input, GfxCopyBufferToBufferDescriptor& output)

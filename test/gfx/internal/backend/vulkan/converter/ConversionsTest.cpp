@@ -502,13 +502,26 @@ TEST(VulkanConversionsTest, GfxBufferBarrierToBufferBarrier_WholeBuffer_Converts
         GFX_ACCESS_TRANSFER_WRITE,
         GFX_ACCESS_SHADER_READ,
         0,
-        0 // 0 means whole buffer
+        GFX_WHOLE_SIZE // rest of the buffer from offset
     };
 
     gfx::backend::vulkan::core::BufferBarrier result = gfx::backend::vulkan::converter::gfxBufferBarrierToBufferBarrier(gfxBarrier);
 
     EXPECT_EQ(result.offset, 0u);
-    EXPECT_EQ(result.size, 0u); // Backend interprets 0 as whole buffer
+    EXPECT_EQ(result.size, GFX_WHOLE_SIZE); // converter passes the sentinel through (== VK_WHOLE_SIZE)
+}
+
+TEST(VulkanConversionsTest, GfxBufferBarrierToBufferBarrier_PropagatesQueueFamilyIndices)
+{
+    GfxBufferBarrier barrier{};
+    barrier.buffer = reinterpret_cast<GfxBuffer>(0x1); // converter stores the handle without dereferencing
+    barrier.srcQueueFamilyIndex = 2;
+    barrier.dstQueueFamilyIndex = 5;
+
+    auto result = gfx::backend::vulkan::converter::gfxBufferBarrierToBufferBarrier(barrier);
+
+    EXPECT_EQ(result.srcQueueFamilyIndex, 2u);
+    EXPECT_EQ(result.dstQueueFamilyIndex, 5u);
 }
 
 TEST(VulkanConversionsTest, GfxTextureBarrierToTextureBarrier_AllFields_ConvertsCorrectly)
@@ -570,6 +583,19 @@ TEST(VulkanConversionsTest, GfxTextureBarrierToTextureBarrier_MipmapArrayTexture
     EXPECT_EQ(result.mipLevelCount, 5u);
     EXPECT_EQ(result.baseArrayLayer, 1u);
     EXPECT_EQ(result.arrayLayerCount, 6u);
+}
+
+TEST(VulkanConversionsTest, GfxTextureBarrierToTextureBarrier_PropagatesQueueFamilyIndices)
+{
+    GfxTextureBarrier barrier{};
+    barrier.texture = reinterpret_cast<GfxTexture>(0x1);
+    barrier.srcQueueFamilyIndex = 1;
+    barrier.dstQueueFamilyIndex = 3;
+
+    auto result = gfx::backend::vulkan::converter::gfxTextureBarrierToTextureBarrier(barrier);
+
+    EXPECT_EQ(result.srcQueueFamilyIndex, 1u);
+    EXPECT_EQ(result.dstQueueFamilyIndex, 3u);
 }
 
 // ============================================================================

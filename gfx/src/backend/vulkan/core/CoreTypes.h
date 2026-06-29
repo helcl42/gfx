@@ -190,6 +190,8 @@ struct BufferBarrier {
     VkAccessFlags dstAccessMask;
     uint64_t offset;
     uint64_t size; // 0 means whole buffer
+    uint32_t srcQueueFamilyIndex;
+    uint32_t dstQueueFamilyIndex;
 };
 
 struct TextureBarrier {
@@ -204,6 +206,8 @@ struct TextureBarrier {
     uint32_t mipLevelCount;
     uint32_t baseArrayLayer;
     uint32_t arrayLayerCount;
+    uint32_t srcQueueFamilyIndex;
+    uint32_t dstQueueFamilyIndex;
 };
 
 struct Viewport {

@@ -1,5 +1,8 @@
 #include "CommonTest.h"
 
+#include <cstdint>
+#include <vector>
+
 // C API tests compiled with C++ for GoogleTest compatibility
 
 // ===========================================================================
@@ -85,6 +88,152 @@ TEST_P(GfxDeviceTest, CreateDeviceInvalidArguments)
     // NULL descriptor
     result = gfxAdapterCreateDevice(adapter, NULL, &device);
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+// A queue request naming a family index the adapter doesn't expose must be rejected before device
+// creation. Both backends validate this (WebGPU exposes a single synthetic family).
+TEST_P(GfxDeviceTest, CreateDeviceRejectsOutOfRangeQueueFamily)
+{
+    GfxQueueRequest request = {};
+    request.queueFamilyIndex = 1000000u; // no device has anywhere near this many families
+    request.queueIndex = 0;
+    request.priority = 1.0f;
+
+    GfxDeviceDescriptor desc = {};
+    desc.queueRequests = &request;
+    desc.queueRequestCount = 1;
+
+    GfxResult result = gfxAdapterCreateDevice(adapter, &desc, &device);
+    EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+// End-to-end demonstration of a cross-queue-family ownership transfer (QFOT): a buffer is RELEASED
+// from one family and ACQUIRED on another, with a semaphore ordering the two submissions. This is the
+// pattern the GfxBufferBarrier::src/dstQueueFamilyIndex fields exist for. Requires >=2 queue families,
+// so it skips on single-family implementations (MoltenVK, most software Vulkan).
+TEST_P(GfxDeviceTest, MultiFamilyQueueFamilyOwnershipTransfer)
+{
+    if (GetParam() != GFX_BACKEND_VULKAN) {
+        GTEST_SKIP() << "queue families / QFOT are a Vulkan concept";
+    }
+
+    uint32_t familyCount = 0;
+    ASSERT_EQ(gfxAdapterEnumerateQueueFamilies(adapter, &familyCount, nullptr), GFX_RESULT_SUCCESS);
+    if (familyCount < 2) {
+        GTEST_SKIP() << "QFOT needs >=2 queue families (this device has " << familyCount << ")";
+    }
+    std::vector<GfxQueueFamilyProperties> families(familyCount);
+    ASSERT_EQ(gfxAdapterEnumerateQueueFamilies(adapter, &familyCount, families.data()), GFX_RESULT_SUCCESS);
+
+    uint32_t graphicsFamily = UINT32_MAX;
+    for (uint32_t i = 0; i < familyCount; ++i) {
+        if (families[i].flags & GFX_QUEUE_FLAG_GRAPHICS) {
+            graphicsFamily = i;
+            break;
+        }
+    }
+    ASSERT_NE(graphicsFamily, UINT32_MAX);
+    const uint32_t otherFamily = (graphicsFamily == 0) ? 1u : 0u; // any family distinct from graphics
+
+    // Create a device with one queue on each family.
+    GfxQueueRequest requests[2] = {};
+    requests[0] = { graphicsFamily, 0, 1.0f };
+    requests[1] = { otherFamily, 0, 1.0f };
+    GfxDeviceDescriptor devDesc = {};
+    devDesc.queueRequests = requests;
+    devDesc.queueRequestCount = 2;
+
+    GfxDevice dev = nullptr;
+    ASSERT_EQ(gfxAdapterCreateDevice(adapter, &devDesc, &dev), GFX_RESULT_SUCCESS);
+
+    GfxQueue graphicsQueue = nullptr;
+    GfxQueue otherQueue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueueByIndex(dev, graphicsFamily, 0, &graphicsQueue), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxDeviceGetQueueByIndex(dev, otherFamily, 0, &otherQueue), GFX_RESULT_SUCCESS);
+    ASSERT_NE(graphicsQueue, nullptr);
+    ASSERT_NE(otherQueue, nullptr);
+
+    GfxQueueInfo gInfo = {};
+    GfxQueueInfo oInfo = {};
+    gfxQueueGetInfo(graphicsQueue, &gInfo);
+    gfxQueueGetInfo(otherQueue, &oInfo);
+    EXPECT_EQ(gInfo.queueFamilyIndex, graphicsFamily);
+    EXPECT_EQ(oInfo.queueFamilyIndex, otherFamily);
+
+    GfxBufferDescriptor bufDesc = {};
+    bufDesc.size = 256;
+    bufDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_STORAGE | GFX_BUFFER_USAGE_COPY_DST);
+    bufDesc.memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL;
+    GfxBuffer buffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(dev, &bufDesc, &buffer), GFX_RESULT_SUCCESS);
+
+    // RELEASE barrier recorded on the source (other) family's queue.
+    GfxBufferBarrier release = {};
+    release.buffer = buffer;
+    release.size = GFX_WHOLE_SIZE; // cover the whole buffer (0 is a zero-length range, not whole)
+    release.srcStageMask = GFX_PIPELINE_STAGE_TRANSFER;
+    release.dstStageMask = GFX_PIPELINE_STAGE_BOTTOM_OF_PIPE;
+    release.srcAccessMask = GFX_ACCESS_TRANSFER_WRITE;
+    release.dstAccessMask = GFX_ACCESS_NONE;
+    release.srcQueueFamilyIndex = otherFamily;
+    release.dstQueueFamilyIndex = graphicsFamily;
+
+    GfxCommandEncoderDescriptor encDesc = {};
+    GfxCommandEncoder releaseEnc = nullptr;
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(dev, &encDesc, &releaseEnc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderBegin(releaseEnc), GFX_RESULT_SUCCESS);
+    GfxPipelineBarrierDescriptor releaseBarrier = {};
+    releaseBarrier.bufferBarriers = &release;
+    releaseBarrier.bufferBarrierCount = 1;
+    ASSERT_EQ(gfxCommandEncoderPipelineBarrier(releaseEnc, &releaseBarrier), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(releaseEnc), GFX_RESULT_SUCCESS);
+
+    // ACQUIRE barrier on the graphics queue (same family indices; opposite stage/access scopes).
+    GfxBufferBarrier acquire = release;
+    acquire.srcStageMask = GFX_PIPELINE_STAGE_TOP_OF_PIPE;
+    acquire.dstStageMask = GFX_PIPELINE_STAGE_FRAGMENT_SHADER;
+    acquire.srcAccessMask = GFX_ACCESS_NONE;
+    acquire.dstAccessMask = GFX_ACCESS_SHADER_READ;
+
+    GfxCommandEncoder acquireEnc = nullptr;
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(dev, &encDesc, &acquireEnc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderBegin(acquireEnc), GFX_RESULT_SUCCESS);
+    GfxPipelineBarrierDescriptor acquireBarrier = {};
+    acquireBarrier.bufferBarriers = &acquire;
+    acquireBarrier.bufferBarrierCount = 1;
+    ASSERT_EQ(gfxCommandEncoderPipelineBarrier(acquireEnc, &acquireBarrier), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(acquireEnc), GFX_RESULT_SUCCESS);
+
+    // The release (source queue) must complete before the acquire (dest queue): order with a semaphore.
+    GfxSemaphoreDescriptor semDesc = {};
+    semDesc.sType = GFX_STRUCTURE_TYPE_SEMAPHORE_DESCRIPTOR;
+    semDesc.type = GFX_SEMAPHORE_TYPE_BINARY;
+    GfxSemaphore handoff = nullptr;
+    ASSERT_EQ(gfxDeviceCreateSemaphore(dev, &semDesc, &handoff), GFX_RESULT_SUCCESS);
+
+    GfxSubmitDescriptor releaseSubmit = {};
+    releaseSubmit.commandEncoders = &releaseEnc;
+    releaseSubmit.commandEncoderCount = 1;
+    releaseSubmit.signalSemaphores = &handoff;
+    releaseSubmit.signalSemaphoreCount = 1;
+    EXPECT_EQ(gfxQueueSubmit(otherQueue, &releaseSubmit), GFX_RESULT_SUCCESS);
+
+    const GfxPipelineStageFlags waitStage = GFX_PIPELINE_STAGE_FRAGMENT_SHADER;
+    GfxSubmitDescriptor acquireSubmit = {};
+    acquireSubmit.commandEncoders = &acquireEnc;
+    acquireSubmit.commandEncoderCount = 1;
+    acquireSubmit.waitSemaphores = &handoff;
+    acquireSubmit.waitStages = &waitStage;
+    acquireSubmit.waitSemaphoreCount = 1;
+    EXPECT_EQ(gfxQueueSubmit(graphicsQueue, &acquireSubmit), GFX_RESULT_SUCCESS);
+
+    gfxDeviceWaitIdle(dev);
+
+    gfxSemaphoreDestroy(handoff);
+    gfxCommandEncoderDestroy(acquireEnc);
+    gfxCommandEncoderDestroy(releaseEnc);
+    gfxBufferDestroy(buffer);
+    gfxDeviceDestroy(dev);
 }
 
 TEST_P(GfxDeviceTest, GetDefaultQueue)

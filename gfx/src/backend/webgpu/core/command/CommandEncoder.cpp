@@ -184,7 +184,8 @@ void CommandEncoder::reset()
 // Copy operations
 void CommandEncoder::copyBufferToBuffer(Buffer* source, uint64_t sourceOffset, Buffer* destination, uint64_t destinationOffset, uint64_t size)
 {
-    wgpuCommandEncoderCopyBufferToBuffer(m_encoder, source->handle(), sourceOffset, destination->handle(), destinationOffset, size);
+    const uint64_t copySize = (size == WGPU_WHOLE_SIZE) ? (source->getSize() - sourceOffset) : size;
+    wgpuCommandEncoderCopyBufferToBuffer(m_encoder, source->handle(), sourceOffset, destination->handle(), destinationOffset, copySize);
 }
 
 void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, Texture* destination, const WGPUOrigin3D& origin, const WGPUExtent3D& extent, uint32_t mipLevel, uint32_t arrayLayer, uint32_t bytesPerRow, uint32_t rowsPerImage, WGPUTextureAspect aspect)

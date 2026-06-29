@@ -209,6 +209,77 @@ TEST_P(GfxCommandEncoderTest, CopyBufferToBuffer)
     gfxBufferDestroy(dstBuffer);
 }
 
+// GFX_WHOLE_SIZE must copy the rest of the source from sourceOffset (not a zero-length copy).
+TEST_P(GfxCommandEncoderTest, CopyBufferToBufferWholeSizeCopiesRest)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    constexpr uint64_t kSize = 256;
+    constexpr uint64_t kOffset = 64; // copy [kOffset, kSize) via GFX_WHOLE_SIZE -> kSize - kOffset bytes
+
+    GfxBufferDescriptor srcDesc = {};
+    srcDesc.size = kSize;
+    srcDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_WRITE | GFX_BUFFER_USAGE_COPY_SRC);
+    srcDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+    GfxBuffer src = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &srcDesc, &src), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor dstDesc = {};
+    dstDesc.size = kSize;
+    dstDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_READ | GFX_BUFFER_USAGE_COPY_DST);
+    dstDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+    GfxBuffer dst = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &dstDesc, &dst), GFX_RESULT_SUCCESS);
+
+    // Seed the source with a known per-byte pattern.
+    void* srcPtr = nullptr;
+    ASSERT_EQ(gfxBufferMap(src, 0, kSize, &srcPtr), GFX_RESULT_SUCCESS);
+    auto* srcBytes = static_cast<uint8_t*>(srcPtr);
+    for (uint64_t i = 0; i < kSize; ++i) {
+        srcBytes[i] = static_cast<uint8_t>((i * 7 + 3) & 0xFF);
+    }
+    ASSERT_EQ(gfxBufferUnmap(src), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoder encoder = nullptr;
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxCopyBufferToBufferDescriptor copyDesc = {};
+    copyDesc.source = src;
+    copyDesc.sourceOffset = kOffset;
+    copyDesc.destination = dst;
+    copyDesc.destinationOffset = 0;
+    copyDesc.size = GFX_WHOLE_SIZE; // resolves to kSize - kOffset
+    ASSERT_EQ(gfxCommandEncoderCopyBufferToBuffer(encoder, &copyDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+    GfxFenceDescriptor fenceDesc = {};
+    GfxFence fence = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFence(device, &fenceDesc, &fence), GFX_RESULT_SUCCESS);
+
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    submitDesc.signalFence = fence;
+    ASSERT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxFenceWait(fence, GFX_TIMEOUT_INFINITE), GFX_RESULT_SUCCESS);
+
+    // The whole tail of the source must have landed at the start of the destination.
+    void* dstPtr = nullptr;
+    ASSERT_EQ(gfxBufferMap(dst, 0, kSize, &dstPtr), GFX_RESULT_SUCCESS);
+    auto* dstBytes = static_cast<uint8_t*>(dstPtr);
+    for (uint64_t i = 0; i < kSize - kOffset; ++i) {
+        EXPECT_EQ(dstBytes[i], static_cast<uint8_t>(((i + kOffset) * 7 + 3) & 0xFF)) << "mismatch at byte " << i;
+    }
+    ASSERT_EQ(gfxBufferUnmap(dst), GFX_RESULT_SUCCESS);
+
+    gfxFenceDestroy(fence);
+    gfxCommandEncoderDestroy(encoder);
+    gfxBufferDestroy(src);
+    gfxBufferDestroy(dst);
+}
+
 // Lifecycle contract: a fresh encoder records without Begin; after submit + fence wait
 // Begin resets it for reuse
 TEST_P(GfxCommandEncoderTest, EncoderLifecycleRecordSubmitReuse)

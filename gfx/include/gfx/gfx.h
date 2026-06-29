@@ -41,11 +41,14 @@
 // Common Constants
 // ============================================================================
 
-// Special timeout value for infinite wait (used with gfxFenceWait, gfxSemaphoreWait)
+// Infinite-wait timeout for gfxFenceWait / gfxSemaphoreWait.
 #define GFX_TIMEOUT_INFINITE UINT64_MAX
 
-// Special size value to map entire buffer from offset (used with gfxBufferMap) Matches Vulkan's VK_WHOLE_SIZE convention
+// Whole buffer from offset, for sizes/ranges (map, copies, barriers, bindings). Matches VK_WHOLE_SIZE.
 #define GFX_WHOLE_SIZE UINT64_MAX
+
+// No queue-family ownership transfer, for barrier src/dstQueueFamilyIndex. Matches VK_QUEUE_FAMILY_IGNORED.
+#define GFX_QUEUE_FAMILY_IGNORED 0xFFFFFFFFu
 
 // ============================================================================
 // ERROR HANDLING
@@ -1122,6 +1125,8 @@ typedef struct {
     GfxAccessFlags dstAccessMask;
     uint64_t offset;
     uint64_t size;
+    uint32_t srcQueueFamilyIndex;
+    uint32_t dstQueueFamilyIndex;
 } GfxBufferBarrier;
 
 typedef struct {
@@ -1136,6 +1141,8 @@ typedef struct {
     uint32_t mipLevelCount;
     uint32_t baseArrayLayer;
     uint32_t arrayLayerCount;
+    uint32_t srcQueueFamilyIndex;
+    uint32_t dstQueueFamilyIndex;
 } GfxTextureBarrier;
 
 // Simple load/store operations (clear values specified separately)

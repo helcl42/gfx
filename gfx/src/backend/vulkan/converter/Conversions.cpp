@@ -1473,42 +1473,46 @@ core::ScissorRect gfxScissorRectToScissorRect(const GfxScissorRect* scissor)
 
 core::MemoryBarrier gfxMemoryBarrierToMemoryBarrier(const GfxMemoryBarrier& barrier)
 {
-    return {
-        gfxPipelineStageFlagsToVkPipelineStageFlags(barrier.srcStageMask),
-        gfxPipelineStageFlagsToVkPipelineStageFlags(barrier.dstStageMask),
-        gfxAccessFlagsToVkAccessFlags(barrier.srcAccessMask),
-        gfxAccessFlagsToVkAccessFlags(barrier.dstAccessMask)
-    };
+    core::MemoryBarrier result{};
+    result.srcStageMask = gfxPipelineStageFlagsToVkPipelineStageFlags(barrier.srcStageMask);
+    result.dstStageMask = gfxPipelineStageFlagsToVkPipelineStageFlags(barrier.dstStageMask);
+    result.srcAccessMask = gfxAccessFlagsToVkAccessFlags(barrier.srcAccessMask);
+    result.dstAccessMask = gfxAccessFlagsToVkAccessFlags(barrier.dstAccessMask);
+    return result;
 }
 
 core::BufferBarrier gfxBufferBarrierToBufferBarrier(const GfxBufferBarrier& barrier)
 {
-    return {
-        toNative<core::Buffer>(barrier.buffer),
-        gfxPipelineStageFlagsToVkPipelineStageFlags(barrier.srcStageMask),
-        gfxPipelineStageFlagsToVkPipelineStageFlags(barrier.dstStageMask),
-        gfxAccessFlagsToVkAccessFlags(barrier.srcAccessMask),
-        gfxAccessFlagsToVkAccessFlags(barrier.dstAccessMask),
-        barrier.offset,
-        barrier.size
-    };
+    core::BufferBarrier result{};
+    result.buffer = toNative<core::Buffer>(barrier.buffer);
+    result.srcStageMask = gfxPipelineStageFlagsToVkPipelineStageFlags(barrier.srcStageMask);
+    result.dstStageMask = gfxPipelineStageFlagsToVkPipelineStageFlags(barrier.dstStageMask);
+    result.srcAccessMask = gfxAccessFlagsToVkAccessFlags(barrier.srcAccessMask);
+    result.dstAccessMask = gfxAccessFlagsToVkAccessFlags(barrier.dstAccessMask);
+    result.offset = barrier.offset;
+    result.size = barrier.size;
+    result.srcQueueFamilyIndex = barrier.srcQueueFamilyIndex;
+    result.dstQueueFamilyIndex = barrier.dstQueueFamilyIndex;
+    return result;
 }
 
 core::TextureBarrier gfxTextureBarrierToTextureBarrier(const GfxTextureBarrier& barrier)
 {
-    return {
-        toNative<core::Texture>(barrier.texture),
-        gfxPipelineStageFlagsToVkPipelineStageFlags(barrier.srcStageMask),
-        gfxPipelineStageFlagsToVkPipelineStageFlags(barrier.dstStageMask),
-        gfxAccessFlagsToVkAccessFlags(barrier.srcAccessMask),
-        gfxAccessFlagsToVkAccessFlags(barrier.dstAccessMask),
-        gfxLayoutToVkImageLayout(barrier.oldLayout),
-        gfxLayoutToVkImageLayout(barrier.newLayout),
-        barrier.baseMipLevel,
-        barrier.mipLevelCount,
-        barrier.baseArrayLayer,
-        barrier.arrayLayerCount
-    };
+    core::TextureBarrier result{};
+    result.texture = toNative<core::Texture>(barrier.texture);
+    result.srcStageMask = gfxPipelineStageFlagsToVkPipelineStageFlags(barrier.srcStageMask);
+    result.dstStageMask = gfxPipelineStageFlagsToVkPipelineStageFlags(barrier.dstStageMask);
+    result.srcAccessMask = gfxAccessFlagsToVkAccessFlags(barrier.srcAccessMask);
+    result.dstAccessMask = gfxAccessFlagsToVkAccessFlags(barrier.dstAccessMask);
+    result.oldLayout = gfxLayoutToVkImageLayout(barrier.oldLayout);
+    result.newLayout = gfxLayoutToVkImageLayout(barrier.newLayout);
+    result.baseMipLevel = barrier.baseMipLevel;
+    result.mipLevelCount = barrier.mipLevelCount;
+    result.baseArrayLayer = barrier.baseArrayLayer;
+    result.arrayLayerCount = barrier.arrayLayerCount;
+    result.srcQueueFamilyIndex = barrier.srcQueueFamilyIndex;
+    result.dstQueueFamilyIndex = barrier.dstQueueFamilyIndex;
+    return result;
 }
 
 core::BufferCreateInfo gfxDescriptorToBufferCreateInfo(const GfxBufferDescriptor* descriptor)

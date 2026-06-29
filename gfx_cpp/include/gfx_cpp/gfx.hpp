@@ -215,9 +215,13 @@ namespace gfx {
 // Special timeout value for infinite wait (used with Fence::wait, Semaphore::wait)
 inline constexpr uint64_t TimeoutInfinite = UINT64_MAX;
 
-// Special size value to map entire buffer from offset (used with Buffer::map)
-// Matches the C API's GFX_WHOLE_SIZE and Vulkan's VK_WHOLE_SIZE convention
+// Whole buffer from offset, for buffer sizes/ranges (Buffer::map, copies, barriers, bindings).
+// Matches the C API's GFX_WHOLE_SIZE and Vulkan's VK_WHOLE_SIZE convention.
 inline constexpr uint64_t WholeSize = UINT64_MAX;
+
+// Sentinel for BufferBarrier/TextureBarrier src/dstQueueFamilyIndex meaning "no ownership transfer".
+// Matches the C API's GFX_QUEUE_FAMILY_IGNORED and Vulkan's VK_QUEUE_FAMILY_IGNORED.
+inline constexpr uint32_t QueueFamilyIgnored = UINT32_MAX;
 
 // ============================================================================
 // Core Enumerations
@@ -1270,7 +1274,7 @@ struct BindGroupEntry {
 
     // For buffer bindings
     uint64_t offset = 0;
-    uint64_t size = 0; // 0 means whole buffer
+    uint64_t size = WholeSize;
 };
 
 struct BindGroupDescriptor {
@@ -1421,7 +1425,9 @@ struct BufferBarrier {
     AccessFlags srcAccessMask = AccessFlags::None;
     AccessFlags dstAccessMask = AccessFlags::None;
     uint64_t offset = 0;
-    uint64_t size = 0; // 0 means whole buffer
+    uint64_t size = WholeSize;
+    uint32_t srcQueueFamilyIndex = QueueFamilyIgnored;
+    uint32_t dstQueueFamilyIndex = QueueFamilyIgnored;
 };
 
 struct TextureBarrier {
@@ -1436,6 +1442,8 @@ struct TextureBarrier {
     uint32_t mipLevelCount = 1;
     uint32_t baseArrayLayer = 0;
     uint32_t arrayLayerCount = 1;
+    uint32_t srcQueueFamilyIndex = QueueFamilyIgnored;
+    uint32_t dstQueueFamilyIndex = QueueFamilyIgnored;
 };
 
 // Load/store operations pair
@@ -1532,7 +1540,7 @@ struct CopyBufferToBufferDescriptor {
     uint64_t sourceOffset = 0;
     std::shared_ptr<Buffer> destination;
     uint64_t destinationOffset = 0;
-    uint64_t size = 0;
+    uint64_t size = WholeSize;
 };
 
 struct CopyBufferToTextureDescriptor {
