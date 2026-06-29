@@ -402,7 +402,19 @@ void CommandEncoder::resetQuerySet(VkQueryPool queryPool, uint32_t firstQuery, u
 
 void CommandEncoder::resolveQuerySet(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, VkBuffer buffer, uint64_t destinationOffset)
 {
-    vkCmdCopyQueryPoolResults(m_commandBuffer, queryPool, firstQuery, queryCount, buffer, destinationOffset, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+    // Make the queries' results available to the copy via an explicit execution dependency rather than
+    // VK_QUERY_RESULT_WAIT_BIT. Recording the copy after the query commands orders it after them but does
+    // not guarantee their results are available; a waiting copy would be correct but, empirically, makes
+    // MoltenVK resolve occlusion results within the render-pass scope, splitting the Metal render encoder
+    // mid-pass and tripping store-action validation. This barrier runs after the render pass, so it
+    // synchronizes the queries with the copy without any in-pass split.
+    VkMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    vkCmdPipelineBarrier(m_commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &barrier, 0, nullptr, 0, nullptr);
+
+    vkCmdCopyQueryPoolResults(m_commandBuffer, queryPool, firstQuery, queryCount, buffer, destinationOffset, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
 }
 
 } // namespace gfx::backend::vulkan::core
