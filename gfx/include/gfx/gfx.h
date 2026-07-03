@@ -992,6 +992,7 @@ typedef struct GfxChainHeader {
 // Instance extensions
 #define GFX_INSTANCE_EXTENSION_SURFACE "gfx_surface"
 #define GFX_INSTANCE_EXTENSION_DEBUG "gfx_debug"
+#define GFX_INSTANCE_EXTENSION_XR_COMPATIBLE "gfx_xr_compatible"
 
 // Device extensions
 #define GFX_DEVICE_EXTENSION_SWAPCHAIN "gfx_swapchain"

@@ -10,7 +10,7 @@
 namespace gfx::backend::webgpu::core {
 
 namespace {
-    std::vector<WGPUAdapter> discoverAdapters(WGPUInstance instance)
+    std::vector<WGPUAdapter> discoverAdapters(WGPUInstance instance, bool xrCompatible)
     {
         std::vector<WGPUAdapter> adapters;
 
@@ -27,6 +27,15 @@ namespace {
                 WGPURequestAdapterOptions options = WGPU_REQUEST_ADAPTER_OPTIONS_INIT;
                 options.powerPreference = preference;
                 options.forceFallbackAdapter = forceFallback;
+#if defined(__EMSCRIPTEN__)
+                WGPURequestAdapterWebXROptions xrOptions = WGPU_REQUEST_ADAPTER_WEBXR_OPTIONS_INIT;
+                if (xrCompatible) {
+                    xrOptions.xrCompatible = WGPU_TRUE;
+                    options.nextInChain = &xrOptions.chain;
+                }
+#else
+                (void)xrCompatible; // Not applicable for native Dawn
+#endif
 
                 WGPUAdapter adapter = nullptr;
                 bool completed = false;
@@ -71,8 +80,6 @@ namespace {
 
 Instance::Instance(const InstanceCreateInfo& createInfo)
 {
-    (void)createInfo; // Descriptor not used in current implementation
-
     // Request TimedWaitAny feature for proper async callback handling
     // For native Dawn, also request ShaderSourceSPIRV for SPIR-V shader support
     static const WGPUInstanceFeatureName requiredFeatures[] = {
@@ -106,7 +113,10 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
         throw std::runtime_error("Failed to create WebGPU instance");
     }
 
-    std::vector<WGPUAdapter> discoveredAdapters = discoverAdapters(m_instance);
+    const bool xrCompatible = std::find(createInfo.enabledExtensions.begin(), createInfo.enabledExtensions.end(),
+                                  std::string(extensions::XR_COMPATIBLE))
+        != createInfo.enabledExtensions.end();
+    std::vector<WGPUAdapter> discoveredAdapters = discoverAdapters(m_instance, xrCompatible);
     m_adapters.reserve(discoveredAdapters.size());
     for (auto adapter : discoveredAdapters) {
         m_adapters.push_back(std::make_unique<Adapter>(adapter, this));
