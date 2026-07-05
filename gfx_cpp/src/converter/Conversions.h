@@ -15,7 +15,7 @@ Backend cBackendToCppBackend(GfxBackend backend);
 std::vector<std::string> cStringArrayToCppStringVector(const char** strings, uint32_t count);
 
 // Instance type conversions
-GfxInstanceDescriptor cppInstanceDescriptorToCDescriptor(const InstanceDescriptor& descriptor, GfxBackend backend, std::vector<const char*>& extensionsStorage);
+GfxInstanceDescriptor cppInstanceDescriptorToCDescriptor(const InstanceDescriptor& descriptor, GfxBackend backend, std::vector<const char*>& extensionsStorage, std::vector<const char*>& nativeExtStorage, GfxNativeExtensionsDescriptor& outNativeExt);
 
 // Adapter type conversions
 AdapterType cAdapterTypeToCppAdapterType(GfxAdapterType adapterType);
@@ -82,7 +82,7 @@ QueueFamilyProperties cQueueFamilyPropertiesToCppQueueFamilyProperties(const Gfx
 GfxQueueRequest cppQueueRequestToCQueueRequest(const QueueRequest& req);
 
 // Device descriptor conversion
-void convertDeviceDescriptor(const DeviceDescriptor& descriptor, std::vector<const char*>& outExtensions, std::vector<GfxQueueRequest>& outQueueRequests, GfxDeviceDescriptor& outDesc);
+void convertDeviceDescriptor(const DeviceDescriptor& descriptor, std::vector<const char*>& outExtensions, std::vector<GfxQueueRequest>& outQueueRequests, GfxDeviceDescriptor& outDesc, std::vector<const char*>& nativeExtStorage, GfxNativeExtensionsDescriptor& outNativeExt);
 
 // Buffer info conversions
 BufferInfo cBufferInfoToCppBufferInfo(const GfxBufferInfo& info);

@@ -66,8 +66,10 @@ std::shared_ptr<Instance> createInstance(const InstanceDescriptor& descriptor)
 
     // Convert C++ descriptor to C descriptor
     std::vector<const char*> extensionsStorage;
+    std::vector<const char*> nativeExtStorage;
+    GfxNativeExtensionsDescriptor cNativeExt = {};
     GfxInstanceDescriptor cDesc = cppInstanceDescriptorToCDescriptor(
-        descriptor, cBackend, extensionsStorage);
+        descriptor, cBackend, extensionsStorage, nativeExtStorage, cNativeExt);
 
     GfxInstance instance = nullptr;
     GfxResult result = gfxCreateInstance(&cDesc, &instance);

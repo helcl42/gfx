@@ -33,8 +33,10 @@ std::shared_ptr<Device> AdapterImpl::createDevice(const DeviceDescriptor& descri
 {
     std::vector<const char*> cExtensions;
     std::vector<GfxQueueRequest> cQueueRequests;
+    std::vector<const char*> cNativeExtStorage;
+    GfxNativeExtensionsDescriptor cNativeExt = {};
     GfxDeviceDescriptor cDesc = {};
-    convertDeviceDescriptor(descriptor, cExtensions, cQueueRequests, cDesc);
+    convertDeviceDescriptor(descriptor, cExtensions, cQueueRequests, cDesc, cNativeExtStorage, cNativeExt);
 
     GfxDevice device = nullptr;
     GfxResult result = gfxAdapterCreateDevice(m_handle, &cDesc, &device);

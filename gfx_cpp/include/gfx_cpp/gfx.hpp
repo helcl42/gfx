@@ -546,6 +546,7 @@ enum class QueryType : int32_t {
 // Extension name constants (matching C API)
 constexpr const char* INSTANCE_EXTENSION_SURFACE = "gfx_surface";
 constexpr const char* INSTANCE_EXTENSION_DEBUG = "gfx_debug";
+constexpr const char* INSTANCE_EXTENSION_XR_COMPATIBLE = "gfx_xr_compatible";
 constexpr const char* DEVICE_EXTENSION_SWAPCHAIN = "gfx_swapchain";
 constexpr const char* DEVICE_EXTENSION_TIMELINE_SEMAPHORE = "gfx_timeline_semaphore";
 constexpr const char* DEVICE_EXTENSION_MULTIVIEW = "gfx_multiview";
@@ -986,6 +987,13 @@ struct ChainedStruct {
     // Allow moving
     ChainedStruct(ChainedStruct&&) noexcept = default;
     ChainedStruct& operator=(ChainedStruct&&) noexcept = default;
+};
+
+// Native (backend-specific) extensions passed straight through to the underlying API.
+// Chain to InstanceDescriptor::next or DeviceDescriptor::next. Names are forwarded to Vulkan
+// without translation; ignored by the WebGPU backend. Mirrors GfxNativeExtensionsDescriptor.
+struct NativeExtensionsDescriptor : public ChainedStruct {
+    std::vector<std::string> nativeExtensions;
 };
 
 // ============================================================================

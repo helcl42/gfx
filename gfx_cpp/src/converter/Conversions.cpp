@@ -37,7 +37,30 @@ std::vector<std::string> cStringArrayToCppStringVector(const char** strings, uin
     return result;
 }
 
-GfxInstanceDescriptor cppInstanceDescriptorToCDescriptor(const InstanceDescriptor& descriptor, GfxBackend backend, std::vector<const char*>& extensionsStorage)
+// Walk a C++ extension chain; if it contains a NativeExtensionsDescriptor, populate the C
+// descriptor + string storage and return it to chain onto pNext (nullptr if none present).
+static const GfxNativeExtensionsDescriptor* convertNativeExtensionsChain(
+    const ChainedStruct* chain, std::vector<const char*>& storage, GfxNativeExtensionsDescriptor& out)
+{
+    for (const ChainedStruct* node = chain; node; node = node->next) {
+        if (const auto* nativeExt = dynamic_cast<const NativeExtensionsDescriptor*>(node)) {
+            storage.clear();
+            storage.reserve(nativeExt->nativeExtensions.size());
+            for (const auto& ext : nativeExt->nativeExtensions) {
+                storage.push_back(ext.c_str());
+            }
+            out = {};
+            out.sType = GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR;
+            out.pNext = nullptr;
+            out.nativeExtensions = storage.empty() ? nullptr : storage.data();
+            out.nativeExtensionCount = static_cast<uint32_t>(storage.size());
+            return &out;
+        }
+    }
+    return nullptr;
+}
+
+GfxInstanceDescriptor cppInstanceDescriptorToCDescriptor(const InstanceDescriptor& descriptor, GfxBackend backend, std::vector<const char*>& extensionsStorage, std::vector<const char*>& nativeExtStorage, GfxNativeExtensionsDescriptor& outNativeExt)
 {
     // Convert enabled extensions
     extensionsStorage.clear();
@@ -48,7 +71,7 @@ GfxInstanceDescriptor cppInstanceDescriptorToCDescriptor(const InstanceDescripto
 
     GfxInstanceDescriptor cDesc = {};
     cDesc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
-    cDesc.pNext = NULL;
+    cDesc.pNext = convertNativeExtensionsChain(descriptor.next, nativeExtStorage, outNativeExt);
     cDesc.backend = backend;
     cDesc.applicationName = descriptor.applicationName.c_str();
     cDesc.applicationVersion = descriptor.applicationVersion;
@@ -274,7 +297,7 @@ GfxQueueRequest cppQueueRequestToCQueueRequest(const QueueRequest& req)
     return cReq;
 }
 
-void convertDeviceDescriptor(const DeviceDescriptor& descriptor, std::vector<const char*>& outExtensions, std::vector<GfxQueueRequest>& outQueueRequests, GfxDeviceDescriptor& outDesc)
+void convertDeviceDescriptor(const DeviceDescriptor& descriptor, std::vector<const char*>& outExtensions, std::vector<GfxQueueRequest>& outQueueRequests, GfxDeviceDescriptor& outDesc, std::vector<const char*>& nativeExtStorage, GfxNativeExtensionsDescriptor& outNativeExt)
 {
     // Convert enabled extensions
     outExtensions.clear();
@@ -293,7 +316,7 @@ void convertDeviceDescriptor(const DeviceDescriptor& descriptor, std::vector<con
     // Build C descriptor
     outDesc = {};
     outDesc.sType = GFX_STRUCTURE_TYPE_DEVICE_DESCRIPTOR;
-    outDesc.pNext = NULL;
+    outDesc.pNext = convertNativeExtensionsChain(descriptor.next, nativeExtStorage, outNativeExt);
     outDesc.label = descriptor.label.c_str();
     outDesc.enabledExtensions = outExtensions.empty() ? nullptr : outExtensions.data();
     outDesc.enabledExtensionCount = static_cast<uint32_t>(outExtensions.size());
