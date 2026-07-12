@@ -516,6 +516,11 @@ namespace {
             layoutEntry.bufferHasDynamicOffset = entry.buffer.hasDynamicOffset ? WGPU_TRUE : WGPU_FALSE;
             layoutEntry.bufferMinBindingSize = entry.buffer.minBindingSize;
             break;
+        case GFX_BINDING_TYPE_STORAGE_BUFFER:
+            layoutEntry.bufferType = gfxStorageBufferAccessToWGPU(entry.buffer.access);
+            layoutEntry.bufferHasDynamicOffset = entry.buffer.hasDynamicOffset ? WGPU_TRUE : WGPU_FALSE;
+            layoutEntry.bufferMinBindingSize = entry.buffer.minBindingSize;
+            break;
         case GFX_BINDING_TYPE_SAMPLER:
             layoutEntry.samplerType = gfxSamplerBindingTypeToWGPU(entry.sampler.type);
             break;
@@ -1651,6 +1656,18 @@ WGPUStorageTextureAccess gfxStorageTextureAccessToWGPU(GfxStorageTextureAccess a
         return WGPUStorageTextureAccess_ReadWrite;
     default:
         return WGPUStorageTextureAccess_WriteOnly;
+    }
+}
+
+WGPUBufferBindingType gfxStorageBufferAccessToWGPU(GfxStorageBufferAccess access)
+{
+    switch (access) {
+    case GFX_STORAGE_BUFFER_ACCESS_READ_WRITE:
+        return WGPUBufferBindingType_Storage;
+    case GFX_STORAGE_BUFFER_ACCESS_READ_ONLY:
+        return WGPUBufferBindingType_ReadOnlyStorage;
+    default:
+        return WGPUBufferBindingType_ReadOnlyStorage;
     }
 }
 

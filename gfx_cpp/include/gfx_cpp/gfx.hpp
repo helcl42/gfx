@@ -410,6 +410,11 @@ enum class StorageTextureAccess : int32_t {
     ReadWrite = 2
 };
 
+enum class StorageBufferAccess : int32_t {
+    ReadOnly = 0,
+    ReadWrite = 1
+};
+
 enum class SamplerBindingType : int32_t {
     Filtering = 0,
     NonFiltering = 1,
@@ -1250,6 +1255,12 @@ struct BindGroupLayoutEntry {
         uint64_t minBindingSize = 0;
     };
 
+    struct StorageBufferBinding {
+        StorageBufferAccess access = StorageBufferAccess::ReadOnly;
+        bool hasDynamicOffset = false;
+        uint64_t minBindingSize = 0;
+    };
+
     struct SamplerBinding {
         SamplerBindingType type = SamplerBindingType::Filtering;
     };
@@ -1265,7 +1276,7 @@ struct BindGroupLayoutEntry {
         TextureViewType viewDimension = TextureViewType::View2D;
     };
 
-    std::variant<BufferBinding, SamplerBinding, TextureBinding, StorageTextureBinding> resource;
+    std::variant<BufferBinding, SamplerBinding, TextureBinding, StorageTextureBinding, StorageBufferBinding> resource;
 };
 
 struct BindGroupLayoutDescriptor {

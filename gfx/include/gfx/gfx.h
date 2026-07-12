@@ -899,10 +899,11 @@ typedef enum {
 } GfxBindGroupEntryType;
 
 typedef enum {
-    GFX_BINDING_TYPE_BUFFER = 0,
+    GFX_BINDING_TYPE_BUFFER = 0, // Uniform buffer
     GFX_BINDING_TYPE_SAMPLER = 1,
     GFX_BINDING_TYPE_TEXTURE = 2,
     GFX_BINDING_TYPE_STORAGE_TEXTURE = 3,
+    GFX_BINDING_TYPE_STORAGE_BUFFER = 4,
     GFX_BINDING_TYPE_MAX_ENUM = 0x7FFFFFFF
 } GfxBindingType;
 
@@ -930,6 +931,12 @@ typedef enum {
     GFX_STORAGE_TEXTURE_ACCESS_READ_WRITE = 2,
     GFX_STORAGE_TEXTURE_ACCESS_MAX_ENUM = 0x7FFFFFFF
 } GfxStorageTextureAccess;
+
+typedef enum {
+    GFX_STORAGE_BUFFER_ACCESS_READ_ONLY = 0,
+    GFX_STORAGE_BUFFER_ACCESS_READ_WRITE = 1,
+    GFX_STORAGE_BUFFER_ACCESS_MAX_ENUM = 0x7FFFFFFF
+} GfxStorageBufferAccess;
 
 typedef enum {
     GFX_SAMPLER_BINDING_TYPE_FILTERING = 0,
@@ -1684,6 +1691,7 @@ typedef struct {
     struct {
         bool hasDynamicOffset;
         uint64_t minBindingSize;
+        GfxStorageBufferAccess access; // Only used when type is GFX_BINDING_TYPE_STORAGE_BUFFER
     } buffer;
 
     struct {

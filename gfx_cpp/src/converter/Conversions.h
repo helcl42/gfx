@@ -187,6 +187,7 @@ GfxSamplerBindingType cppSamplerBindingTypeToCType(SamplerBindingType type);
 
 // Storage texture access conversions
 GfxStorageTextureAccess cppStorageTextureAccessToCType(StorageTextureAccess access);
+GfxStorageBufferAccess cppStorageBufferAccessToCType(StorageBufferAccess access);
 
 // Windowing system conversions
 GfxWindowingSystem cppWindowingSystemToC(WindowingSystem sys);

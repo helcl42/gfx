@@ -1795,6 +1795,8 @@ namespace {
         switch (type) {
         case GFX_BINDING_TYPE_BUFFER:
             return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        case GFX_BINDING_TYPE_STORAGE_BUFFER:
+            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         case GFX_BINDING_TYPE_SAMPLER:
             return VK_DESCRIPTOR_TYPE_SAMPLER;
         case GFX_BINDING_TYPE_TEXTURE:
@@ -1860,7 +1862,8 @@ core::BindGroupCreateInfo gfxDescriptorToBindGroupCreateInfo(const GfxBindGroupD
 
         if (entry.type == GFX_BIND_GROUP_ENTRY_TYPE_BUFFER) {
             auto* buffer = converter::toNative<core::Buffer>(entry.resource.buffer.buffer);
-            bindEntry.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            // Derive uniform vs storage from the layout binding (must match the layout's descriptor type).
+            bindEntry.descriptorType = layout->getBindingType(entry.binding);
             bindEntry.buffer = buffer->handle();
             bindEntry.bufferOffset = entry.resource.buffer.offset;
             bindEntry.bufferSize = entry.resource.buffer.size;

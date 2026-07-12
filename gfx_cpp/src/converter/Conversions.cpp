@@ -832,6 +832,11 @@ GfxStorageTextureAccess cppStorageTextureAccessToCType(StorageTextureAccess acce
     return static_cast<GfxStorageTextureAccess>(access);
 }
 
+GfxStorageBufferAccess cppStorageBufferAccessToCType(StorageBufferAccess access)
+{
+    return static_cast<GfxStorageBufferAccess>(access);
+}
+
 GfxWindowingSystem cppWindowingSystemToC(WindowingSystem sys)
 {
     return static_cast<GfxWindowingSystem>(sys);
@@ -1083,6 +1088,12 @@ void convertBindGroupLayoutDescriptor(const BindGroupLayoutDescriptor& descripto
             outEntries[i].storageTexture.format = cppFormatToCFormat(storageTexture.format);
             outEntries[i].storageTexture.access = cppStorageTextureAccessToCType(storageTexture.access);
             outEntries[i].storageTexture.viewDimension = cppTextureViewTypeToCType(storageTexture.viewDimension);
+        } else if (std::holds_alternative<BindGroupLayoutEntry::StorageBufferBinding>(entry.resource)) {
+            outEntries[i].type = GFX_BINDING_TYPE_STORAGE_BUFFER;
+            const auto& storageBuffer = std::get<BindGroupLayoutEntry::StorageBufferBinding>(entry.resource);
+            outEntries[i].buffer.access = cppStorageBufferAccessToCType(storageBuffer.access);
+            outEntries[i].buffer.hasDynamicOffset = storageBuffer.hasDynamicOffset;
+            outEntries[i].buffer.minBindingSize = storageBuffer.minBindingSize;
         }
     }
 
