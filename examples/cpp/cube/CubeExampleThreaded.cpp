@@ -1149,7 +1149,7 @@ bool CubeApp::createUniformBuffer()
         .visibility = GFX_SHADER_STAGE_VERTEX,
         .type = GFX_BINDING_TYPE_UNIFORM_BUFFER,
         .count = 1,
-        .buffer = {
+        .uniformBuffer = {
             .hasDynamicOffset = false,
             .minBindingSize = sizeof(UniformData),
         },

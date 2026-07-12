@@ -1691,8 +1691,13 @@ typedef struct {
     struct {
         bool hasDynamicOffset;
         uint64_t minBindingSize;
-        GfxStorageBufferAccess access; // Only used when type is GFX_BINDING_TYPE_STORAGE_BUFFER
-    } buffer;
+    } uniformBuffer;
+
+    struct {
+        bool hasDynamicOffset;
+        uint64_t minBindingSize;
+        GfxStorageBufferAccess access;
+    } storageBuffer;
 
     struct {
         GfxSamplerBindingType type;

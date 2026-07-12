@@ -1071,8 +1071,8 @@ void convertBindGroupLayoutDescriptor(const BindGroupLayoutDescriptor& descripto
         if (std::holds_alternative<BindGroupLayoutEntry::UniformBufferBinding>(entry.resource)) {
             outEntries[i].type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
             const auto& buffer = std::get<BindGroupLayoutEntry::UniformBufferBinding>(entry.resource);
-            outEntries[i].buffer.hasDynamicOffset = buffer.hasDynamicOffset;
-            outEntries[i].buffer.minBindingSize = buffer.minBindingSize;
+            outEntries[i].uniformBuffer.hasDynamicOffset = buffer.hasDynamicOffset;
+            outEntries[i].uniformBuffer.minBindingSize = buffer.minBindingSize;
         } else if (std::holds_alternative<BindGroupLayoutEntry::SamplerBinding>(entry.resource)) {
             outEntries[i].type = GFX_BINDING_TYPE_SAMPLER;
             const auto& sampler = std::get<BindGroupLayoutEntry::SamplerBinding>(entry.resource);
@@ -1091,9 +1091,9 @@ void convertBindGroupLayoutDescriptor(const BindGroupLayoutDescriptor& descripto
         } else if (std::holds_alternative<BindGroupLayoutEntry::StorageBufferBinding>(entry.resource)) {
             outEntries[i].type = GFX_BINDING_TYPE_STORAGE_BUFFER;
             const auto& storageBuffer = std::get<BindGroupLayoutEntry::StorageBufferBinding>(entry.resource);
-            outEntries[i].buffer.access = cppStorageBufferAccessToCType(storageBuffer.access);
-            outEntries[i].buffer.hasDynamicOffset = storageBuffer.hasDynamicOffset;
-            outEntries[i].buffer.minBindingSize = storageBuffer.minBindingSize;
+            outEntries[i].storageBuffer.access = cppStorageBufferAccessToCType(storageBuffer.access);
+            outEntries[i].storageBuffer.hasDynamicOffset = storageBuffer.hasDynamicOffset;
+            outEntries[i].storageBuffer.minBindingSize = storageBuffer.minBindingSize;
         }
     }
 

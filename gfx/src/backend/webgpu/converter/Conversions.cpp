@@ -513,13 +513,13 @@ namespace {
         switch (entry.type) {
         case GFX_BINDING_TYPE_UNIFORM_BUFFER:
             layoutEntry.bufferType = WGPUBufferBindingType_Uniform;
-            layoutEntry.bufferHasDynamicOffset = entry.buffer.hasDynamicOffset ? WGPU_TRUE : WGPU_FALSE;
-            layoutEntry.bufferMinBindingSize = entry.buffer.minBindingSize;
+            layoutEntry.bufferHasDynamicOffset = entry.uniformBuffer.hasDynamicOffset ? WGPU_TRUE : WGPU_FALSE;
+            layoutEntry.bufferMinBindingSize = entry.uniformBuffer.minBindingSize;
             break;
         case GFX_BINDING_TYPE_STORAGE_BUFFER:
-            layoutEntry.bufferType = gfxStorageBufferAccessToWGPU(entry.buffer.access);
-            layoutEntry.bufferHasDynamicOffset = entry.buffer.hasDynamicOffset ? WGPU_TRUE : WGPU_FALSE;
-            layoutEntry.bufferMinBindingSize = entry.buffer.minBindingSize;
+            layoutEntry.bufferType = gfxStorageBufferAccessToWGPU(entry.storageBuffer.access);
+            layoutEntry.bufferHasDynamicOffset = entry.storageBuffer.hasDynamicOffset ? WGPU_TRUE : WGPU_FALSE;
+            layoutEntry.bufferMinBindingSize = entry.storageBuffer.minBindingSize;
             break;
         case GFX_BINDING_TYPE_SAMPLER:
             layoutEntry.samplerType = gfxSamplerBindingTypeToWGPU(entry.sampler.type);

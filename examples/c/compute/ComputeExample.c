@@ -987,7 +987,7 @@ static bool createComputeBindGroupLayout(ComputeApp* app)
             .visibility = GFX_SHADER_STAGE_COMPUTE,
             .type = GFX_BINDING_TYPE_UNIFORM_BUFFER,
             .count = 1,
-            .buffer = {
+            .uniformBuffer = {
                 .hasDynamicOffset = false,
                 .minBindingSize = sizeof(ComputeUniformData),
             },
@@ -1315,7 +1315,7 @@ static bool createRenderBindGroupLayout(ComputeApp* app)
             .visibility = GFX_SHADER_STAGE_FRAGMENT,
             .type = GFX_BINDING_TYPE_UNIFORM_BUFFER,
             .count = 1,
-            .buffer = {
+            .uniformBuffer = {
                 .hasDynamicOffset = false,
                 .minBindingSize = sizeof(RenderUniformData),
             },

@@ -401,7 +401,7 @@ static bool createGraphics(CubeApp* app)
     GfxAdapterDescriptor adapterDesc = {
         .sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR,
         .pNext = NULL,
-                .preference = GFX_ADAPTER_PREFERENCE_HIGH_PERFORMANCE
+        .preference = GFX_ADAPTER_PREFERENCE_HIGH_PERFORMANCE
     };
 
     if (gfxInstanceRequestAdapter(app->instance, &adapterDesc, &app->adapter) != GFX_RESULT_SUCCESS) {
@@ -1169,7 +1169,7 @@ static bool createBindGroup(CubeApp* app)
         .visibility = GFX_SHADER_STAGE_VERTEX,
         .type = GFX_BINDING_TYPE_UNIFORM_BUFFER,
         .count = 1,
-        .buffer = {
+        .uniformBuffer = {
             .hasDynamicOffset = false,
             .minBindingSize = sizeof(UniformData),
         },

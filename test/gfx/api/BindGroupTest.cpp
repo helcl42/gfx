@@ -81,8 +81,8 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithNullDevice)
     layoutEntry.binding = 0;
     layoutEntry.visibility = GFX_SHADER_STAGE_VERTEX;
     layoutEntry.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
-    layoutEntry.buffer.hasDynamicOffset = false;
-    layoutEntry.buffer.minBindingSize = 0;
+    layoutEntry.uniformBuffer.hasDynamicOffset = false;
+    layoutEntry.uniformBuffer.minBindingSize = 0;
 
     GfxBindGroupLayoutDescriptor layoutDesc = {};
     layoutDesc.entries = &layoutEntry;
@@ -138,8 +138,8 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithNullOutput)
     layoutEntry.binding = 0;
     layoutEntry.visibility = GFX_SHADER_STAGE_VERTEX;
     layoutEntry.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
-    layoutEntry.buffer.hasDynamicOffset = false;
-    layoutEntry.buffer.minBindingSize = 0;
+    layoutEntry.uniformBuffer.hasDynamicOffset = false;
+    layoutEntry.uniformBuffer.minBindingSize = 0;
 
     GfxBindGroupLayoutDescriptor layoutDesc = {};
     layoutDesc.entries = &layoutEntry;
@@ -186,8 +186,8 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithUniformBuffer)
     layoutEntry.binding = 0;
     layoutEntry.visibility = GFX_FLAGS(GFX_SHADER_STAGE_VERTEX | GFX_SHADER_STAGE_FRAGMENT);
     layoutEntry.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
-    layoutEntry.buffer.hasDynamicOffset = false;
-    layoutEntry.buffer.minBindingSize = 0;
+    layoutEntry.uniformBuffer.hasDynamicOffset = false;
+    layoutEntry.uniformBuffer.minBindingSize = 0;
 
     GfxBindGroupLayoutDescriptor layoutDesc = {};
     layoutDesc.entries = &layoutEntry;
@@ -430,8 +430,8 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithStorageBuffer)
     layoutEntry.binding = 0;
     layoutEntry.visibility = GFX_SHADER_STAGE_COMPUTE;
     layoutEntry.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
-    layoutEntry.buffer.hasDynamicOffset = false;
-    layoutEntry.buffer.minBindingSize = 0;
+    layoutEntry.uniformBuffer.hasDynamicOffset = false;
+    layoutEntry.uniformBuffer.minBindingSize = 0;
 
     GfxBindGroupLayoutDescriptor layoutDesc = {};
     layoutDesc.entries = &layoutEntry;
@@ -483,8 +483,8 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithMultipleEntries)
     layoutEntries[0].binding = 0;
     layoutEntries[0].visibility = GFX_SHADER_STAGE_VERTEX;
     layoutEntries[0].type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
-    layoutEntries[0].buffer.hasDynamicOffset = false;
-    layoutEntries[0].buffer.minBindingSize = 0;
+    layoutEntries[0].uniformBuffer.hasDynamicOffset = false;
+    layoutEntries[0].uniformBuffer.minBindingSize = 0;
 
     // Binding 1: Sampler
     layoutEntries[1].binding = 1;
@@ -598,8 +598,8 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithBufferOffset)
     layoutEntry.binding = 0;
     layoutEntry.visibility = GFX_SHADER_STAGE_VERTEX;
     layoutEntry.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
-    layoutEntry.buffer.hasDynamicOffset = false;
-    layoutEntry.buffer.minBindingSize = 0;
+    layoutEntry.uniformBuffer.hasDynamicOffset = false;
+    layoutEntry.uniformBuffer.minBindingSize = 0;
 
     GfxBindGroupLayoutDescriptor layoutDesc = {};
     layoutDesc.entries = &layoutEntry;
@@ -649,8 +649,8 @@ TEST_P(GfxBindGroupTest, CreateMultipleBindGroupsWithSameLayout)
     layoutEntry.binding = 0;
     layoutEntry.visibility = GFX_SHADER_STAGE_VERTEX;
     layoutEntry.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
-    layoutEntry.buffer.hasDynamicOffset = false;
-    layoutEntry.buffer.minBindingSize = 0;
+    layoutEntry.uniformBuffer.hasDynamicOffset = false;
+    layoutEntry.uniformBuffer.minBindingSize = 0;
 
     GfxBindGroupLayoutDescriptor layoutDesc = {};
     layoutDesc.entries = &layoutEntry;
