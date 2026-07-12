@@ -15,7 +15,7 @@ Backend cBackendToCppBackend(GfxBackend backend);
 std::vector<std::string> cStringArrayToCppStringVector(const char** strings, uint32_t count);
 
 // Instance type conversions
-GfxInstanceDescriptor cppInstanceDescriptorToCDescriptor(const InstanceDescriptor& descriptor, GfxBackend backend, std::vector<const char*>& extensionsStorage, std::vector<const char*>& nativeExtStorage, GfxNativeExtensionsDescriptor& outNativeExt);
+GfxInstanceDescriptor cppInstanceDescriptorToCDescriptor(const InstanceDescriptor& descriptor, GfxBackend backend, std::vector<const char*>& extensionsStorage, std::vector<const char*>& nativeExtStorage, GfxNativeExtensionsDescriptor& outNativeExt, std::vector<const char*>& nativeLayerStorage, GfxNativeLayersDescriptor& outNativeLayers);
 
 // Adapter type conversions
 AdapterType cAdapterTypeToCppAdapterType(GfxAdapterType adapterType);

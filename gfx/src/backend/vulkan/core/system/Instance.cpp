@@ -178,8 +178,10 @@ namespace {
         return extensions;
     }
 
-    // Returns the validation layer when requested and available
-    std::vector<const char*> collectInstanceLayers(const std::vector<VkLayerProperties>& availableLayers, bool validationEnabled)
+    // Collects the instance layers to request: the validation layer when requested, plus any
+    // native pNext passthrough layers. Layers are only added if available (unknown layers are
+    // skipped rather than failing instance creation).
+    std::vector<const char*> collectInstanceLayers(const InstanceCreateInfo& createInfo, const std::vector<VkLayerProperties>& availableLayers, bool validationEnabled)
     {
         std::vector<const char*> layers;
         if (validationEnabled) {
@@ -188,6 +190,23 @@ namespace {
                 layers.push_back(validationLayerName);
             }
         }
+
+        // Add native (raw Vulkan) instance layers from pNext chain
+        const GfxChainHeader* header = static_cast<const GfxChainHeader*>(createInfo.pNext);
+        while (header) {
+            if (header->sType == GFX_STRUCTURE_TYPE_NATIVE_LAYERS_DESCRIPTOR) {
+                const auto* nativeDesc = reinterpret_cast<const GfxNativeLayersDescriptor*>(header);
+                if (nativeDesc->nativeLayers && nativeDesc->nativeLayerCount > 0) {
+                    for (uint32_t i = 0; i < nativeDesc->nativeLayerCount; ++i) {
+                        if (isLayerAvailable(availableLayers, nativeDesc->nativeLayers[i])) {
+                            layers.push_back(nativeDesc->nativeLayers[i]);
+                        }
+                    }
+                }
+            }
+            header = static_cast<const GfxChainHeader*>(header->pNext);
+        }
+
         return layers;
     }
 } // anonymous namespace
@@ -199,7 +218,7 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
 
     m_validationEnabled = isExtensionEnabled(createInfo.enabledExtensions, extensions::DEBUG);
     std::vector<const char*> extensions = collectInstanceExtensions(createInfo, availableExtensions, m_validationEnabled);
-    std::vector<const char*> layers = collectInstanceLayers(availableLayers, m_validationEnabled);
+    std::vector<const char*> layers = collectInstanceLayers(createInfo, availableLayers, m_validationEnabled);
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;

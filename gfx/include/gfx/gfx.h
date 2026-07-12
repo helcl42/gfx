@@ -971,6 +971,7 @@ typedef enum {
     GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR = 29,
     GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR = 30,
     GFX_STRUCTURE_TYPE_RENDER_BUNDLE_ENCODER_DESCRIPTOR = 31,
+    GFX_STRUCTURE_TYPE_NATIVE_LAYERS_DESCRIPTOR = 32,
     GFX_STRUCTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } GfxStructureType;
 
@@ -1792,6 +1793,17 @@ typedef struct {
     const char** nativeExtensions;
     uint32_t nativeExtensionCount;
 } GfxNativeExtensionsDescriptor;
+
+// Native (backend-specific) instance layers to pass through to the underlying API.
+// Chain to GfxInstanceDescriptor.pNext ONLY (Vulkan layers are instance-level; device layers
+// are deprecated and ignored by the loader). Names are passed directly to Vulkan without
+// translation and are only enabled if available. Ignored by the WebGPU backend.
+typedef struct {
+    GfxStructureType sType; // Must be GFX_STRUCTURE_TYPE_NATIVE_LAYERS_DESCRIPTOR
+    const void* pNext;
+    const char** nativeLayers;
+    uint32_t nativeLayerCount;
+} GfxNativeLayersDescriptor;
 
 typedef struct {
     GfxStructureType sType;

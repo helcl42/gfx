@@ -37,30 +37,76 @@ std::vector<std::string> cStringArrayToCppStringVector(const char** strings, uin
     return result;
 }
 
+// Populate a C GfxNativeExtensionsDescriptor + its string storage from the C++ form.
+static void fillNativeExtensions(const NativeExtensionsDescriptor& src, std::vector<const char*>& storage, GfxNativeExtensionsDescriptor& out)
+{
+    storage.clear();
+    storage.reserve(src.nativeExtensions.size());
+    for (const auto& ext : src.nativeExtensions) {
+        storage.push_back(ext.c_str());
+    }
+    out = {};
+    out.sType = GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR;
+    out.pNext = nullptr;
+    out.nativeExtensions = storage.empty() ? nullptr : storage.data();
+    out.nativeExtensionCount = static_cast<uint32_t>(storage.size());
+}
+
+// Populate a C GfxNativeLayersDescriptor + its string storage from the C++ form.
+static void fillNativeLayers(const NativeLayersDescriptor& src, std::vector<const char*>& storage, GfxNativeLayersDescriptor& out)
+{
+    storage.clear();
+    storage.reserve(src.nativeLayers.size());
+    for (const auto& layer : src.nativeLayers) {
+        storage.push_back(layer.c_str());
+    }
+    out = {};
+    out.sType = GFX_STRUCTURE_TYPE_NATIVE_LAYERS_DESCRIPTOR;
+    out.pNext = nullptr;
+    out.nativeLayers = storage.empty() ? nullptr : storage.data();
+    out.nativeLayerCount = static_cast<uint32_t>(storage.size());
+}
+
 // Walk a C++ extension chain; if it contains a NativeExtensionsDescriptor, populate the C
 // descriptor + string storage and return it to chain onto pNext (nullptr if none present).
+// Used for device creation, where only native extensions are meaningful.
 static const GfxNativeExtensionsDescriptor* convertNativeExtensionsChain(
     const ChainedStruct* chain, std::vector<const char*>& storage, GfxNativeExtensionsDescriptor& out)
 {
     for (const ChainedStruct* node = chain; node; node = node->next) {
         if (const auto* nativeExt = dynamic_cast<const NativeExtensionsDescriptor*>(node)) {
-            storage.clear();
-            storage.reserve(nativeExt->nativeExtensions.size());
-            for (const auto& ext : nativeExt->nativeExtensions) {
-                storage.push_back(ext.c_str());
-            }
-            out = {};
-            out.sType = GFX_STRUCTURE_TYPE_NATIVE_EXTENSIONS_DESCRIPTOR;
-            out.pNext = nullptr;
-            out.nativeExtensions = storage.empty() ? nullptr : storage.data();
-            out.nativeExtensionCount = static_cast<uint32_t>(storage.size());
+            fillNativeExtensions(*nativeExt, storage, out);
             return &out;
         }
     }
     return nullptr;
 }
 
-GfxInstanceDescriptor cppInstanceDescriptorToCDescriptor(const InstanceDescriptor& descriptor, GfxBackend backend, std::vector<const char*>& extensionsStorage, std::vector<const char*>& nativeExtStorage, GfxNativeExtensionsDescriptor& outNativeExt)
+// Build the C pNext chain for instance creation, handling both NativeExtensionsDescriptor and
+// NativeLayersDescriptor (layers are instance-only). Returns the chain head (nullptr if neither
+// present). Populated C structs live in the caller-owned out-params.
+static const void* buildInstancePNextChain(
+    const ChainedStruct* chain,
+    std::vector<const char*>& extStorage, GfxNativeExtensionsDescriptor& outExt,
+    std::vector<const char*>& layerStorage, GfxNativeLayersDescriptor& outLayers)
+{
+    const void* head = nullptr;
+    const void** tail = &head;
+    for (const ChainedStruct* node = chain; node; node = node->next) {
+        if (const auto* nativeExt = dynamic_cast<const NativeExtensionsDescriptor*>(node)) {
+            fillNativeExtensions(*nativeExt, extStorage, outExt);
+            *tail = &outExt;
+            tail = &outExt.pNext;
+        } else if (const auto* nativeLayers = dynamic_cast<const NativeLayersDescriptor*>(node)) {
+            fillNativeLayers(*nativeLayers, layerStorage, outLayers);
+            *tail = &outLayers;
+            tail = &outLayers.pNext;
+        }
+    }
+    return head;
+}
+
+GfxInstanceDescriptor cppInstanceDescriptorToCDescriptor(const InstanceDescriptor& descriptor, GfxBackend backend, std::vector<const char*>& extensionsStorage, std::vector<const char*>& nativeExtStorage, GfxNativeExtensionsDescriptor& outNativeExt, std::vector<const char*>& nativeLayerStorage, GfxNativeLayersDescriptor& outNativeLayers)
 {
     // Convert enabled extensions
     extensionsStorage.clear();
@@ -71,7 +117,7 @@ GfxInstanceDescriptor cppInstanceDescriptorToCDescriptor(const InstanceDescripto
 
     GfxInstanceDescriptor cDesc = {};
     cDesc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
-    cDesc.pNext = convertNativeExtensionsChain(descriptor.next, nativeExtStorage, outNativeExt);
+    cDesc.pNext = buildInstancePNextChain(descriptor.next, nativeExtStorage, outNativeExt, nativeLayerStorage, outNativeLayers);
     cDesc.backend = backend;
     cDesc.applicationName = descriptor.applicationName.c_str();
     cDesc.applicationVersion = descriptor.applicationVersion;

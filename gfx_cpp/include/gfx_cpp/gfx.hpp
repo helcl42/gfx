@@ -996,6 +996,14 @@ struct NativeExtensionsDescriptor : public ChainedStruct {
     std::vector<std::string> nativeExtensions;
 };
 
+// Native (backend-specific) instance layers passed straight through to the underlying API.
+// Chain to InstanceDescriptor::next ONLY (Vulkan layers are instance-level; device layers are
+// deprecated). Names are forwarded to Vulkan and only enabled if available; ignored by the
+// WebGPU backend. Mirrors GfxNativeLayersDescriptor.
+struct NativeLayersDescriptor : public ChainedStruct {
+    std::vector<std::string> nativeLayers;
+};
+
 // ============================================================================
 // Descriptor Structures
 // ============================================================================
