@@ -50,7 +50,7 @@ TEST_P(GfxCppBindGroupTest, CreateBindGroupWithUniformBuffer)
     gfx::BindGroupLayoutEntry layoutEntry{
         .binding = 0,
         .visibility = gfx::ShaderStage::Vertex | gfx::ShaderStage::Fragment,
-        .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 0 }
     };
@@ -276,7 +276,7 @@ TEST_P(GfxCppBindGroupTest, CreateBindGroupWithStorageBuffer)
     gfx::BindGroupLayoutEntry layoutEntry{
         .binding = 0,
         .visibility = gfx::ShaderStage::Compute,
-        .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 1024 }
     };
@@ -326,7 +326,7 @@ TEST_P(GfxCppBindGroupTest, CreateBindGroupWithMultipleEntries)
     layoutEntries.push_back(gfx::BindGroupLayoutEntry{
         .binding = 0,
         .visibility = gfx::ShaderStage::Vertex,
-        .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 0 } });
 
@@ -429,7 +429,7 @@ TEST_P(GfxCppBindGroupTest, CreateBindGroupWithBufferOffset)
     gfx::BindGroupLayoutEntry layoutEntry{
         .binding = 0,
         .visibility = gfx::ShaderStage::Vertex,
-        .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 256 }
     };
@@ -476,7 +476,7 @@ TEST_P(GfxCppBindGroupTest, CreateMultipleBindGroupsWithSameLayout)
     gfx::BindGroupLayoutEntry layoutEntry{
         .binding = 0,
         .visibility = gfx::ShaderStage::Vertex,
-        .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 0 }
     };

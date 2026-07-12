@@ -902,7 +902,7 @@ bool ComputeApp::createComputeBindGroupLayout()
             .binding = 1,
             .visibility = gfx::ShaderStage::Compute,
             .count = 1,
-            .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+            .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
                 .hasDynamicOffset = false,
                 .minBindingSize = sizeof(ComputeUniformData),
             }
@@ -1213,7 +1213,7 @@ bool ComputeApp::createRenderBindGroupLayout()
             .binding = 2,
             .visibility = gfx::ShaderStage::Fragment,
             .count = 1,
-            .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+            .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
                 .hasDynamicOffset = false,
                 .minBindingSize = sizeof(RenderUniformData),
             }

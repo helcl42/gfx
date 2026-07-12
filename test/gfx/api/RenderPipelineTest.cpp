@@ -1109,7 +1109,7 @@ TEST_P(GfxRenderPipelineTest, CreateRenderPipelineWithBindGroupLayouts)
     GfxBindGroupLayoutEntry layoutEntry = {};
     layoutEntry.binding = 0;
     layoutEntry.visibility = GFX_SHADER_STAGE_VERTEX;
-    layoutEntry.type = GFX_BINDING_TYPE_BUFFER;
+    layoutEntry.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
     layoutEntry.buffer.hasDynamicOffset = false;
     layoutEntry.buffer.minBindingSize = 0;
 

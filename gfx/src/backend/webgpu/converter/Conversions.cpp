@@ -511,7 +511,7 @@ namespace {
         layoutEntry.storageTextureViewDimension = WGPUTextureViewDimension_Undefined;
 
         switch (entry.type) {
-        case GFX_BINDING_TYPE_BUFFER:
+        case GFX_BINDING_TYPE_UNIFORM_BUFFER:
             layoutEntry.bufferType = WGPUBufferBindingType_Uniform;
             layoutEntry.bufferHasDynamicOffset = entry.buffer.hasDynamicOffset ? WGPU_TRUE : WGPU_FALSE;
             layoutEntry.bufferMinBindingSize = entry.buffer.minBindingSize;

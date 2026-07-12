@@ -1793,7 +1793,7 @@ namespace {
     VkDescriptorType gfxBindingTypeToVkDescriptorType(GfxBindingType type)
     {
         switch (type) {
-        case GFX_BINDING_TYPE_BUFFER:
+        case GFX_BINDING_TYPE_UNIFORM_BUFFER:
             return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         case GFX_BINDING_TYPE_STORAGE_BUFFER:
             return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;

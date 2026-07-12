@@ -500,7 +500,7 @@ TEST_P(GfxCppRenderPipelineTest, CreateRenderPipelineWithBindGroupLayouts)
     auto bindGroupLayout = device->createBindGroupLayout({ .entries = { gfx::BindGroupLayoutEntry{
                                                                .binding = 0,
                                                                .visibility = gfx::ShaderStage::Vertex,
-                                                               .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+                                                               .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
                                                                    .hasDynamicOffset = false,
                                                                    .minBindingSize = 0 } } } });
     ASSERT_NE(bindGroupLayout, nullptr);

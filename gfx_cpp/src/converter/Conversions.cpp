@@ -1068,9 +1068,9 @@ void convertBindGroupLayoutDescriptor(const BindGroupLayoutDescriptor& descripto
         outEntries[i].visibility = cppShaderStageToCShaderStage(entry.visibility);
         outEntries[i].count = entry.count > 0 ? entry.count : 1;
 
-        if (std::holds_alternative<BindGroupLayoutEntry::BufferBinding>(entry.resource)) {
-            outEntries[i].type = GFX_BINDING_TYPE_BUFFER;
-            const auto& buffer = std::get<BindGroupLayoutEntry::BufferBinding>(entry.resource);
+        if (std::holds_alternative<BindGroupLayoutEntry::UniformBufferBinding>(entry.resource)) {
+            outEntries[i].type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
+            const auto& buffer = std::get<BindGroupLayoutEntry::UniformBufferBinding>(entry.resource);
             outEntries[i].buffer.hasDynamicOffset = buffer.hasDynamicOffset;
             outEntries[i].buffer.minBindingSize = buffer.minBindingSize;
         } else if (std::holds_alternative<BindGroupLayoutEntry::SamplerBinding>(entry.resource)) {

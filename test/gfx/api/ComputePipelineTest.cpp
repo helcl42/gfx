@@ -281,7 +281,7 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithBindGroupLayouts)
     GfxBindGroupLayoutEntry entry = {};
     entry.binding = 0;
     entry.visibility = GFX_SHADER_STAGE_COMPUTE;
-    entry.type = GFX_BINDING_TYPE_BUFFER;
+    entry.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
     entry.buffer.hasDynamicOffset = false;
     entry.buffer.minBindingSize = 0;
 
@@ -339,7 +339,7 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithMultipleBindGroupLayouts
     GfxBindGroupLayoutEntry entry1 = {};
     entry1.binding = 0;
     entry1.visibility = GFX_SHADER_STAGE_COMPUTE;
-    entry1.type = GFX_BINDING_TYPE_BUFFER;
+    entry1.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
     entry1.buffer.hasDynamicOffset = false;
     entry1.buffer.minBindingSize = 0;
 
@@ -356,7 +356,7 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithMultipleBindGroupLayouts
     GfxBindGroupLayoutEntry entry2 = {};
     entry2.binding = 0;
     entry2.visibility = GFX_SHADER_STAGE_COMPUTE;
-    entry2.type = GFX_BINDING_TYPE_BUFFER;
+    entry2.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
     entry2.buffer.hasDynamicOffset = false;
     entry2.buffer.minBindingSize = 0;
 

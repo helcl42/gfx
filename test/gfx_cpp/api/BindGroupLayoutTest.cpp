@@ -49,7 +49,7 @@ TEST_P(GfxCppBindGroupLayoutTest, CreateBindGroupLayoutWithValidDescriptor)
     gfx::BindGroupLayoutEntry entry{
         .binding = 0,
         .visibility = gfx::ShaderStage::Vertex,
-        .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 0 }
     };
@@ -70,7 +70,7 @@ TEST_P(GfxCppBindGroupLayoutTest, CreateBindGroupLayoutWithUniformBuffer)
     gfx::BindGroupLayoutEntry entry{
         .binding = 0,
         .visibility = gfx::ShaderStage::Vertex | gfx::ShaderStage::Fragment,
-        .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 256 }
     };
@@ -157,7 +157,7 @@ TEST_P(GfxCppBindGroupLayoutTest, CreateBindGroupLayoutWithMultipleEntries)
     entries.push_back(gfx::BindGroupLayoutEntry{
         .binding = 0,
         .visibility = gfx::ShaderStage::Vertex,
-        .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 256 } });
 
@@ -192,7 +192,7 @@ TEST_P(GfxCppBindGroupLayoutTest, CreateBindGroupLayoutWithDynamicOffset)
     gfx::BindGroupLayoutEntry entry{
         .binding = 0,
         .visibility = gfx::ShaderStage::Compute,
-        .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = true,
             .minBindingSize = 64 }
     };
@@ -217,7 +217,7 @@ TEST_P(GfxCppBindGroupLayoutTest, CreateMultipleBindGroupLayouts)
         gfx::BindGroupLayoutEntry entry{
             .binding = 0,
             .visibility = gfx::ShaderStage::Compute,
-            .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+            .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
                 .hasDynamicOffset = false,
                 .minBindingSize = 0 }
         };

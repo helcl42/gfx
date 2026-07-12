@@ -66,7 +66,7 @@ TEST_P(BindGroupImplTest, CreateBindGroupWithBuffer)
     BindGroupLayoutEntry layoutEntry{
         .binding = 0,
         .visibility = ShaderStage::Compute,
-        .resource = BindGroupLayoutEntry::BufferBinding{
+        .resource = BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 0 }
     };
@@ -226,7 +226,7 @@ TEST_P(BindGroupImplTest, CreateBindGroupWithMultipleBindings)
     BindGroupLayoutEntry bufferLayoutEntry{
         .binding = 0,
         .visibility = ShaderStage::Compute,
-        .resource = BindGroupLayoutEntry::BufferBinding{
+        .resource = BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 0 }
     };
@@ -302,7 +302,7 @@ TEST_P(BindGroupImplTest, MultipleBindGroups_IndependentHandles)
     BindGroupLayoutEntry layoutEntry{
         .binding = 0,
         .visibility = ShaderStage::Compute,
-        .resource = BindGroupLayoutEntry::BufferBinding{
+        .resource = BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 0 }
     };

@@ -1167,7 +1167,7 @@ static bool createBindGroup(CubeApp* app)
     GfxBindGroupLayoutEntry uniformLayoutEntry = {
         .binding = 0,
         .visibility = GFX_SHADER_STAGE_VERTEX,
-        .type = GFX_BINDING_TYPE_BUFFER,
+        .type = GFX_BINDING_TYPE_UNIFORM_BUFFER,
         .count = 1,
         .buffer = {
             .hasDynamicOffset = false,

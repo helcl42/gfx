@@ -899,7 +899,7 @@ typedef enum {
 } GfxBindGroupEntryType;
 
 typedef enum {
-    GFX_BINDING_TYPE_BUFFER = 0, // Uniform buffer
+    GFX_BINDING_TYPE_UNIFORM_BUFFER = 0,
     GFX_BINDING_TYPE_SAMPLER = 1,
     GFX_BINDING_TYPE_TEXTURE = 2,
     GFX_BINDING_TYPE_STORAGE_TEXTURE = 3,

@@ -22,8 +22,7 @@ protected:
 
             instance = gfx::createInstance(instDesc);
 
-            gfx::AdapterDescriptor adapterDesc{
-            };
+            gfx::AdapterDescriptor adapterDesc{};
 
             adapter = instance->requestAdapter(adapterDesc);
 
@@ -225,7 +224,7 @@ TEST_P(GfxCppComputePipelineTest, CreateComputePipelineWithBindGroupLayouts)
     gfx::BindGroupLayoutEntry entry{
         .binding = 0,
         .visibility = gfx::ShaderStage::Compute,
-        .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 0 }
     };
@@ -269,7 +268,7 @@ TEST_P(GfxCppComputePipelineTest, CreateComputePipelineWithMultipleBindGroupLayo
     gfx::BindGroupLayoutEntry entry1{
         .binding = 0,
         .visibility = gfx::ShaderStage::Compute,
-        .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 0 }
     };
@@ -286,7 +285,7 @@ TEST_P(GfxCppComputePipelineTest, CreateComputePipelineWithMultipleBindGroupLayo
     gfx::BindGroupLayoutEntry entry2{
         .binding = 0,
         .visibility = gfx::ShaderStage::Compute,
-        .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
             .hasDynamicOffset = false,
             .minBindingSize = 0 }
     };

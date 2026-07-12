@@ -146,7 +146,7 @@ TEST_P(ComputePipelineImplTest, CreateComputePipelineWithBindGroupLayouts)
             BindGroupLayoutEntry{
                 .binding = 0,
                 .visibility = ShaderStage::Compute,
-                .resource = BindGroupLayoutEntry::BufferBinding{
+                .resource = BindGroupLayoutEntry::UniformBufferBinding{
 
                     .hasDynamicOffset = false,
                     .minBindingSize = 0 } } }
@@ -187,7 +187,7 @@ TEST_P(ComputePipelineImplTest, CreateComputePipelineWithMultipleBindGroupLayout
             BindGroupLayoutEntry{
                 .binding = 0,
                 .visibility = ShaderStage::Compute,
-                .resource = BindGroupLayoutEntry::BufferBinding{
+                .resource = BindGroupLayoutEntry::UniformBufferBinding{
                     .hasDynamicOffset = false,
                     .minBindingSize = 0 } } }
     };
@@ -201,7 +201,7 @@ TEST_P(ComputePipelineImplTest, CreateComputePipelineWithMultipleBindGroupLayout
             BindGroupLayoutEntry{
                 .binding = 0,
                 .visibility = ShaderStage::Compute,
-                .resource = BindGroupLayoutEntry::BufferBinding{
+                .resource = BindGroupLayoutEntry::UniformBufferBinding{
                     .hasDynamicOffset = false,
                     .minBindingSize = 0 } } }
     };

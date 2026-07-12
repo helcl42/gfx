@@ -932,7 +932,7 @@ bool CubeApp::createUniformBuffer()
             .binding = 0,
             .visibility = gfx::ShaderStage::Vertex,
             .count = 1,
-            .resource = gfx::BindGroupLayoutEntry::BufferBinding{
+            .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
                 .hasDynamicOffset = false,
                 .minBindingSize = sizeof(UniformData),
             },

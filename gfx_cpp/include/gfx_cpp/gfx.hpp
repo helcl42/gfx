@@ -1250,7 +1250,7 @@ struct BindGroupLayoutEntry {
     uint32_t count = 1; // Number of descriptors (for arrays)
 
     // Resource type (exactly one should be set)
-    struct BufferBinding {
+    struct UniformBufferBinding {
         bool hasDynamicOffset = false;
         uint64_t minBindingSize = 0;
     };
@@ -1276,7 +1276,7 @@ struct BindGroupLayoutEntry {
         TextureViewType viewDimension = TextureViewType::View2D;
     };
 
-    std::variant<BufferBinding, SamplerBinding, TextureBinding, StorageTextureBinding, StorageBufferBinding> resource;
+    std::variant<UniformBufferBinding, SamplerBinding, TextureBinding, StorageTextureBinding, StorageBufferBinding> resource;
 };
 
 struct BindGroupLayoutDescriptor {
