@@ -115,8 +115,8 @@ TEST(GfxUtilTest, PlatformWindowHandleFromXlib)
     unsigned long window = 5678;
     GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromXlib(display, window);
     EXPECT_EQ(handle.windowingSystem, GFX_WINDOWING_SYSTEM_XLIB);
-    EXPECT_EQ(handle.xlib.display, display);
-    EXPECT_EQ(handle.xlib.window, window);
+    EXPECT_EQ(handle.handle.xlib.display, display);
+    EXPECT_EQ(handle.handle.xlib.window, window);
 }
 
 TEST(GfxUtilTest, PlatformWindowHandleFromWayland)
@@ -125,8 +125,8 @@ TEST(GfxUtilTest, PlatformWindowHandleFromWayland)
     void* display = (void*)0x5678;
     GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromWayland(display, surface);
     EXPECT_EQ(handle.windowingSystem, GFX_WINDOWING_SYSTEM_WAYLAND);
-    EXPECT_EQ(handle.wayland.surface, surface);
-    EXPECT_EQ(handle.wayland.display, display);
+    EXPECT_EQ(handle.handle.wayland.surface, surface);
+    EXPECT_EQ(handle.handle.wayland.display, display);
 }
 
 TEST(GfxUtilTest, PlatformWindowHandleFromXCB)
@@ -135,8 +135,8 @@ TEST(GfxUtilTest, PlatformWindowHandleFromXCB)
     uint32_t window = 5678;
     GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromXCB(connection, window);
     EXPECT_EQ(handle.windowingSystem, GFX_WINDOWING_SYSTEM_XCB);
-    EXPECT_EQ(handle.xcb.connection, connection);
-    EXPECT_EQ(handle.xcb.window, window);
+    EXPECT_EQ(handle.handle.xcb.connection, connection);
+    EXPECT_EQ(handle.handle.xcb.window, window);
 }
 
 TEST(GfxUtilTest, PlatformWindowHandleFromWin32)
@@ -145,8 +145,8 @@ TEST(GfxUtilTest, PlatformWindowHandleFromWin32)
     void* hwnd = (void*)0x1234;
     GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromWin32(hinstance, hwnd);
     EXPECT_EQ(handle.windowingSystem, GFX_WINDOWING_SYSTEM_WIN32);
-    EXPECT_EQ(handle.win32.hinstance, hinstance);
-    EXPECT_EQ(handle.win32.hwnd, hwnd);
+    EXPECT_EQ(handle.handle.win32.hinstance, hinstance);
+    EXPECT_EQ(handle.handle.win32.hwnd, hwnd);
 }
 
 TEST(GfxUtilTest, PlatformWindowHandleFromEmscripten)
@@ -154,7 +154,7 @@ TEST(GfxUtilTest, PlatformWindowHandleFromEmscripten)
     const char* selector = "#canvas";
     GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromEmscripten(selector);
     EXPECT_EQ(handle.windowingSystem, GFX_WINDOWING_SYSTEM_EMSCRIPTEN);
-    EXPECT_EQ(handle.emscripten.canvasSelector, selector);
+    EXPECT_EQ(handle.handle.emscripten.canvasSelector, selector);
 }
 
 TEST(GfxUtilTest, PlatformWindowHandleFromAndroid)
@@ -162,7 +162,7 @@ TEST(GfxUtilTest, PlatformWindowHandleFromAndroid)
     void* window = (void*)0x1234;
     GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromAndroid(window);
     EXPECT_EQ(handle.windowingSystem, GFX_WINDOWING_SYSTEM_ANDROID);
-    EXPECT_EQ(handle.android.window, window);
+    EXPECT_EQ(handle.handle.android.window, window);
 }
 
 TEST(GfxUtilTest, FormatBlockSizeAndDimensions)
@@ -208,7 +208,7 @@ TEST(GfxUtilTest, PlatformWindowHandleFromMetalLayer)
     void* layer = (void*)0x1234;
     GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromMetalLayer(layer);
     EXPECT_EQ(handle.windowingSystem, GFX_WINDOWING_SYSTEM_METAL);
-    EXPECT_EQ(handle.metal.layer, layer);
+    EXPECT_EQ(handle.handle.metal.layer, layer);
 }
 
 TEST(GfxUtilTest, PlatformWindowHandleFromCocoaWindow)
@@ -217,7 +217,7 @@ TEST(GfxUtilTest, PlatformWindowHandleFromCocoaWindow)
     GfxPlatformWindowHandle handle = gfxPlatformWindowHandleFromCocoaWindow(window);
     EXPECT_EQ(handle.windowingSystem, GFX_WINDOWING_SYSTEM_METAL);
     // the layer is derived from the window's content view; a null window yields a null layer
-    EXPECT_EQ(handle.metal.layer, nullptr);
+    EXPECT_EQ(handle.handle.metal.layer, nullptr);
 }
 
 } // namespace

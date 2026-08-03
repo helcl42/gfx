@@ -1,7 +1,7 @@
 #ifndef GFX_GFX_H
 #define GFX_GFX_H
 
-// Language requirements: C11 (anonymous unions) or C++11 and later
+// Language requirements: C99 (designated initializers) or C++11 and later
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -1911,7 +1911,7 @@ typedef struct {
         GfxMetalHandle metal;
         GfxEmscriptenHandle emscripten;
         GfxAndroidHandle android;
-    };
+    } handle;
 } GfxPlatformWindowHandle;
 
 typedef struct {

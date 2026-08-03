@@ -859,29 +859,29 @@ GfxPlatformWindowHandle cppHandleToCHandle(const PlatformWindowHandle& windowHan
 
     switch (windowHandle.windowingSystem) {
     case WindowingSystem::Win32:
-        cHandle.win32.hwnd = windowHandle.handle.win32.hwnd;
-        cHandle.win32.hinstance = windowHandle.handle.win32.hinstance;
+        cHandle.handle.win32.hwnd = windowHandle.handle.win32.hwnd;
+        cHandle.handle.win32.hinstance = windowHandle.handle.win32.hinstance;
         break;
     case WindowingSystem::Xlib:
-        cHandle.xlib.window = windowHandle.handle.xlib.window;
-        cHandle.xlib.display = windowHandle.handle.xlib.display;
+        cHandle.handle.xlib.window = windowHandle.handle.xlib.window;
+        cHandle.handle.xlib.display = windowHandle.handle.xlib.display;
         break;
     case WindowingSystem::Wayland:
-        cHandle.wayland.surface = windowHandle.handle.wayland.surface;
-        cHandle.wayland.display = windowHandle.handle.wayland.display;
+        cHandle.handle.wayland.surface = windowHandle.handle.wayland.surface;
+        cHandle.handle.wayland.display = windowHandle.handle.wayland.display;
         break;
     case WindowingSystem::XCB:
-        cHandle.xcb.connection = windowHandle.handle.xcb.connection;
-        cHandle.xcb.window = windowHandle.handle.xcb.window;
+        cHandle.handle.xcb.connection = windowHandle.handle.xcb.connection;
+        cHandle.handle.xcb.window = windowHandle.handle.xcb.window;
         break;
     case WindowingSystem::Metal:
-        cHandle.metal.layer = windowHandle.handle.metal.layer;
+        cHandle.handle.metal.layer = windowHandle.handle.metal.layer;
         break;
     case WindowingSystem::Emscripten:
-        cHandle.emscripten.canvasSelector = windowHandle.handle.emscripten.canvasSelector;
+        cHandle.handle.emscripten.canvasSelector = windowHandle.handle.emscripten.canvasSelector;
         break;
     case WindowingSystem::Android:
-        cHandle.android.window = windowHandle.handle.android.window;
+        cHandle.handle.android.window = windowHandle.handle.android.window;
         break;
     default:
         // Unknown or unsupported platform - leave handles null
@@ -1504,8 +1504,8 @@ PlatformWindowHandle cPlatformWindowHandleWin32ToCpp(const GfxPlatformWindowHand
 {
     PlatformWindowHandle cppHandle = {};
     cppHandle.windowingSystem = WindowingSystem::Win32;
-    cppHandle.handle.win32.hinstance = cHandle.win32.hinstance;
-    cppHandle.handle.win32.hwnd = cHandle.win32.hwnd;
+    cppHandle.handle.win32.hinstance = cHandle.handle.win32.hinstance;
+    cppHandle.handle.win32.hwnd = cHandle.handle.win32.hwnd;
     return cppHandle;
 }
 
@@ -1513,8 +1513,8 @@ PlatformWindowHandle cPlatformWindowHandleXlibToCpp(const GfxPlatformWindowHandl
 {
     PlatformWindowHandle cppHandle = {};
     cppHandle.windowingSystem = WindowingSystem::Xlib;
-    cppHandle.handle.xlib.display = cHandle.xlib.display;
-    cppHandle.handle.xlib.window = cHandle.xlib.window;
+    cppHandle.handle.xlib.display = cHandle.handle.xlib.display;
+    cppHandle.handle.xlib.window = cHandle.handle.xlib.window;
     return cppHandle;
 }
 
@@ -1522,8 +1522,8 @@ PlatformWindowHandle cPlatformWindowHandleWaylandToCpp(const GfxPlatformWindowHa
 {
     PlatformWindowHandle cppHandle = {};
     cppHandle.windowingSystem = WindowingSystem::Wayland;
-    cppHandle.handle.wayland.display = cHandle.wayland.display;
-    cppHandle.handle.wayland.surface = cHandle.wayland.surface;
+    cppHandle.handle.wayland.display = cHandle.handle.wayland.display;
+    cppHandle.handle.wayland.surface = cHandle.handle.wayland.surface;
     return cppHandle;
 }
 
@@ -1531,8 +1531,8 @@ PlatformWindowHandle cPlatformWindowHandleXCBToCpp(const GfxPlatformWindowHandle
 {
     PlatformWindowHandle cppHandle = {};
     cppHandle.windowingSystem = WindowingSystem::XCB;
-    cppHandle.handle.xcb.connection = cHandle.xcb.connection;
-    cppHandle.handle.xcb.window = cHandle.xcb.window;
+    cppHandle.handle.xcb.connection = cHandle.handle.xcb.connection;
+    cppHandle.handle.xcb.window = cHandle.handle.xcb.window;
     return cppHandle;
 }
 
@@ -1540,7 +1540,7 @@ PlatformWindowHandle cPlatformWindowHandleMetalToCpp(const GfxPlatformWindowHand
 {
     PlatformWindowHandle cppHandle = {};
     cppHandle.windowingSystem = WindowingSystem::Metal;
-    cppHandle.handle.metal.layer = cHandle.metal.layer;
+    cppHandle.handle.metal.layer = cHandle.handle.metal.layer;
     return cppHandle;
 }
 
@@ -1548,7 +1548,7 @@ PlatformWindowHandle cPlatformWindowHandleEmscriptenToCpp(const GfxPlatformWindo
 {
     PlatformWindowHandle cppHandle = {};
     cppHandle.windowingSystem = WindowingSystem::Emscripten;
-    cppHandle.handle.emscripten.canvasSelector = cHandle.emscripten.canvasSelector;
+    cppHandle.handle.emscripten.canvasSelector = cHandle.handle.emscripten.canvasSelector;
     return cppHandle;
 }
 
@@ -1556,7 +1556,7 @@ PlatformWindowHandle cPlatformWindowHandleAndroidToCpp(const GfxPlatformWindowHa
 {
     PlatformWindowHandle cppHandle = {};
     cppHandle.windowingSystem = WindowingSystem::Android;
-    cppHandle.handle.android.window = cHandle.android.window;
+    cppHandle.handle.android.window = cHandle.handle.android.window;
     return cppHandle;
 }
 

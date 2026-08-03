@@ -707,8 +707,8 @@ TEST(ConversionsTest, CppHandleToCHandle_Xlib)
     GfxPlatformWindowHandle cHandle = cppHandleToCHandle(cppHandle);
 
     EXPECT_EQ(cHandle.windowingSystem, GFX_WINDOWING_SYSTEM_XLIB);
-    EXPECT_EQ(cHandle.xlib.display, (void*)0x1234);
-    EXPECT_EQ(cHandle.xlib.window, 5678);
+    EXPECT_EQ(cHandle.handle.xlib.display, (void*)0x1234);
+    EXPECT_EQ(cHandle.handle.xlib.window, 5678);
 }
 #endif // GFX_HAS_X11
 
@@ -720,8 +720,8 @@ TEST(ConversionsTest, CppHandleToCHandle_Wayland)
     GfxPlatformWindowHandle cHandle = cppHandleToCHandle(cppHandle);
 
     EXPECT_EQ(cHandle.windowingSystem, GFX_WINDOWING_SYSTEM_WAYLAND);
-    EXPECT_EQ(cHandle.wayland.display, (void*)0x1234);
-    EXPECT_EQ(cHandle.wayland.surface, (void*)0x5678);
+    EXPECT_EQ(cHandle.handle.wayland.display, (void*)0x1234);
+    EXPECT_EQ(cHandle.handle.wayland.surface, (void*)0x5678);
 }
 #endif // GFX_HAS_WAYLAND
 
@@ -732,8 +732,8 @@ TEST(ConversionsTest, CppHandleToCHandle_XCB)
     GfxPlatformWindowHandle cHandle = cppHandleToCHandle(cppHandle);
 
     EXPECT_EQ(cHandle.windowingSystem, GFX_WINDOWING_SYSTEM_XCB);
-    EXPECT_EQ(cHandle.xcb.connection, (void*)0x1234);
-    EXPECT_EQ(cHandle.xcb.window, 5678);
+    EXPECT_EQ(cHandle.handle.xcb.connection, (void*)0x1234);
+    EXPECT_EQ(cHandle.handle.xcb.window, 5678);
 }
 #endif // GFX_HAS_XCB
 

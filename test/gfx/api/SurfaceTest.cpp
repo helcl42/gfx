@@ -79,8 +79,8 @@ TEST_P(GfxSurfaceTest, CreateSurfaceInvalidArguments)
     GfxSurfaceDescriptor desc = {};
     desc.label = "TestSurface";
     desc.windowHandle.windowingSystem = GFX_WINDOWING_SYSTEM_XLIB;
-    desc.windowHandle.xlib.display = NULL; // Invalid display
-    desc.windowHandle.xlib.window = 0; // Invalid window
+    desc.windowHandle.handle.xlib.display = NULL; // Invalid display
+    desc.windowHandle.handle.xlib.window = 0; // Invalid window
 
     // NULL instance
     GfxResult result = gfxInstanceCreateSurface(NULL, &desc, &surface);

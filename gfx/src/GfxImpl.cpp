@@ -1662,8 +1662,8 @@ GfxPlatformWindowHandle gfxPlatformWindowHandleFromXlib(void* display, unsigned 
 {
     GfxPlatformWindowHandle handle = {};
     handle.windowingSystem = GFX_WINDOWING_SYSTEM_XLIB;
-    handle.xlib.display = display;
-    handle.xlib.window = window;
+    handle.handle.xlib.display = display;
+    handle.handle.xlib.window = window;
     return handle;
 }
 
@@ -1671,8 +1671,8 @@ GfxPlatformWindowHandle gfxPlatformWindowHandleFromWayland(void* display, void* 
 {
     GfxPlatformWindowHandle handle = {};
     handle.windowingSystem = GFX_WINDOWING_SYSTEM_WAYLAND;
-    handle.wayland.display = display;
-    handle.wayland.surface = surface;
+    handle.handle.wayland.display = display;
+    handle.handle.wayland.surface = surface;
     return handle;
 }
 
@@ -1680,8 +1680,8 @@ GfxPlatformWindowHandle gfxPlatformWindowHandleFromXCB(void* connection, uint32_
 {
     GfxPlatformWindowHandle handle = {};
     handle.windowingSystem = GFX_WINDOWING_SYSTEM_XCB;
-    handle.xcb.connection = connection;
-    handle.xcb.window = window;
+    handle.handle.xcb.connection = connection;
+    handle.handle.xcb.window = window;
     return handle;
 }
 
@@ -1689,8 +1689,8 @@ GfxPlatformWindowHandle gfxPlatformWindowHandleFromWin32(void* hinstance, void* 
 {
     GfxPlatformWindowHandle handle = {};
     handle.windowingSystem = GFX_WINDOWING_SYSTEM_WIN32;
-    handle.win32.hinstance = hinstance;
-    handle.win32.hwnd = hwnd;
+    handle.handle.win32.hinstance = hinstance;
+    handle.handle.win32.hwnd = hwnd;
     return handle;
 }
 
@@ -1698,7 +1698,7 @@ GfxPlatformWindowHandle gfxPlatformWindowHandleFromEmscripten(const char* canvas
 {
     GfxPlatformWindowHandle handle = {};
     handle.windowingSystem = GFX_WINDOWING_SYSTEM_EMSCRIPTEN;
-    handle.emscripten.canvasSelector = canvasSelector;
+    handle.handle.emscripten.canvasSelector = canvasSelector;
     return handle;
 }
 
@@ -1706,7 +1706,7 @@ GfxPlatformWindowHandle gfxPlatformWindowHandleFromAndroid(void* window)
 {
     GfxPlatformWindowHandle handle = {};
     handle.windowingSystem = GFX_WINDOWING_SYSTEM_ANDROID;
-    handle.android.window = window;
+    handle.handle.android.window = window;
     return handle;
 }
 
@@ -1714,7 +1714,7 @@ GfxPlatformWindowHandle gfxPlatformWindowHandleFromMetalLayer(void* metalLayer)
 {
     GfxPlatformWindowHandle handle = {};
     handle.windowingSystem = GFX_WINDOWING_SYSTEM_METAL;
-    handle.metal.layer = metalLayer;
+    handle.handle.metal.layer = metalLayer;
     return handle;
 }
 
@@ -1722,7 +1722,7 @@ GfxPlatformWindowHandle gfxPlatformWindowHandleFromCocoaWindow(void* nsWindow)
 {
     GfxPlatformWindowHandle handle = {};
     handle.windowingSystem = GFX_WINDOWING_SYSTEM_METAL;
-    handle.metal.layer = gfx::util::getMetalLayerFromCocoaWindow(nsWindow);
+    handle.handle.metal.layer = gfx::util::getMetalLayerFromCocoaWindow(nsWindow);
     return handle;
 }
 

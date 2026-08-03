@@ -416,35 +416,35 @@ core::PlatformWindowHandle gfxWindowHandleToWebGPUPlatformWindowHandle(const Gfx
     switch (gfxHandle.windowingSystem) {
     case GFX_WINDOWING_SYSTEM_XCB:
         handle.platform = core::PlatformWindowHandle::Platform::Xcb;
-        handle.handle.xcb.connection = gfxHandle.xcb.connection;
-        handle.handle.xcb.window = gfxHandle.xcb.window;
+        handle.handle.xcb.connection = gfxHandle.handle.xcb.connection;
+        handle.handle.xcb.window = gfxHandle.handle.xcb.window;
         break;
     case GFX_WINDOWING_SYSTEM_XLIB:
         handle.platform = core::PlatformWindowHandle::Platform::Xlib;
-        handle.handle.xlib.display = gfxHandle.xlib.display;
-        handle.handle.xlib.window = gfxHandle.xlib.window;
+        handle.handle.xlib.display = gfxHandle.handle.xlib.display;
+        handle.handle.xlib.window = gfxHandle.handle.xlib.window;
         break;
     case GFX_WINDOWING_SYSTEM_WAYLAND:
         handle.platform = core::PlatformWindowHandle::Platform::Wayland;
-        handle.handle.wayland.display = gfxHandle.wayland.display;
-        handle.handle.wayland.surface = gfxHandle.wayland.surface;
+        handle.handle.wayland.display = gfxHandle.handle.wayland.display;
+        handle.handle.wayland.surface = gfxHandle.handle.wayland.surface;
         break;
     case GFX_WINDOWING_SYSTEM_WIN32:
         handle.platform = core::PlatformWindowHandle::Platform::Win32;
-        handle.handle.win32.hinstance = gfxHandle.win32.hinstance;
-        handle.handle.win32.hwnd = gfxHandle.win32.hwnd;
+        handle.handle.win32.hinstance = gfxHandle.handle.win32.hinstance;
+        handle.handle.win32.hwnd = gfxHandle.handle.win32.hwnd;
         break;
     case GFX_WINDOWING_SYSTEM_METAL:
         handle.platform = core::PlatformWindowHandle::Platform::Metal;
-        handle.handle.metal.layer = gfxHandle.metal.layer;
+        handle.handle.metal.layer = gfxHandle.handle.metal.layer;
         break;
     case GFX_WINDOWING_SYSTEM_EMSCRIPTEN:
         handle.platform = core::PlatformWindowHandle::Platform::Emscripten;
-        handle.handle.emscripten.canvasSelector = gfxHandle.emscripten.canvasSelector;
+        handle.handle.emscripten.canvasSelector = gfxHandle.handle.emscripten.canvasSelector;
         break;
     case GFX_WINDOWING_SYSTEM_ANDROID:
         handle.platform = core::PlatformWindowHandle::Platform::Android;
-        handle.handle.android.window = gfxHandle.android.window;
+        handle.handle.android.window = gfxHandle.handle.android.window;
         break;
     default:
         handle.platform = core::PlatformWindowHandle::Platform::Unknown;

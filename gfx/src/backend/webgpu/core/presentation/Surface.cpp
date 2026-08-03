@@ -33,7 +33,7 @@ namespace {
         }
 
         WGPUSurfaceSourceAndroidNativeWindow source = WGPU_SURFACE_SOURCE_ANDROID_NATIVE_WINDOW_INIT;
-        source.window = windowHandle.android.window;
+        source.window = windowHandle.handle.android.window;
 
         WGPUSurfaceDescriptor surfaceDesc = WGPU_SURFACE_DESCRIPTOR_INIT;
         surfaceDesc.label = toStringView("Android Surface");
