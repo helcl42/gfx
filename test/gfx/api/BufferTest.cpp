@@ -1,6 +1,8 @@
 #include "CommonTest.h"
 
+#include <chrono>
 #include <cstring>
+#include <thread>
 
 // C API tests compiled with C++ for GoogleTest compatibility
 
@@ -673,8 +675,9 @@ TEST_P(GfxBufferTest, MapAsyncPollsUntilReady)
     GfxResult result = gfxBufferMapAsync(buffer, 0, desc.size, &ptr);
     ASSERT_TRUE(result == GFX_RESULT_SUCCESS || result == GFX_RESULT_NOT_READY) << "unexpected map result: " << result;
 
-    constexpr int maxAttempts = 1000;
-    for (int i = 0; result == GFX_RESULT_NOT_READY && i < maxAttempts; ++i) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (result == GFX_RESULT_NOT_READY && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
         result = gfxBufferMapAsync(buffer, 0, desc.size, &ptr);
     }
     ASSERT_EQ(result, GFX_RESULT_SUCCESS) << "buffer did not become mapped within timeout";

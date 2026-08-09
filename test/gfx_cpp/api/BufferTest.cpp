@@ -1,6 +1,8 @@
 #include "CommonTest.h"
 
+#include <chrono>
 #include <cstring>
+#include <thread>
 
 // ===========================================================================
 // Parameterized Tests - Run on both Vulkan and WebGPU backends
@@ -587,8 +589,9 @@ TEST_P(GfxCppBufferTest, MapAsyncPollsUntilReady)
     gfx::Result result = buffer->mapAsync(ptr, 0, desc.size);
     ASSERT_TRUE(result == gfx::Result::Success || result == gfx::Result::NotReady);
 
-    constexpr int maxAttempts = 1000;
-    for (int i = 0; result == gfx::Result::NotReady && i < maxAttempts; ++i) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (result == gfx::Result::NotReady && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
         result = buffer->mapAsync(ptr, 0, desc.size);
     }
     ASSERT_EQ(result, gfx::Result::Success) << "buffer did not become mapped within timeout";

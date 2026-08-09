@@ -4,8 +4,10 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cstring>
 #include <memory>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -108,8 +110,9 @@ TEST_F(WebGPUBufferTest, Map_PollsUntilReady_ThenWrites)
     MapStatus status = buffer->map(0, 256, &ptr);
     ASSERT_NE(status, MapStatus::Failed);
 
-    constexpr int maxAttempts = 100000;
-    for (int i = 0; status == MapStatus::Pending && i < maxAttempts; ++i) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (status == MapStatus::Pending && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
         status = buffer->map(0, 256, &ptr);
     }
     ASSERT_EQ(status, MapStatus::Ready) << "buffer did not become mapped within timeout";

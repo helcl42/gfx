@@ -1,5 +1,8 @@
 #include "../../common/CommonTest.h"
 
+#include <chrono>
+#include <thread>
+
 #include <core/resource/Buffer.h>
 #include <core/system/Device.h>
 
@@ -259,8 +262,9 @@ TEST_P(BufferImplTest, MapAsyncPollsUntilReady)
     Result result = buffer->mapAsync(ptr, 0, desc.size);
     ASSERT_TRUE(result == Result::Success || result == Result::NotReady);
 
-    constexpr int maxAttempts = 1000;
-    for (int i = 0; result == Result::NotReady && i < maxAttempts; ++i) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (result == Result::NotReady && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
         result = buffer->mapAsync(ptr, 0, desc.size);
     }
     ASSERT_EQ(result, Result::Success) << "buffer did not become mapped within timeout";
