@@ -569,14 +569,12 @@ TEST_P(GfxCppBufferTest, FlushInvalidateCombined)
 // Async Map Tests
 // ===========================================================================
 
-TEST_P(GfxCppBufferTest, AsyncMapWithNullBuffer)
+TEST_P(GfxCppBufferTest, MapAsyncPollsUntilReady)
 {
-    // C++ API — no null buffer handle possible via shared_ptr, test via validator indirectly
-    // Instead verify initial state of a valid buffer
     ASSERT_NE(device, nullptr);
 
     gfx::BufferDescriptor desc{
-        .label = "Async Map Buffer",
+        .label = "Polled Map Buffer",
         .size = 1024,
         .usage = gfx::BufferUsage::MapWrite | gfx::BufferUsage::CopySrc,
         .memoryProperties = gfx::MemoryProperty::HostVisible | gfx::MemoryProperty::HostCoherent
@@ -585,78 +583,37 @@ TEST_P(GfxCppBufferTest, AsyncMapWithNullBuffer)
     auto buffer = device->createBuffer(desc);
     ASSERT_NE(buffer, nullptr);
 
-    EXPECT_FALSE(buffer->isAsyncMapped());
-    EXPECT_EQ(buffer->getAsyncMappedPointer(), nullptr);
-}
+    void* ptr = nullptr;
+    gfx::Result result = buffer->mapAsync(ptr, 0, desc.size);
+    ASSERT_TRUE(result == gfx::Result::Success || result == gfx::Result::NotReady);
 
-TEST_P(GfxCppBufferTest, WaitAsyncMappedOperation)
-{
-    ASSERT_NE(device, nullptr);
-
-    gfx::BufferDescriptor desc{
-        .label = "Wait Async Map Buffer",
-        .size = 1024,
-        .usage = gfx::BufferUsage::MapWrite | gfx::BufferUsage::CopySrc,
-        .memoryProperties = gfx::MemoryProperty::HostVisible | gfx::MemoryProperty::HostCoherent
-    };
-
-    auto buffer = device->createBuffer(desc);
-    ASSERT_NE(buffer, nullptr);
-
-    EXPECT_NO_THROW(buffer->asyncMap(0, desc.size));
-
-    // Block until mapped
-    EXPECT_TRUE(buffer->waitAsyncMapped(UINT64_MAX));
-
-    void* ptr = buffer->getAsyncMappedPointer();
-    EXPECT_NE(ptr, nullptr);
-
-    std::memset(ptr, 0xAB, desc.size);
-    buffer->unmap();
-}
-
-TEST_P(GfxCppBufferTest, AsyncMapOperation)
-{
-    ASSERT_NE(device, nullptr);
-
-    gfx::BufferDescriptor desc{
-        .label = "Async Map Buffer",
-        .size = 1024,
-        .usage = gfx::BufferUsage::MapWrite | gfx::BufferUsage::CopySrc,
-        .memoryProperties = gfx::MemoryProperty::HostVisible | gfx::MemoryProperty::HostCoherent
-    };
-
-    auto buffer = device->createBuffer(desc);
-    ASSERT_NE(buffer, nullptr);
-
-    // Not mapped initially
-    EXPECT_FALSE(buffer->isAsyncMapped());
-    EXPECT_EQ(buffer->getAsyncMappedPointer(), nullptr);
-
-    // Initiate async map
-    EXPECT_NO_THROW(buffer->asyncMap(0, desc.size));
-
-    // Give the device a chance to process the async work before polling
-    device->waitIdle();
-
-    // Poll until mapped (with timeout for WebGPU)
-    constexpr int maxAttempts = 100;
-    bool mapped = false;
-    for (int i = 0; i < maxAttempts; ++i) {
-        mapped = buffer->isAsyncMapped();
-        if (mapped) {
-            break;
-        }
+    constexpr int maxAttempts = 1000;
+    for (int i = 0; result == gfx::Result::NotReady && i < maxAttempts; ++i) {
+        result = buffer->mapAsync(ptr, 0, desc.size);
     }
-    ASSERT_TRUE(mapped) << "Buffer did not become async-mapped within timeout";
+    ASSERT_EQ(result, gfx::Result::Success) << "buffer did not become mapped within timeout";
+    ASSERT_NE(ptr, nullptr);
 
-    void* ptr = buffer->getAsyncMappedPointer();
-    EXPECT_NE(ptr, nullptr);
-
-    // Write some data
     std::memset(ptr, 0xAB, desc.size);
-
     buffer->unmap();
+}
+
+TEST_P(GfxCppBufferTest, WriteHelperMapsSuccessfully)
+{
+    ASSERT_NE(device, nullptr);
+
+    gfx::BufferDescriptor desc{
+        .label = "Write Helper Buffer",
+        .size = 1024,
+        .usage = gfx::BufferUsage::MapWrite | gfx::BufferUsage::CopySrc,
+        .memoryProperties = gfx::MemoryProperty::HostVisible | gfx::MemoryProperty::HostCoherent
+    };
+
+    auto buffer = device->createBuffer(desc);
+    ASSERT_NE(buffer, nullptr);
+
+    const std::vector<uint32_t> data(64, 0xDEADBEEFu);
+    EXPECT_NO_THROW(buffer->write(data));
 }
 
 // ===========================================================================

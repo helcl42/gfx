@@ -1683,15 +1683,11 @@ public:
     virtual BufferInfo getInfo() const = 0;
     virtual void* getNativeHandle() const = 0;
     virtual void* map(uint64_t offset = 0, uint64_t size = WholeSize) = 0;
+    // Returns Result::NotReady until the mapping lands (call again to poll).
+    virtual Result mapAsync(void*& outPointer, uint64_t offset = 0, uint64_t size = WholeSize) = 0;
     virtual void unmap() = 0;
     virtual void flushMappedRange(uint64_t offset, uint64_t size) = 0;
     virtual void invalidateMappedRange(uint64_t offset, uint64_t size) = 0;
-    virtual void asyncMap(uint64_t offset = 0, uint64_t size = WholeSize) = 0;
-    virtual bool isAsyncMapped() const = 0;
-    virtual void* getAsyncMappedPointer() const = 0;
-    // Blocks until the async map completes or timeoutNs nanoseconds elapse.
-    // Returns true if mapped successfully, false on timeout.
-    virtual bool waitAsyncMapped(uint64_t timeoutNs = UINT64_MAX) = 0;
 
     template <typename T>
     T* map(uint64_t offset = 0)

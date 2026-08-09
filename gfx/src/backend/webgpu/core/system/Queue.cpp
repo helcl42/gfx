@@ -57,8 +57,12 @@ bool Queue::submit(const SubmitInfo& submitInfo)
         }
     }
 
-    // Signal fence if provided - use queue work done to wait for GPU completion
+    // Signal fence if provided
     if (submitInfo.signalFence) {
+#ifdef __EMSCRIPTEN__
+        // The web cannot block on GPU completion; queue ordering stands in, so satisfy the fence at submit.
+        static_cast<Fence*>(submitInfo.signalFence)->signal();
+#else
         static auto fenceSignalCallback = [](WGPUQueueWorkDoneStatus status, WGPUStringView, void* userdata1, void*) {
             auto* fence = static_cast<Fence*>(userdata1);
             if (status == WGPUQueueWorkDoneStatus_Success) {
@@ -77,6 +81,7 @@ bool Queue::submit(const SubmitInfo& submitInfo)
         WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
         waitInfo.future = future;
         wgpuInstanceWaitAny(m_device->getAdapter()->getInstance()->handle(), 1, &waitInfo, UINT64_MAX);
+#endif
     }
 
     return true;
@@ -115,6 +120,10 @@ void Queue::writeTexture(Texture* texture, uint32_t mipLevel, uint32_t arrayLaye
 
 bool Queue::waitIdle()
 {
+#ifdef __EMSCRIPTEN__
+    // The browser main thread must not block on GPU completion; queue ordering covers the callers.
+    return true;
+#else
     // Submit empty command to ensure all previous work is queued
     static auto queueWorkDoneCallback = [](WGPUQueueWorkDoneStatus status, WGPUStringView, void* userdata1, void*) {
         bool* done = static_cast<bool*>(userdata1);
@@ -137,6 +146,7 @@ bool Queue::waitIdle()
     wgpuInstanceWaitAny(m_device->getAdapter()->getInstance()->handle(), 1, &waitInfo, UINT64_MAX);
 
     return workDone;
+#endif // __EMSCRIPTEN__
 }
 
 } // namespace gfx::backend::webgpu::core

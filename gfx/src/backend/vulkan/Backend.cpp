@@ -230,29 +230,14 @@ GfxResult Backend::bufferMap(GfxBuffer buffer, uint64_t offset, uint64_t size, v
     return m_resourceComponent.bufferMap(buffer, offset, size, outMappedPointer);
 }
 
+GfxResult Backend::bufferMapAsync(GfxBuffer buffer, uint64_t offset, uint64_t size, void** outMappedPointer) const
+{
+    return m_resourceComponent.bufferMapAsync(buffer, offset, size, outMappedPointer);
+}
+
 GfxResult Backend::bufferUnmap(GfxBuffer buffer) const
 {
     return m_resourceComponent.bufferUnmap(buffer);
-}
-
-GfxResult Backend::bufferAsyncMap(GfxBuffer buffer, uint64_t offset, uint64_t size) const
-{
-    return m_resourceComponent.bufferAsyncMap(buffer, offset, size);
-}
-
-GfxResult Backend::bufferIsAsyncMapped(GfxBuffer buffer, bool* outMapped) const
-{
-    return m_resourceComponent.bufferIsAsyncMapped(buffer, outMapped);
-}
-
-GfxResult Backend::bufferGetAsyncMappedPointer(GfxBuffer buffer, void** outMappedPointer) const
-{
-    return m_resourceComponent.bufferGetAsyncMappedPointer(buffer, outMappedPointer);
-}
-
-GfxResult Backend::bufferWaitAsyncMapped(GfxBuffer buffer, uint64_t timeoutNs) const
-{
-    return m_resourceComponent.bufferWaitAsyncMapped(buffer, timeoutNs);
 }
 
 GfxResult Backend::bufferFlushMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size) const

@@ -19,10 +19,6 @@ public:
 
     void* map(uint64_t offset, uint64_t size);
     void unmap();
-    void asyncMap(uint64_t offset, uint64_t size);
-    bool isAsyncMapped() const;
-    void* getAsyncMappedPointer() const;
-    bool waitUntilAsyncMapped(uint64_t timeoutNs = UINT64_MAX);
     void flushMappedRange(uint64_t offset, uint64_t size);
     void invalidateMappedRange(uint64_t offset, uint64_t size);
 
@@ -41,8 +37,7 @@ private:
     VkBuffer m_buffer = VK_NULL_HANDLE;
     VmaAllocation m_allocation = VK_NULL_HANDLE;
     BufferInfo m_info{};
-    void* m_asyncMappedPointer = nullptr;
-    bool m_asyncMapped = false;
+    void* m_mappedBase = nullptr;
 };
 
 } // namespace gfx::backend::vulkan::core

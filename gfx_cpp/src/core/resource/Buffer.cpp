@@ -45,11 +45,16 @@ void* BufferImpl::getNativeHandle() const
 void* BufferImpl::map(uint64_t offset, uint64_t size)
 {
     void* mappedPointer = nullptr;
-    GfxResult result = gfxBufferMap(m_handle, offset, size, &mappedPointer);
-    if (result != GFX_RESULT_SUCCESS) {
+    if (gfxBufferMap(m_handle, offset, size, &mappedPointer) != GFX_RESULT_SUCCESS) {
         return nullptr;
     }
     return mappedPointer;
+}
+
+Result BufferImpl::mapAsync(void*& outPointer, uint64_t offset, uint64_t size)
+{
+    outPointer = nullptr;
+    return cResultToCppResult(gfxBufferMapAsync(m_handle, offset, size, &outPointer));
 }
 
 void BufferImpl::unmap()
@@ -65,30 +70,6 @@ void BufferImpl::flushMappedRange(uint64_t offset, uint64_t size)
 void BufferImpl::invalidateMappedRange(uint64_t offset, uint64_t size)
 {
     gfxBufferInvalidateMappedRange(m_handle, offset, size);
-}
-
-void BufferImpl::asyncMap(uint64_t offset, uint64_t size)
-{
-    gfxBufferAsyncMap(m_handle, offset, size);
-}
-
-bool BufferImpl::isAsyncMapped() const
-{
-    bool mapped = false;
-    gfxBufferIsAsyncMapped(m_handle, &mapped);
-    return mapped;
-}
-
-void* BufferImpl::getAsyncMappedPointer() const
-{
-    void* ptr = nullptr;
-    gfxBufferGetAsyncMappedPointer(m_handle, &ptr);
-    return ptr;
-}
-
-bool BufferImpl::waitAsyncMapped(uint64_t timeoutNs)
-{
-    return gfxBufferWaitAsyncMapped(m_handle, timeoutNs) == GFX_RESULT_SUCCESS;
 }
 
 } // namespace gfx

@@ -69,13 +69,10 @@ public:
     GfxResult bufferGetInfo(GfxBuffer, GfxBufferInfo*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult bufferGetNativeHandle(GfxBuffer, void**) const override { return GFX_RESULT_SUCCESS; }
     GfxResult bufferMap(GfxBuffer, uint64_t, uint64_t, void**) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult bufferMapAsync(GfxBuffer, uint64_t, uint64_t, void**) const override { return GFX_RESULT_SUCCESS; }
     GfxResult bufferUnmap(GfxBuffer) const override { return GFX_RESULT_SUCCESS; }
     GfxResult bufferFlushMappedRange(GfxBuffer, uint64_t, uint64_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult bufferInvalidateMappedRange(GfxBuffer, uint64_t, uint64_t) const override { return GFX_RESULT_SUCCESS; }
-    GfxResult bufferAsyncMap(GfxBuffer, uint64_t, uint64_t) const override { return GFX_RESULT_SUCCESS; }
-    GfxResult bufferIsAsyncMapped(GfxBuffer, bool*) const override { return GFX_RESULT_SUCCESS; }
-    GfxResult bufferGetAsyncMappedPointer(GfxBuffer, void**) const override { return GFX_RESULT_SUCCESS; }
-    GfxResult bufferWaitAsyncMapped(GfxBuffer, uint64_t) const override { return GFX_RESULT_SUCCESS; }
     GfxResult textureDestroy(GfxTexture) const override { return GFX_RESULT_SUCCESS; }
     GfxResult textureGetInfo(GfxTexture, GfxTextureInfo*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult textureGetNativeHandle(GfxTexture, void**) const override { return GFX_RESULT_SUCCESS; }

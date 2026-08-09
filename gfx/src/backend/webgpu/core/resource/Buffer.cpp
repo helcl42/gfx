@@ -65,12 +65,15 @@ Device* Buffer::getDevice() const
     return m_device;
 }
 
-// Map buffer for CPU access
-// Returns mapped pointer on success, nullptr on failure
-void* Buffer::map(uint64_t offset, uint64_t size)
+Buffer::MapStatus Buffer::map(uint64_t offset, uint64_t size, void** outPointer, uint64_t timeoutNs)
 {
-    // Determine map mode based on original GFX usage flags (not WebGPU usage)
-    // WebGPU usage is derived from GFX usage and has MapRead/MapWrite
+    *outPointer = nullptr;
+
+    if (m_mapped) {
+        *outPointer = m_mappedPointer;
+        return MapStatus::Ready;
+    }
+
     WGPUMapMode mapMode = WGPUMapMode_None;
     if (m_info.usage & WGPUBufferUsage_MapRead) {
         mapMode |= WGPUMapMode_Read;
@@ -78,176 +81,67 @@ void* Buffer::map(uint64_t offset, uint64_t size)
     if (m_info.usage & WGPUBufferUsage_MapWrite) {
         mapMode |= WGPUMapMode_Write;
     }
-
-    if (mapMode == WGPUMapMode_None) {
-        return nullptr;
+    if (mapMode == WGPUMapMode_None || offset > m_info.size) {
+        return MapStatus::Failed;
     }
 
-    if (offset > m_info.size) {
-        return nullptr;
-    }
-
-    // If size is UINT64_MAX, map the entire buffer from offset
     uint64_t mapSize = size;
     if (mapSize == UINT64_MAX) {
         mapSize = m_info.size - offset;
     }
-
     if (offset + mapSize > m_info.size) {
-        return nullptr;
+        return MapStatus::Failed;
     }
 
-    // Set up async mapping with synchronous wait
-    struct MapCallbackData {
-        WGPUMapAsyncStatus status = WGPUMapAsyncStatus_Error;
-        bool completed = false;
-    };
-    MapCallbackData callbackData;
+    if (!m_asyncMapPending) {
+        m_asyncCallbackData = {};
+        m_asyncCallbackData.offset = offset;
+        m_asyncCallbackData.size = mapSize;
 
-    WGPUBufferMapCallbackInfo callbackInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
-    callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-    callbackInfo.callback = [](WGPUMapAsyncStatus status, WGPUStringView, void* userdata1, void*) {
-        auto* data = static_cast<MapCallbackData*>(userdata1);
-        data->status = status;
-        data->completed = true;
-    };
-    callbackInfo.userdata1 = &callbackData;
+        WGPUBufferMapCallbackInfo callbackInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+        callbackInfo.callback = [](WGPUMapAsyncStatus status, WGPUStringView, void* userdata1, void*) {
+            auto* data = static_cast<AsyncMapCallbackData*>(userdata1);
+            data->status = status;
+            data->completed = true;
+        };
+        callbackInfo.userdata1 = &m_asyncCallbackData;
 
-    WGPUFuture future = wgpuBufferMapAsync(m_buffer, mapMode, offset, mapSize, callbackInfo);
+        m_asyncMapFuture = wgpuBufferMapAsync(m_buffer, mapMode, offset, mapSize, callbackInfo);
+        m_asyncMapPending = true;
+    }
 
-    // Properly wait for the mapping to complete
     WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
-    waitInfo.future = future;
-    wgpuInstanceWaitAny(m_device->getAdapter()->getInstance()->handle(), 1, &waitInfo, UINT64_MAX);
-
-    if (!callbackData.completed || callbackData.status != WGPUMapAsyncStatus_Success) {
-        return nullptr;
+    waitInfo.future = m_asyncMapFuture;
+    wgpuInstanceWaitAny(m_device->getAdapter()->getInstance()->handle(), 1, &waitInfo, timeoutNs);
+    if (!m_asyncCallbackData.completed) {
+        return MapStatus::Pending;
+    }
+    m_asyncMapPending = false;
+    if (m_asyncCallbackData.status != WGPUMapAsyncStatus_Success) {
+        return MapStatus::Failed;
     }
 
-    // Get the mapped range. Read-only buffers require wgpuBufferGetConstMappedRange;
-    // wgpuBufferGetMappedRange returns null for MapRead buffers.
-    void* mappedData;
     if (mapMode & WGPUMapMode_Read) {
-        mappedData = const_cast<void*>(wgpuBufferGetConstMappedRange(m_buffer, offset, mapSize));
+        m_mappedPointer = const_cast<void*>(wgpuBufferGetConstMappedRange(m_buffer, m_asyncCallbackData.offset, m_asyncCallbackData.size));
     } else {
-        mappedData = wgpuBufferGetMappedRange(m_buffer, offset, mapSize);
+        m_mappedPointer = wgpuBufferGetMappedRange(m_buffer, m_asyncCallbackData.offset, m_asyncCallbackData.size);
     }
-
-    if (!mappedData) {
-        wgpuBufferUnmap(m_buffer);
-        return nullptr;
+    if (!m_mappedPointer) {
+        return MapStatus::Failed;
     }
-
-    return mappedData;
+    m_mapped = true;
+    *outPointer = m_mappedPointer;
+    return MapStatus::Ready;
 }
 
 void Buffer::unmap()
 {
     wgpuBufferUnmap(m_buffer);
     m_asyncMapPending = false;
-    m_asyncMapped = false;
+    m_mapped = false;
+    m_mappedPointer = nullptr;
     m_asyncCallbackData = {};
-}
-
-void Buffer::asyncMap(uint64_t offset, uint64_t size)
-{
-    WGPUMapMode mapMode = WGPUMapMode_None;
-    if (m_info.usage & WGPUBufferUsage_MapRead) {
-        mapMode |= WGPUMapMode_Read;
-    }
-    if (m_info.usage & WGPUBufferUsage_MapWrite) {
-        mapMode |= WGPUMapMode_Write;
-    }
-
-    if (mapMode == WGPUMapMode_None) {
-        return;
-    }
-
-    uint64_t mapSize = size;
-    if (mapSize == UINT64_MAX) {
-        mapSize = m_info.size - offset;
-    }
-
-    m_asyncCallbackData = {};
-    m_asyncCallbackData.offset = offset;
-    m_asyncCallbackData.size = mapSize;
-
-    WGPUBufferMapCallbackInfo callbackInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
-    callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-    callbackInfo.callback = [](WGPUMapAsyncStatus status, WGPUStringView, void* userdata1, void*) {
-        auto* data = static_cast<AsyncMapCallbackData*>(userdata1);
-        data->status = status;
-        data->completed = true;
-    };
-    callbackInfo.userdata1 = &m_asyncCallbackData;
-
-    m_asyncMapFuture = wgpuBufferMapAsync(m_buffer, mapMode, offset, mapSize, callbackInfo);
-    m_asyncMapPending = true;
-    m_asyncMapped = false;
-}
-
-bool Buffer::isAsyncMapped() const
-{
-    if (m_asyncMapped) {
-        return true;
-    }
-    if (!m_asyncMapPending) {
-        return false;
-    }
-
-    // Non-blocking poll with timeout=0
-    WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
-    waitInfo.future = m_asyncMapFuture;
-    wgpuInstanceWaitAny(m_device->getAdapter()->getInstance()->handle(), 1, &waitInfo, 0);
-
-    if (waitInfo.completed && m_asyncCallbackData.completed && m_asyncCallbackData.status == WGPUMapAsyncStatus_Success) {
-        m_asyncMapped = true;
-        m_asyncMapPending = false;
-        return true;
-    }
-    return false;
-}
-
-void* Buffer::getAsyncMappedPointer()
-{
-    if (!m_asyncMapped) {
-        return nullptr;
-    }
-
-    WGPUMapMode mapMode = WGPUMapMode_None;
-    if (m_info.usage & WGPUBufferUsage_MapRead) {
-        mapMode |= WGPUMapMode_Read;
-    }
-    if (m_info.usage & WGPUBufferUsage_MapWrite) {
-        mapMode |= WGPUMapMode_Write;
-    }
-
-    if (mapMode & WGPUMapMode_Read) {
-        return const_cast<void*>(wgpuBufferGetConstMappedRange(m_buffer, m_asyncCallbackData.offset, m_asyncCallbackData.size));
-    } else {
-        return wgpuBufferGetMappedRange(m_buffer, m_asyncCallbackData.offset, m_asyncCallbackData.size);
-    }
-}
-
-bool Buffer::waitUntilAsyncMapped(uint64_t timeoutNs)
-{
-    if (m_asyncMapped) {
-        return true;
-    }
-    if (!m_asyncMapPending) {
-        return false;
-    }
-
-    WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
-    waitInfo.future = m_asyncMapFuture;
-    wgpuInstanceWaitAny(m_device->getAdapter()->getInstance()->handle(), 1, &waitInfo, timeoutNs);
-
-    if (waitInfo.completed && m_asyncCallbackData.completed && m_asyncCallbackData.status == WGPUMapAsyncStatus_Success) {
-        m_asyncMapped = true;
-        m_asyncMapPending = false;
-        return true;
-    }
-    return false;
 }
 
 void Buffer::flushMappedRange(uint64_t offset, uint64_t size)

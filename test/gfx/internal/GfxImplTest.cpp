@@ -85,6 +85,7 @@ public:
     MOCK_METHOD(GfxResult, bufferGetInfo, (GfxBuffer, GfxBufferInfo*), (const, override));
     MOCK_METHOD(GfxResult, bufferGetNativeHandle, (GfxBuffer, void**), (const, override));
     MOCK_METHOD(GfxResult, bufferMap, (GfxBuffer, uint64_t, uint64_t, void**), (const, override));
+    MOCK_METHOD(GfxResult, bufferMapAsync, (GfxBuffer, uint64_t, uint64_t, void**), (const, override));
     MOCK_METHOD(GfxResult, bufferUnmap, (GfxBuffer), (const, override));
 
     // Texture functions

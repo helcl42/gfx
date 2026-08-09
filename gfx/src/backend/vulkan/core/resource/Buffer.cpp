@@ -85,11 +85,13 @@ void* Buffer::map(uint64_t offset, uint64_t size)
         return nullptr;
     }
 
-    void* data = m_device->getAllocator()->mapMemory(m_allocation);
-    if (!data) {
-        return nullptr;
+    if (!m_mappedBase) {
+        m_mappedBase = m_device->getAllocator()->mapMemory(m_allocation);
+        if (!m_mappedBase) {
+            return nullptr;
+        }
     }
-    return static_cast<char*>(data) + offset;
+    return static_cast<char*>(m_mappedBase) + offset;
 }
 
 void Buffer::unmap()
@@ -98,32 +100,11 @@ void Buffer::unmap()
         return;
     }
 
+    if (!m_mappedBase) {
+        return;
+    }
     m_device->getAllocator()->unmapMemory(m_allocation);
-    m_asyncMappedPointer = nullptr;
-    m_asyncMapped = false;
-}
-
-void Buffer::asyncMap(uint64_t offset, uint64_t size)
-{
-    // On Vulkan, mapping is synchronous - just do it immediately
-    m_asyncMappedPointer = map(offset, size);
-    m_asyncMapped = (m_asyncMappedPointer != nullptr);
-}
-
-bool Buffer::isAsyncMapped() const
-{
-    return m_asyncMapped;
-}
-
-void* Buffer::getAsyncMappedPointer() const
-{
-    return m_asyncMappedPointer;
-}
-
-bool Buffer::waitUntilAsyncMapped(uint64_t /*timeoutNs*/)
-{
-    // Vulkan asyncMap is synchronous — already mapped by the time this is called.
-    return m_asyncMapped;
+    m_mappedBase = nullptr;
 }
 
 void Buffer::flushMappedRange(uint64_t offset, uint64_t size)

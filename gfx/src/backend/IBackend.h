@@ -68,11 +68,8 @@ public:
     virtual GfxResult bufferGetInfo(GfxBuffer buffer, GfxBufferInfo* outInfo) const = 0;
     virtual GfxResult bufferGetNativeHandle(GfxBuffer buffer, void** outHandle) const = 0;
     virtual GfxResult bufferMap(GfxBuffer buffer, uint64_t offset, uint64_t size, void** outMappedPointer) const = 0;
+    virtual GfxResult bufferMapAsync(GfxBuffer buffer, uint64_t offset, uint64_t size, void** outMappedPointer) const = 0;
     virtual GfxResult bufferUnmap(GfxBuffer buffer) const = 0;
-    virtual GfxResult bufferAsyncMap(GfxBuffer buffer, uint64_t offset, uint64_t size) const = 0;
-    virtual GfxResult bufferIsAsyncMapped(GfxBuffer buffer, bool* outMapped) const = 0;
-    virtual GfxResult bufferGetAsyncMappedPointer(GfxBuffer buffer, void** outMappedPointer) const = 0;
-    virtual GfxResult bufferWaitAsyncMapped(GfxBuffer buffer, uint64_t timeoutNs) const = 0;
     virtual GfxResult bufferFlushMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size) const = 0;
     virtual GfxResult bufferInvalidateMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size) const = 0;
 

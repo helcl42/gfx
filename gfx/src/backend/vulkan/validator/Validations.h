@@ -56,10 +56,6 @@ GfxResult validateSwapchainPresent(GfxSwapchain swapchain, const GfxPresentDescr
 GfxResult validateBufferGetInfo(GfxBuffer buffer, GfxBufferInfo* outInfo);
 GfxResult validateBufferGetNativeHandle(GfxBuffer buffer, void** outHandle);
 GfxResult validateBufferMap(GfxBuffer buffer, void** outMappedPointer);
-GfxResult validateBufferAsyncMap(GfxBuffer buffer);
-GfxResult validateBufferIsAsyncMapped(GfxBuffer buffer, bool* outMapped);
-GfxResult validateBufferGetAsyncMappedPointer(GfxBuffer buffer, void** outMappedPointer);
-GfxResult validateBufferWaitAsyncMapped(GfxBuffer buffer);
 GfxResult validateTextureGetInfo(GfxTexture texture, GfxTextureInfo* outInfo);
 GfxResult validateTextureGetNativeHandle(GfxTexture texture, void** outHandle);
 GfxResult validateTextureGetLayout(GfxTexture texture, GfxTextureLayout* outLayout);

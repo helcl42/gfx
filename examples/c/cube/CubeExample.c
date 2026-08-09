@@ -1462,7 +1462,7 @@ static bool loadTexture(CubeApp* app)
     }
 
     // Map and copy texture data to staging buffer
-    void* mappedData;
+    void* mappedData = NULL;
     if (gfxBufferMap(app->textureStagingBuffer, 0, GFX_WHOLE_SIZE, &mappedData) != GFX_RESULT_SUCCESS) {
         LOG_ERROR("Failed to map staging buffer");
         stbi_image_free(pixels);

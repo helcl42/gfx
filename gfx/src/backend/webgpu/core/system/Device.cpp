@@ -17,12 +17,12 @@
 namespace gfx::backend::webgpu::core {
 
 namespace {
+#ifndef __EMSCRIPTEN__
     bool isExtensionRequested(const std::vector<std::string>& enabledExtensions, const char* name)
     {
         return std::find(enabledExtensions.begin(), enabledExtensions.end(), std::string(name)) != enabledExtensions.end();
     }
 
-#ifndef __EMSCRIPTEN__
     // Maps the requested GFX extensions to required WGPU features, throwing when the
     // adapter cannot deliver a requested feature (matches the Vulkan backend behavior)
     std::vector<WGPUFeatureName> collectRequiredFeatures(WGPUAdapter adapter, const DeviceCreateInfo& createInfo)
@@ -213,6 +213,10 @@ WGPULimits Device::getLimits() const
 
 void Device::waitIdle() const
 {
+#ifdef __EMSCRIPTEN__
+    // The browser main thread must not block on GPU completion; queue ordering covers the callers.
+    return;
+#else
     WGPUQueueWorkDoneCallbackInfo callbackInfo = WGPU_QUEUE_WORK_DONE_CALLBACK_INFO_INIT;
     callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
     callbackInfo.callback = [](WGPUQueueWorkDoneStatus status, WGPUStringView message, void* userdata1, void* userdata2) {
@@ -228,6 +232,7 @@ void Device::waitIdle() const
     WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
     waitInfo.future = future;
     wgpuInstanceWaitAny(instance, 1, &waitInfo, UINT64_MAX);
+#endif // __EMSCRIPTEN__
 }
 
 Blit* Device::getBlit()

@@ -239,10 +239,10 @@ TEST_P(BufferImplTest, ImportBuffer)
 }
 
 // ===========================================================================
-// Async Map Tests
+// Map Tests
 // ===========================================================================
 
-TEST_P(BufferImplTest, AsyncMapInitialState)
+TEST_P(BufferImplTest, MapAsyncPollsUntilReady)
 {
     DeviceImpl deviceWrapper(device);
 
@@ -255,48 +255,21 @@ TEST_P(BufferImplTest, AsyncMapInitialState)
     auto buffer = deviceWrapper.createBuffer(desc);
     ASSERT_NE(buffer, nullptr);
 
-    EXPECT_FALSE(buffer->isAsyncMapped());
-    EXPECT_EQ(buffer->getAsyncMappedPointer(), nullptr);
-}
+    void* ptr = nullptr;
+    Result result = buffer->mapAsync(ptr, 0, desc.size);
+    ASSERT_TRUE(result == Result::Success || result == Result::NotReady);
 
-TEST_P(BufferImplTest, AsyncMapOperation)
-{
-    DeviceImpl deviceWrapper(device);
-
-    BufferDescriptor desc{
-        .size = 1024,
-        .usage = BufferUsage::MapWrite | BufferUsage::CopySrc,
-        .memoryProperties = MemoryProperty::HostVisible | MemoryProperty::HostCoherent
-    };
-
-    auto buffer = deviceWrapper.createBuffer(desc);
-    ASSERT_NE(buffer, nullptr);
-
-    EXPECT_FALSE(buffer->isAsyncMapped());
-
-    buffer->asyncMap(0, desc.size);
-
-    // Give the device a chance to process the async work before polling
-    gfxDeviceWaitIdle(device);
-
-    // Poll until mapped (with timeout for WebGPU async behaviour)
-    constexpr int maxAttempts = 100;
-    bool mapped = false;
-    for (int i = 0; i < maxAttempts; ++i) {
-        mapped = buffer->isAsyncMapped();
-        if (mapped) {
-            break;
-        }
+    constexpr int maxAttempts = 1000;
+    for (int i = 0; result == Result::NotReady && i < maxAttempts; ++i) {
+        result = buffer->mapAsync(ptr, 0, desc.size);
     }
-    ASSERT_TRUE(mapped) << "Buffer did not become async-mapped within timeout";
-
-    void* ptr = buffer->getAsyncMappedPointer();
+    ASSERT_EQ(result, Result::Success) << "buffer did not become mapped within timeout";
     EXPECT_NE(ptr, nullptr);
 
     buffer->unmap();
 }
 
-TEST_P(BufferImplTest, WaitAsyncMappedOperation)
+TEST_P(BufferImplTest, MapBlocksUntilReady)
 {
     DeviceImpl deviceWrapper(device);
 
@@ -309,12 +282,7 @@ TEST_P(BufferImplTest, WaitAsyncMappedOperation)
     auto buffer = deviceWrapper.createBuffer(desc);
     ASSERT_NE(buffer, nullptr);
 
-    buffer->asyncMap(0, desc.size);
-
-    // Block until mapped
-    EXPECT_TRUE(buffer->waitAsyncMapped(UINT64_MAX));
-
-    void* ptr = buffer->getAsyncMappedPointer();
+    void* ptr = buffer->map(0, desc.size);
     EXPECT_NE(ptr, nullptr);
 
     buffer->unmap();

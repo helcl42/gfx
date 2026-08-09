@@ -800,6 +800,18 @@ GfxResult gfxBufferMap(GfxBuffer buffer, uint64_t offset, uint64_t size, void** 
     return backend->bufferMap(buffer, offset, size, outMappedPointer);
 }
 
+GfxResult gfxBufferMapAsync(GfxBuffer buffer, uint64_t offset, uint64_t size, void** outMappedPointer)
+{
+    if (!buffer || !outMappedPointer) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(buffer);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->bufferMapAsync(buffer, offset, size, outMappedPointer);
+}
+
 GfxResult gfxBufferUnmap(GfxBuffer buffer)
 {
     if (!buffer) {
@@ -810,54 +822,6 @@ GfxResult gfxBufferUnmap(GfxBuffer buffer)
         return GFX_RESULT_ERROR_NOT_FOUND;
     }
     return backend->bufferUnmap(buffer);
-}
-
-GfxResult gfxBufferAsyncMap(GfxBuffer buffer, uint64_t offset, uint64_t size)
-{
-    if (!buffer) {
-        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
-    }
-    auto backend = gfx::backend::BackendManager::instance().getBackend(buffer);
-    if (!backend) {
-        return GFX_RESULT_ERROR_NOT_FOUND;
-    }
-    return backend->bufferAsyncMap(buffer, offset, size);
-}
-
-GfxResult gfxBufferIsAsyncMapped(GfxBuffer buffer, bool* outMapped)
-{
-    if (!buffer || !outMapped) {
-        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
-    }
-    auto backend = gfx::backend::BackendManager::instance().getBackend(buffer);
-    if (!backend) {
-        return GFX_RESULT_ERROR_NOT_FOUND;
-    }
-    return backend->bufferIsAsyncMapped(buffer, outMapped);
-}
-
-GfxResult gfxBufferGetAsyncMappedPointer(GfxBuffer buffer, void** outMappedPointer)
-{
-    if (!buffer || !outMappedPointer) {
-        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
-    }
-    auto backend = gfx::backend::BackendManager::instance().getBackend(buffer);
-    if (!backend) {
-        return GFX_RESULT_ERROR_NOT_FOUND;
-    }
-    return backend->bufferGetAsyncMappedPointer(buffer, outMappedPointer);
-}
-
-GfxResult gfxBufferWaitAsyncMapped(GfxBuffer buffer, uint64_t timeoutNs)
-{
-    if (!buffer) {
-        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
-    }
-    auto backend = gfx::backend::BackendManager::instance().getBackend(buffer);
-    if (!backend) {
-        return GFX_RESULT_ERROR_NOT_FOUND;
-    }
-    return backend->bufferWaitAsyncMapped(buffer, timeoutNs);
 }
 
 GfxResult gfxBufferFlushMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size)

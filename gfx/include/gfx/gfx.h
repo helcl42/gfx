@@ -277,10 +277,11 @@
 // MAPPING LIFETIME:
 //
 //   void* ptr;
-//   gfxBufferMap(buffer, 0, size, &ptr);
-//   // ptr is valid until unmap
-//   memcpy(ptr, data, size);
-//   gfxBufferUnmap(buffer);
+//   if (gfxBufferMap(buffer, 0, size, &ptr) == GFX_RESULT_SUCCESS) { // blocks; MapAsync polls
+//       // ptr is valid until unmap
+//       memcpy(ptr, data, size);
+//       gfxBufferUnmap(buffer);
+//   }
 //   // ptr is now INVALID - accessing it is undefined behavior
 //   → Only one map per buffer at a time
 //   → Destroying a mapped buffer is UNDEFINED BEHAVIOR
@@ -2034,11 +2035,9 @@ GFX_API GfxResult gfxBufferDestroy(GfxBuffer buffer);
 GFX_API GfxResult gfxBufferGetInfo(GfxBuffer buffer, GfxBufferInfo* outInfo);
 GFX_API GfxResult gfxBufferGetNativeHandle(GfxBuffer buffer, void** outHandle);
 GFX_API GfxResult gfxBufferMap(GfxBuffer buffer, uint64_t offset, uint64_t size, void** outMappedPointer);
+// Returns GFX_RESULT_NOT_READY until the mapping lands (call again to poll).
+GFX_API GfxResult gfxBufferMapAsync(GfxBuffer buffer, uint64_t offset, uint64_t size, void** outMappedPointer);
 GFX_API GfxResult gfxBufferUnmap(GfxBuffer buffer);
-GFX_API GfxResult gfxBufferAsyncMap(GfxBuffer buffer, uint64_t offset, uint64_t size);
-GFX_API GfxResult gfxBufferIsAsyncMapped(GfxBuffer buffer, bool* outMapped);
-GFX_API GfxResult gfxBufferGetAsyncMappedPointer(GfxBuffer buffer, void** outMappedPointer);
-GFX_API GfxResult gfxBufferWaitAsyncMapped(GfxBuffer buffer, uint64_t timeoutNs);
 GFX_API GfxResult gfxBufferFlushMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size);
 GFX_API GfxResult gfxBufferInvalidateMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size);
 

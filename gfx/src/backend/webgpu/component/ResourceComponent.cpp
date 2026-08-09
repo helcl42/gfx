@@ -102,14 +102,34 @@ GfxResult ResourceComponent::bufferMap(GfxBuffer buffer, uint64_t offset, uint64
     }
 
     auto* bufferPtr = converter::toNative<core::Buffer>(buffer);
-    void* mappedData = bufferPtr->map(offset, size);
-
-    if (!mappedData) {
+    void* mappedData{ nullptr };
+    switch (bufferPtr->map(offset, size, &mappedData, UINT64_MAX)) {
+    case core::Buffer::MapStatus::Ready:
+        *outMappedPointer = mappedData;
+        return GFX_RESULT_SUCCESS;
+    default:
         return GFX_RESULT_ERROR_UNKNOWN;
     }
+}
 
-    *outMappedPointer = mappedData;
-    return GFX_RESULT_SUCCESS;
+GfxResult ResourceComponent::bufferMapAsync(GfxBuffer buffer, uint64_t offset, uint64_t size, void** outMappedPointer) const
+{
+    GfxResult validationResult = validator::validateBufferMap(buffer, outMappedPointer);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+
+    auto* bufferPtr = converter::toNative<core::Buffer>(buffer);
+    void* mappedData{ nullptr };
+    switch (bufferPtr->map(offset, size, &mappedData)) {
+    case core::Buffer::MapStatus::Ready:
+        *outMappedPointer = mappedData;
+        return GFX_RESULT_SUCCESS;
+    case core::Buffer::MapStatus::Pending:
+        return GFX_RESULT_NOT_READY;
+    default:
+        return GFX_RESULT_ERROR_UNKNOWN;
+    }
 }
 
 GfxResult ResourceComponent::bufferUnmap(GfxBuffer buffer) const
@@ -122,58 +142,6 @@ GfxResult ResourceComponent::bufferUnmap(GfxBuffer buffer) const
     auto* bufferPtr = converter::toNative<core::Buffer>(buffer);
     bufferPtr->unmap();
     return GFX_RESULT_SUCCESS;
-}
-
-GfxResult ResourceComponent::bufferAsyncMap(GfxBuffer buffer, uint64_t offset, uint64_t size) const
-{
-    GfxResult validationResult = validator::validateBufferAsyncMap(buffer);
-    if (validationResult != GFX_RESULT_SUCCESS) {
-        return validationResult;
-    }
-
-    auto* bufferPtr = converter::toNative<core::Buffer>(buffer);
-    bufferPtr->asyncMap(offset, size);
-    return GFX_RESULT_SUCCESS;
-}
-
-GfxResult ResourceComponent::bufferIsAsyncMapped(GfxBuffer buffer, bool* outMapped) const
-{
-    GfxResult validationResult = validator::validateBufferIsAsyncMapped(buffer, outMapped);
-    if (validationResult != GFX_RESULT_SUCCESS) {
-        return validationResult;
-    }
-
-    auto* bufferPtr = converter::toNative<core::Buffer>(buffer);
-    *outMapped = bufferPtr->isAsyncMapped();
-    return GFX_RESULT_SUCCESS;
-}
-
-GfxResult ResourceComponent::bufferGetAsyncMappedPointer(GfxBuffer buffer, void** outMappedPointer) const
-{
-    GfxResult validationResult = validator::validateBufferGetAsyncMappedPointer(buffer, outMappedPointer);
-    if (validationResult != GFX_RESULT_SUCCESS) {
-        return validationResult;
-    }
-
-    auto* bufferPtr = converter::toNative<core::Buffer>(buffer);
-    void* ptr = bufferPtr->getAsyncMappedPointer();
-    if (!ptr) {
-        return GFX_RESULT_NOT_READY;
-    }
-    *outMappedPointer = ptr;
-    return GFX_RESULT_SUCCESS;
-}
-
-GfxResult ResourceComponent::bufferWaitAsyncMapped(GfxBuffer buffer, uint64_t timeoutNs) const
-{
-    GfxResult validationResult = validator::validateBufferWaitAsyncMapped(buffer);
-    if (validationResult != GFX_RESULT_SUCCESS) {
-        return validationResult;
-    }
-
-    auto* bufferPtr = converter::toNative<core::Buffer>(buffer);
-    const bool mapped = bufferPtr->waitUntilAsyncMapped(timeoutNs);
-    return mapped ? GFX_RESULT_SUCCESS : GFX_RESULT_NOT_READY;
 }
 
 GfxResult ResourceComponent::bufferFlushMappedRange(GfxBuffer buffer, uint64_t offset, uint64_t size) const
