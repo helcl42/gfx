@@ -158,8 +158,7 @@ TEST_P(GfxCppComputePipelineTest, CreateComputePipelineWithNullShader)
 
     gfx::ComputePipelineDescriptor pipelineDesc{
         .label = "Test Compute Pipeline",
-        .compute = nullptr,
-        .entryPoint = "main"
+        .compute = { .module = nullptr, .entryPoint = "main" }
     };
 
     // Null shader should throw
@@ -184,8 +183,7 @@ TEST_P(GfxCppComputePipelineTest, CreateBasicComputePipeline)
 
     gfx::ComputePipelineDescriptor pipelineDesc{
         .label = "Basic Compute Pipeline",
-        .compute = computeShader,
-        .entryPoint = "main"
+        .compute = { .module = computeShader, .entryPoint = "main" }
     };
 
     auto pipeline = device->createComputePipeline(pipelineDesc);
@@ -208,8 +206,7 @@ TEST_P(GfxCppComputePipelineTest, CreateComputePipelineWithEmptyLabel)
 
     gfx::ComputePipelineDescriptor pipelineDesc{
         .label = "",
-        .compute = computeShader,
-        .entryPoint = "main"
+        .compute = { .module = computeShader, .entryPoint = "main" }
     };
 
     auto pipeline = device->createComputePipeline(pipelineDesc);
@@ -251,8 +248,7 @@ TEST_P(GfxCppComputePipelineTest, CreateComputePipelineWithBindGroupLayouts)
     // Create compute pipeline with bind group layout
     gfx::ComputePipelineDescriptor pipelineDesc{
         .label = "Compute Pipeline with Bind Groups",
-        .compute = computeShader,
-        .entryPoint = "main",
+        .compute = { .module = computeShader, .entryPoint = "main" },
         .bindGroupLayouts = { bindGroupLayout }
     };
 
@@ -312,8 +308,7 @@ TEST_P(GfxCppComputePipelineTest, CreateComputePipelineWithMultipleBindGroupLayo
     // Create pipeline with multiple bind group layouts
     gfx::ComputePipelineDescriptor pipelineDesc{
         .label = "Compute Pipeline with Multiple Bind Groups",
-        .compute = computeShader,
-        .entryPoint = "main",
+        .compute = { .module = computeShader, .entryPoint = "main" },
         .bindGroupLayouts = { bindGroupLayout1, bindGroupLayout2 }
     };
 
@@ -337,8 +332,7 @@ TEST_P(GfxCppComputePipelineTest, CreateComputePipelineWithEmptyBindGroupLayouts
 
     gfx::ComputePipelineDescriptor pipelineDesc{
         .label = "Compute Pipeline with Empty Bind Groups",
-        .compute = computeShader,
-        .entryPoint = "main",
+        .compute = { .module = computeShader, .entryPoint = "main" },
         .bindGroupLayouts = {}
     };
 

@@ -944,8 +944,7 @@ bool ComputeApp::createComputePipeline()
         // Create compute pipeline
         gfx::ComputePipelineDescriptor computePipelineDesc{
             .label = "Compute Pipeline",
-            .compute = computeShader,
-            .entryPoint = "main",
+            .compute = { .module = computeShader, .entryPoint = "main" },
             .bindGroupLayouts = { computeBindGroupLayout }
         };
 

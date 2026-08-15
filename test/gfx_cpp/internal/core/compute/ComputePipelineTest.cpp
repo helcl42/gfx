@@ -88,8 +88,7 @@ TEST_P(ComputePipelineImplTest, CreateComputePipeline)
 
     // Create compute pipeline using DeviceImpl
     ComputePipelineDescriptor pipelineDesc{
-        .compute = shader,
-        .entryPoint = "main"
+        .compute = { .module = shader, .entryPoint = "main" }
     };
 
     auto pipeline = deviceWrapper.createComputePipeline(pipelineDesc);
@@ -113,8 +112,7 @@ TEST_P(ComputePipelineImplTest, MultipleComputePipelines_IndependentHandles)
 
     // Create multiple pipelines
     ComputePipelineDescriptor pipelineDesc{
-        .compute = shader,
-        .entryPoint = "main"
+        .compute = { .module = shader, .entryPoint = "main" }
     };
 
     auto pipeline1 = deviceWrapper.createComputePipeline(pipelineDesc);
@@ -157,8 +155,7 @@ TEST_P(ComputePipelineImplTest, CreateComputePipelineWithBindGroupLayouts)
 
     // Create compute pipeline with bind group layout
     ComputePipelineDescriptor pipelineDesc{
-        .compute = shader,
-        .entryPoint = "main",
+        .compute = { .module = shader, .entryPoint = "main" },
         .bindGroupLayouts = { bindGroupLayout }
     };
 
@@ -211,8 +208,7 @@ TEST_P(ComputePipelineImplTest, CreateComputePipelineWithMultipleBindGroupLayout
 
     // Create compute pipeline with multiple bind group layouts
     ComputePipelineDescriptor pipelineDesc{
-        .compute = shader,
-        .entryPoint = "main",
+        .compute = { .module = shader, .entryPoint = "main" },
         .bindGroupLayouts = { bindGroupLayout1, bindGroupLayout2 }
     };
 
@@ -242,8 +238,7 @@ TEST_P(ComputePipelineImplTest, CreateComputePipelineWithWGSLShader)
 
     // Create compute pipeline with WGSL shader
     ComputePipelineDescriptor pipelineDesc{
-        .compute = shader,
-        .entryPoint = "main"
+        .compute = { .module = shader, .entryPoint = "main" }
     };
 
     auto pipeline = deviceWrapper.createComputePipeline(pipelineDesc);

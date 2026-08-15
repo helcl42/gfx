@@ -1243,13 +1243,17 @@ struct RenderPipelineDescriptor {
     std::vector<std::shared_ptr<BindGroupLayout>> bindGroupLayouts; // Bind group layouts used by the pipeline
 };
 
+struct ComputeState {
+    std::shared_ptr<Shader> module;
+    std::string entryPoint = "main";
+    std::vector<ConstantEntry> constants;
+};
+
 struct ComputePipelineDescriptor {
     const ChainedStruct* next = nullptr;
     std::string label;
-    std::shared_ptr<Shader> compute;
-    std::string entryPoint = "main";
+    ComputeState compute;
     std::vector<std::shared_ptr<BindGroupLayout>> bindGroupLayouts; // Bind group layouts used by the pipeline
-    std::vector<ConstantEntry> constants;
 };
 
 struct BindGroupLayoutEntry {

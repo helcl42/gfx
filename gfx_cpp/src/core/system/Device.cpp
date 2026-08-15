@@ -270,19 +270,22 @@ std::shared_ptr<RenderPipeline> DeviceImpl::createRenderPipeline(const RenderPip
 
 std::shared_ptr<ComputePipeline> DeviceImpl::createComputePipeline(const ComputePipelineDescriptor& descriptor)
 {
-    if (!descriptor.compute) {
+    if (!descriptor.compute.module) {
         throw std::invalid_argument("Compute shader cannot be null");
     }
 
-    auto shaderImpl = std::dynamic_pointer_cast<ShaderImpl>(descriptor.compute);
+    auto shaderImpl = std::dynamic_pointer_cast<ShaderImpl>(descriptor.compute.module);
     if (!shaderImpl) {
         throw std::runtime_error("Invalid shader type");
     }
 
-    std::vector<GfxBindGroupLayout> bindGroupLayoutHandles;
     std::vector<GfxConstantEntry> cConstants;
+    GfxComputeState cComputeState;
+    convertComputeState(descriptor.compute, shaderImpl->getHandle(), cConstants, cComputeState);
+
+    std::vector<GfxBindGroupLayout> bindGroupLayoutHandles;
     GfxComputePipelineDescriptor cDesc;
-    convertComputePipelineDescriptor(descriptor, shaderImpl->getHandle(), bindGroupLayoutHandles, cConstants, cDesc);
+    convertComputePipelineDescriptor(descriptor, cComputeState, bindGroupLayoutHandles, cDesc);
 
     GfxComputePipeline pipeline = nullptr;
     GfxResult result = gfxDeviceCreateComputePipeline(m_handle, &cDesc, &pipeline);

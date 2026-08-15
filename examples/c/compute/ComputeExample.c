@@ -1022,11 +1022,15 @@ static void destroyComputeBindGroupLayout(ComputeApp* app)
 
 static bool createComputePipeline(ComputeApp* app)
 {
+    GfxComputeState computeState = {
+        .module = app->computeShader,
+        .entryPoint = "main"
+    };
+
     GfxComputePipelineDescriptor computePipelineDesc = {
         .sType = GFX_STRUCTURE_TYPE_COMPUTE_PIPELINE_DESCRIPTOR,
         .pNext = NULL,
-        .compute = app->computeShader,
-        .entryPoint = "main",
+        .compute = &computeState,
         .bindGroupLayouts = &app->computeBindGroupLayout,
         .bindGroupLayoutCount = 1
     };

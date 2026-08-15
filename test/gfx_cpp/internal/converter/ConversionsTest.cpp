@@ -1185,38 +1185,50 @@ TEST(ConversionsTest, ConvertConstants_EmptyClearsOutput)
     EXPECT_TRUE(cConstants.empty());
 }
 
-TEST(ConversionsTest, ConvertComputePipelineDescriptor_Constants)
+TEST(ConversionsTest, ConvertComputeState_Constants)
 {
-    ComputePipelineDescriptor desc;
-    desc.label = "TestPipeline";
-    desc.entryPoint = "main";
-    desc.constants = { { .id = 5, .value = uint32_t { 64 } } };
+    ComputeState state;
+    state.entryPoint = "main";
+    state.constants = { { .id = 5, .value = uint32_t { 64 } } };
 
-    std::vector<GfxBindGroupLayout> layouts;
     std::vector<GfxConstantEntry> constants;
-    GfxComputePipelineDescriptor cDesc;
-    convertComputePipelineDescriptor(desc, nullptr, layouts, constants, cDesc);
+    GfxComputeState cState;
+    convertComputeState(state, nullptr, constants, cState);
 
-    ASSERT_EQ(cDesc.constantCount, 1u);
-    ASSERT_EQ(cDesc.constants, constants.data());
-    EXPECT_EQ(cDesc.constants[0].id, 5u);
-    EXPECT_EQ(cDesc.constants[0].type, GFX_CONSTANT_TYPE_U32);
-    EXPECT_EQ(cDesc.constants[0].value.u32, 64u);
+    ASSERT_EQ(cState.constantCount, 1u);
+    ASSERT_EQ(cState.constants, constants.data());
+    EXPECT_STREQ(cState.entryPoint, "main");
+    EXPECT_EQ(cState.constants[0].id, 5u);
+    EXPECT_EQ(cState.constants[0].type, GFX_CONSTANT_TYPE_U32);
+    EXPECT_EQ(cState.constants[0].value.u32, 64u);
 }
 
-TEST(ConversionsTest, ConvertComputePipelineDescriptor_NoConstants)
+TEST(ConversionsTest, ConvertComputeState_NoConstants)
+{
+    ComputeState state;
+    state.entryPoint = "main";
+
+    std::vector<GfxConstantEntry> constants;
+    GfxComputeState cState;
+    convertComputeState(state, nullptr, constants, cState);
+
+    EXPECT_EQ(cState.constantCount, 0u);
+    EXPECT_EQ(cState.constants, nullptr);
+}
+
+// The descriptor must point at the caller-owned state
+TEST(ConversionsTest, ConvertComputePipelineDescriptor_PointsAtComputeState)
 {
     ComputePipelineDescriptor desc;
     desc.label = "TestPipeline";
-    desc.entryPoint = "main";
 
+    GfxComputeState cState = {};
     std::vector<GfxBindGroupLayout> layouts;
-    std::vector<GfxConstantEntry> constants;
     GfxComputePipelineDescriptor cDesc;
-    convertComputePipelineDescriptor(desc, nullptr, layouts, constants, cDesc);
+    convertComputePipelineDescriptor(desc, cState, layouts, cDesc);
 
-    EXPECT_EQ(cDesc.constantCount, 0u);
-    EXPECT_EQ(cDesc.constants, nullptr);
+    EXPECT_EQ(cDesc.compute, &cState);
+    EXPECT_STREQ(cDesc.label, "TestPipeline");
 }
 
 } // namespace gfx

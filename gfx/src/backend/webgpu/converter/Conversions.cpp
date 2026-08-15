@@ -777,10 +777,10 @@ core::ComputePipelineCreateInfo gfxDescriptorToWebGPUComputePipelineCreateInfo(c
     }
 
     // Extract shader module
-    auto* shader = toNative<Shader>(descriptor->compute);
+    auto* shader = toNative<Shader>(descriptor->compute->module);
     createInfo.module = shader->handle();
-    createInfo.entryPoint = descriptor->entryPoint;
-    createInfo.constants = convertConstants(descriptor->constants, descriptor->constantCount);
+    createInfo.entryPoint = descriptor->compute->entryPoint;
+    createInfo.constants = convertConstants(descriptor->compute->constants, descriptor->compute->constantCount);
 
     return createInfo;
 }

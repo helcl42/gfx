@@ -1653,6 +1653,13 @@ typedef struct {
 } GfxFragmentState;
 
 typedef struct {
+    GfxShader module;
+    const char* entryPoint;
+    const GfxConstantEntry* constants; // NULL if not used
+    uint32_t constantCount;
+} GfxComputeState;
+
+typedef struct {
     GfxPrimitiveTopology topology;
     GfxIndexFormat stripIndexFormat; // GFX_INDEX_FORMAT_UNDEFINED if not used
     GfxFrontFace frontFace;
@@ -1699,13 +1706,10 @@ typedef struct {
     GfxStructureType sType;
     const void* pNext;
     const char* label;
-    GfxShader compute;
-    const char* entryPoint;
+    const GfxComputeState* compute;
     // Bind group layouts for the pipeline
     const GfxBindGroupLayout* bindGroupLayouts;
     uint32_t bindGroupLayoutCount;
-    const GfxConstantEntry* constants; // NULL if not used
-    uint32_t constantCount;
 } GfxComputePipelineDescriptor;
 
 typedef struct {

@@ -446,10 +446,13 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithNullDevice)
     GfxResult result = gfxDeviceCreateShader(device, &shaderDesc, &computeShader);
     ASSERT_EQ(result, GFX_RESULT_SUCCESS);
 
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = "main";
+
     GfxComputePipelineDescriptor pipelineDesc = {};
     pipelineDesc.label = "Test Compute Pipeline";
-    pipelineDesc.compute = computeShader;
-    pipelineDesc.entryPoint = "main";
+    pipelineDesc.compute = &computeState;
 
     GfxComputePipeline pipeline = nullptr;
     result = gfxDeviceCreateComputePipeline(nullptr, &pipelineDesc, &pipeline);
@@ -486,10 +489,13 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithNullOutput)
     GfxResult result = gfxDeviceCreateShader(device, &shaderDesc, &computeShader);
     ASSERT_EQ(result, GFX_RESULT_SUCCESS);
 
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = "main";
+
     GfxComputePipelineDescriptor pipelineDesc = {};
     pipelineDesc.label = "Test Compute Pipeline";
-    pipelineDesc.compute = computeShader;
-    pipelineDesc.entryPoint = "main";
+    pipelineDesc.compute = &computeState;
 
     result = gfxDeviceCreateComputePipeline(device, &pipelineDesc, nullptr);
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
@@ -518,12 +524,15 @@ TEST_P(GfxComputePipelineTest, CreateBasicComputePipeline)
     ASSERT_EQ(result, GFX_RESULT_SUCCESS);
     ASSERT_NE(computeShader, nullptr);
 
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = nullptr; // Let it use shader's entry point
+
     GfxComputePipelineDescriptor pipelineDesc = {};
     pipelineDesc.label = "Basic Compute Pipeline";
-    pipelineDesc.compute = computeShader;
-    pipelineDesc.entryPoint = nullptr; // Let it use shader's entry point
     pipelineDesc.bindGroupLayouts = nullptr;
     pipelineDesc.bindGroupLayoutCount = 0;
+    pipelineDesc.compute = &computeState;
 
     GfxComputePipeline pipeline = nullptr;
     result = gfxDeviceCreateComputePipeline(device, &pipelineDesc, &pipeline);
@@ -575,12 +584,15 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithBindGroupLayouts)
     ASSERT_NE(computeShader, nullptr);
 
     // Create compute pipeline with bind group layout
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = "main";
+
     GfxComputePipelineDescriptor pipelineDesc = {};
     pipelineDesc.label = "Compute Pipeline with Bind Groups";
-    pipelineDesc.compute = computeShader;
-    pipelineDesc.entryPoint = "main";
     pipelineDesc.bindGroupLayouts = &bindGroupLayout;
     pipelineDesc.bindGroupLayoutCount = 1;
+    pipelineDesc.compute = &computeState;
 
     GfxComputePipeline pipeline = nullptr;
     result = gfxDeviceCreateComputePipeline(device, &pipelineDesc, &pipeline);
@@ -650,12 +662,15 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithMultipleBindGroupLayouts
     // Create pipeline with multiple bind group layouts
     GfxBindGroupLayout layouts[] = { bindGroupLayout1, bindGroupLayout2 };
 
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = "main";
+
     GfxComputePipelineDescriptor pipelineDesc = {};
     pipelineDesc.label = "Compute Pipeline with Multiple Bind Groups";
-    pipelineDesc.compute = computeShader;
-    pipelineDesc.entryPoint = "main";
     pipelineDesc.bindGroupLayouts = layouts;
     pipelineDesc.bindGroupLayoutCount = 2;
+    pipelineDesc.compute = &computeState;
 
     GfxComputePipeline pipeline = nullptr;
     result = gfxDeviceCreateComputePipeline(device, &pipelineDesc, &pipeline);
@@ -756,14 +771,17 @@ TEST_P(GfxComputePipelineTest, ComputePipelineConstantsReachShader)
     constants[2].type = GFX_CONSTANT_TYPE_BOOL;
     constants[2].value.b = true;
 
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = "main";
+    computeState.constants = constants;
+    computeState.constantCount = 3;
+
     GfxComputePipelineDescriptor pipelineDesc = {};
     pipelineDesc.label = "Constants Compute Pipeline";
-    pipelineDesc.compute = computeShader;
-    pipelineDesc.entryPoint = "main";
     pipelineDesc.bindGroupLayouts = &layout;
     pipelineDesc.bindGroupLayoutCount = 1;
-    pipelineDesc.constants = constants;
-    pipelineDesc.constantCount = 3;
+    pipelineDesc.compute = &computeState;
 
     GfxComputePipeline pipeline = nullptr;
     ASSERT_EQ(gfxDeviceCreateComputePipeline(device, &pipelineDesc, &pipeline), GFX_RESULT_SUCCESS);
@@ -836,11 +854,14 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithNullConstantsArray)
     GfxShader computeShader = nullptr;
     ASSERT_EQ(gfxDeviceCreateShader(device, &shaderDesc, &computeShader), GFX_RESULT_SUCCESS);
 
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = "main";
+    computeState.constants = nullptr;
+    computeState.constantCount = 1;
+
     GfxComputePipelineDescriptor pipelineDesc = {};
-    pipelineDesc.compute = computeShader;
-    pipelineDesc.entryPoint = "main";
-    pipelineDesc.constants = nullptr;
-    pipelineDesc.constantCount = 1;
+    pipelineDesc.compute = &computeState;
 
     GfxComputePipeline pipeline = nullptr;
     EXPECT_EQ(gfxDeviceCreateComputePipeline(device, &pipelineDesc, &pipeline), GFX_RESULT_ERROR_INVALID_ARGUMENT);
@@ -874,11 +895,14 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithDuplicateConstantIds)
     constants[1].type = GFX_CONSTANT_TYPE_U32;
     constants[1].value.u32 = 2;
 
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = "main";
+    computeState.constants = constants;
+    computeState.constantCount = 2;
+
     GfxComputePipelineDescriptor pipelineDesc = {};
-    pipelineDesc.compute = computeShader;
-    pipelineDesc.entryPoint = "main";
-    pipelineDesc.constants = constants;
-    pipelineDesc.constantCount = 2;
+    pipelineDesc.compute = &computeState;
 
     GfxComputePipeline pipeline = nullptr;
     EXPECT_EQ(gfxDeviceCreateComputePipeline(device, &pipelineDesc, &pipeline), GFX_RESULT_ERROR_INVALID_ARGUMENT);
@@ -909,11 +933,14 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithInvalidConstantType)
     constant.type = static_cast<GfxConstantType>(0x1234);
     constant.value.u32 = 1;
 
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = "main";
+    computeState.constants = &constant;
+    computeState.constantCount = 1;
+
     GfxComputePipelineDescriptor pipelineDesc = {};
-    pipelineDesc.compute = computeShader;
-    pipelineDesc.entryPoint = "main";
-    pipelineDesc.constants = &constant;
-    pipelineDesc.constantCount = 1;
+    pipelineDesc.compute = &computeState;
 
     GfxComputePipeline pipeline = nullptr;
     EXPECT_EQ(gfxDeviceCreateComputePipeline(device, &pipelineDesc, &pipeline), GFX_RESULT_ERROR_INVALID_ARGUMENT);
@@ -952,13 +979,16 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithoutConstants)
     GfxBindGroupLayout layout = nullptr;
     ASSERT_EQ(gfxDeviceCreateBindGroupLayout(device, &layoutDesc, &layout), GFX_RESULT_SUCCESS);
 
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = "main";
+    computeState.constants = nullptr;
+    computeState.constantCount = 0;
+
     GfxComputePipelineDescriptor pipelineDesc = {};
-    pipelineDesc.compute = computeShader;
-    pipelineDesc.entryPoint = "main";
     pipelineDesc.bindGroupLayouts = &layout;
     pipelineDesc.bindGroupLayoutCount = 1;
-    pipelineDesc.constants = nullptr;
-    pipelineDesc.constantCount = 0;
+    pipelineDesc.compute = &computeState;
 
     GfxComputePipeline pipeline = nullptr;
     EXPECT_EQ(gfxDeviceCreateComputePipeline(device, &pipelineDesc, &pipeline), GFX_RESULT_SUCCESS);

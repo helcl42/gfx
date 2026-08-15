@@ -490,12 +490,12 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        // Validate compute shader
-        if (!descriptor->compute) {
+        // Validate compute state
+        if (!descriptor->compute || !descriptor->compute->module) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        return validateConstants(descriptor->constants, descriptor->constantCount);
+        return validateConstants(descriptor->compute->constants, descriptor->compute->constantCount);
     }
 
     GfxResult validateRenderPassDescriptor(const GfxRenderPassDescriptor* descriptor)

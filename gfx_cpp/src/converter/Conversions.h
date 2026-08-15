@@ -231,7 +231,8 @@ void convertFragmentState(const FragmentState& input, GfxShader fragmentShaderHa
 void convertPrimitiveState(const PrimitiveState& input, GfxPrimitiveState& out);
 void convertDepthStencilState(const DepthStencilState& input, GfxDepthStencilState& out);
 void convertRenderPipelineDescriptor(const RenderPipelineDescriptor& descriptor, GfxRenderPass renderPassHandle, const GfxVertexState& vertexState, const std::optional<GfxFragmentState>& fragmentState, const GfxPrimitiveState& primitiveState, const std::optional<GfxDepthStencilState>& depthStencilState, std::vector<GfxBindGroupLayout>& outBindGroupLayouts, GfxRenderPipelineDescriptor& out);
-void convertComputePipelineDescriptor(const ComputePipelineDescriptor& descriptor, GfxShader computeShaderHandle, std::vector<GfxBindGroupLayout>& outBindGroupLayouts, std::vector<GfxConstantEntry>& outConstants, GfxComputePipelineDescriptor& out);
+void convertComputeState(const ComputeState& input, GfxShader computeShaderHandle, std::vector<GfxConstantEntry>& outConstants, GfxComputeState& out);
+void convertComputePipelineDescriptor(const ComputePipelineDescriptor& descriptor, const GfxComputeState& computeState, std::vector<GfxBindGroupLayout>& outBindGroupLayouts, GfxComputePipelineDescriptor& out);
 
 // Window handle conversions
 PlatformWindowHandle cPlatformWindowHandleWin32ToCpp(const GfxPlatformWindowHandle& cHandle);

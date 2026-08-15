@@ -1517,10 +1517,20 @@ void convertRenderPipelineDescriptor(const RenderPipelineDescriptor& descriptor,
     out.bindGroupLayoutCount = static_cast<uint32_t>(outBindGroupLayouts.size());
 }
 
-void convertComputePipelineDescriptor(const ComputePipelineDescriptor& descriptor, GfxShader computeShaderHandle, std::vector<GfxBindGroupLayout>& outBindGroupLayouts, std::vector<GfxConstantEntry>& outConstants, GfxComputePipelineDescriptor& out)
+void convertComputeState(const ComputeState& input, GfxShader computeShaderHandle, std::vector<GfxConstantEntry>& outConstants, GfxComputeState& out)
+{
+    convertConstants(input.constants, outConstants);
+
+    out = {};
+    out.module = computeShaderHandle;
+    out.entryPoint = input.entryPoint.c_str();
+    out.constants = outConstants.empty() ? nullptr : outConstants.data();
+    out.constantCount = static_cast<uint32_t>(outConstants.size());
+}
+
+void convertComputePipelineDescriptor(const ComputePipelineDescriptor& descriptor, const GfxComputeState& computeState, std::vector<GfxBindGroupLayout>& outBindGroupLayouts, GfxComputePipelineDescriptor& out)
 {
     outBindGroupLayouts.clear();
-    convertConstants(descriptor.constants, outConstants);
     for (const auto& layout : descriptor.bindGroupLayouts) {
         auto layoutImpl = std::dynamic_pointer_cast<BindGroupLayoutImpl>(layout);
         if (layoutImpl) {
@@ -1532,12 +1542,9 @@ void convertComputePipelineDescriptor(const ComputePipelineDescriptor& descripto
     out.sType = GFX_STRUCTURE_TYPE_COMPUTE_PIPELINE_DESCRIPTOR;
     out.pNext = NULL;
     out.label = descriptor.label.c_str();
-    out.compute = computeShaderHandle;
-    out.entryPoint = descriptor.entryPoint.c_str();
+    out.compute = &computeState;
     out.bindGroupLayouts = outBindGroupLayouts.empty() ? nullptr : outBindGroupLayouts.data();
     out.bindGroupLayoutCount = static_cast<uint32_t>(outBindGroupLayouts.size());
-    out.constants = outConstants.empty() ? nullptr : outConstants.data();
-    out.constantCount = static_cast<uint32_t>(outConstants.size());
 }
 
 PlatformWindowHandle cPlatformWindowHandleWin32ToCpp(const GfxPlatformWindowHandle& cHandle)

@@ -2084,10 +2084,10 @@ core::ComputePipelineCreateInfo gfxDescriptorToComputePipelineCreateInfo(const G
     }
 
     // Compute shader
-    auto* computeShader = converter::toNative<core::Shader>(descriptor->compute);
+    auto* computeShader = converter::toNative<core::Shader>(descriptor->compute->module);
     createInfo.module = computeShader->handle();
-    createInfo.entryPoint = (descriptor->entryPoint && descriptor->entryPoint[0] != '\0') ? descriptor->entryPoint : computeShader->entryPoint();
-    createInfo.constants = convertSpecializationConstants(descriptor->constants, descriptor->constantCount);
+    createInfo.entryPoint = (descriptor->compute->entryPoint && descriptor->compute->entryPoint[0] != '\0') ? descriptor->compute->entryPoint : computeShader->entryPoint();
+    createInfo.constants = convertSpecializationConstants(descriptor->compute->constants, descriptor->compute->constantCount);
 
     return createInfo;
 }
