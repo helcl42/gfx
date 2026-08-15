@@ -597,12 +597,45 @@ core::BindGroupCreateInfo gfxDescriptorToWebGPUBindGroupCreateInfo(const GfxBind
 }
 
 namespace {
+    std::vector<core::ConstantEntry> convertConstants(const GfxConstantEntry* constants, uint32_t constantCount)
+    {
+        std::vector<core::ConstantEntry> result;
+        if (!constants || constantCount == 0) {
+            return result;
+        }
+
+        result.reserve(constantCount);
+        for (uint32_t i = 0; i < constantCount; ++i) {
+            core::ConstantEntry entry{};
+            entry.key = std::to_string(constants[i].id);
+
+            switch (constants[i].type) {
+            case GFX_CONSTANT_TYPE_BOOL:
+                entry.value = constants[i].value.b ? 1.0 : 0.0;
+                break;
+            case GFX_CONSTANT_TYPE_I32:
+                entry.value = static_cast<double>(constants[i].value.i32);
+                break;
+            case GFX_CONSTANT_TYPE_U32:
+                entry.value = static_cast<double>(constants[i].value.u32);
+                break;
+            case GFX_CONSTANT_TYPE_F32:
+                entry.value = static_cast<double>(constants[i].value.f32);
+                break;
+            }
+
+            result.push_back(std::move(entry));
+        }
+        return result;
+    }
+
     core::VertexState convertVertexState(const GfxVertexState& vertex)
     {
         core::VertexState vkVertex{};
         auto* vertexShader = toNative<Shader>(vertex.module);
         vkVertex.module = vertexShader->handle();
         vkVertex.entryPoint = vertex.entryPoint;
+        vkVertex.constants = convertConstants(vertex.constants, vertex.constantCount);
 
         vkVertex.buffers.reserve(vertex.bufferCount);
         for (uint32_t i = 0; i < vertex.bufferCount; ++i) {
@@ -658,6 +691,7 @@ namespace {
         auto* fragmentShader = toNative<Shader>(fragment.module);
         fragState.module = fragmentShader->handle();
         fragState.entryPoint = fragment.entryPoint;
+        fragState.constants = convertConstants(fragment.constants, fragment.constantCount);
 
         // One target per render pass color attachment; the format always comes from
         // the render pass, blend/writeMask from the matching fragment target if present
@@ -746,6 +780,7 @@ core::ComputePipelineCreateInfo gfxDescriptorToWebGPUComputePipelineCreateInfo(c
     auto* shader = toNative<Shader>(descriptor->compute);
     createInfo.module = shader->handle();
     createInfo.entryPoint = descriptor->entryPoint;
+    createInfo.constants = convertConstants(descriptor->constants, descriptor->constantCount);
 
     return createInfo;
 }

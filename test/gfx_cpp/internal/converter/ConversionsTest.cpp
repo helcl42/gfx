@@ -1146,4 +1146,77 @@ TEST(ConversionsTest, ConvertSubmitDescriptor_WaitStagesCountMismatchThrows)
         std::runtime_error);
 }
 
+TEST(ConversionsTest, ConvertConstants_AllTypes)
+{
+    std::vector<ConstantEntry> cppConstants = {
+        { .id = 0, .value = true },
+        { .id = 1, .value = int32_t { -7 } },
+        { .id = 2, .value = uint32_t { 9 } },
+        { .id = 3, .value = 2.5f }
+    };
+
+    std::vector<GfxConstantEntry> cConstants;
+    convertConstants(cppConstants, cConstants);
+
+    ASSERT_EQ(cConstants.size(), 4u);
+
+    EXPECT_EQ(cConstants[0].id, 0u);
+    EXPECT_EQ(cConstants[0].type, GFX_CONSTANT_TYPE_BOOL);
+    EXPECT_EQ(cConstants[0].value.b, true);
+
+    EXPECT_EQ(cConstants[1].id, 1u);
+    EXPECT_EQ(cConstants[1].type, GFX_CONSTANT_TYPE_I32);
+    EXPECT_EQ(cConstants[1].value.i32, -7);
+
+    EXPECT_EQ(cConstants[2].id, 2u);
+    EXPECT_EQ(cConstants[2].type, GFX_CONSTANT_TYPE_U32);
+    EXPECT_EQ(cConstants[2].value.u32, 9u);
+
+    EXPECT_EQ(cConstants[3].id, 3u);
+    EXPECT_EQ(cConstants[3].type, GFX_CONSTANT_TYPE_F32);
+    EXPECT_FLOAT_EQ(cConstants[3].value.f32, 2.5f);
+}
+
+TEST(ConversionsTest, ConvertConstants_EmptyClearsOutput)
+{
+    std::vector<GfxConstantEntry> cConstants(3);
+    convertConstants({}, cConstants);
+
+    EXPECT_TRUE(cConstants.empty());
+}
+
+TEST(ConversionsTest, ConvertComputePipelineDescriptor_Constants)
+{
+    ComputePipelineDescriptor desc;
+    desc.label = "TestPipeline";
+    desc.entryPoint = "main";
+    desc.constants = { { .id = 5, .value = uint32_t { 64 } } };
+
+    std::vector<GfxBindGroupLayout> layouts;
+    std::vector<GfxConstantEntry> constants;
+    GfxComputePipelineDescriptor cDesc;
+    convertComputePipelineDescriptor(desc, nullptr, layouts, constants, cDesc);
+
+    ASSERT_EQ(cDesc.constantCount, 1u);
+    ASSERT_EQ(cDesc.constants, constants.data());
+    EXPECT_EQ(cDesc.constants[0].id, 5u);
+    EXPECT_EQ(cDesc.constants[0].type, GFX_CONSTANT_TYPE_U32);
+    EXPECT_EQ(cDesc.constants[0].value.u32, 64u);
+}
+
+TEST(ConversionsTest, ConvertComputePipelineDescriptor_NoConstants)
+{
+    ComputePipelineDescriptor desc;
+    desc.label = "TestPipeline";
+    desc.entryPoint = "main";
+
+    std::vector<GfxBindGroupLayout> layouts;
+    std::vector<GfxConstantEntry> constants;
+    GfxComputePipelineDescriptor cDesc;
+    convertComputePipelineDescriptor(desc, nullptr, layouts, constants, cDesc);
+
+    EXPECT_EQ(cDesc.constantCount, 0u);
+    EXPECT_EQ(cDesc.constants, nullptr);
+}
+
 } // namespace gfx

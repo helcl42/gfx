@@ -1584,6 +1584,26 @@ typedef struct {
     const char* entryPoint;
 } GfxShaderDescriptor;
 
+typedef enum {
+    GFX_CONSTANT_TYPE_BOOL = 0,
+    GFX_CONSTANT_TYPE_I32 = 1,
+    GFX_CONSTANT_TYPE_U32 = 2,
+    GFX_CONSTANT_TYPE_F32 = 3,
+} GfxConstantType;
+
+typedef union {
+    bool b;
+    int32_t i32;
+    uint32_t u32;
+    float f32;
+} GfxConstantValue;
+
+typedef struct {
+    uint32_t id;
+    GfxConstantType type; // Selects the active GfxConstantValue member
+    GfxConstantValue value;
+} GfxConstantEntry;
+
 typedef struct {
     GfxBlendOperation operation;
     GfxBlendFactor srcFactor;
@@ -1619,6 +1639,8 @@ typedef struct {
     const char* entryPoint;
     const GfxVertexBufferLayout* buffers;
     uint32_t bufferCount;
+    const GfxConstantEntry* constants; // NULL if not used
+    uint32_t constantCount;
 } GfxVertexState;
 
 typedef struct {
@@ -1626,6 +1648,8 @@ typedef struct {
     const char* entryPoint;
     const GfxColorTargetState* targets;
     uint32_t targetCount;
+    const GfxConstantEntry* constants; // NULL if not used
+    uint32_t constantCount;
 } GfxFragmentState;
 
 typedef struct {
@@ -1680,6 +1704,8 @@ typedef struct {
     // Bind group layouts for the pipeline
     const GfxBindGroupLayout* bindGroupLayouts;
     uint32_t bindGroupLayoutCount;
+    const GfxConstantEntry* constants; // NULL if not used
+    uint32_t constantCount;
 } GfxComputePipelineDescriptor;
 
 typedef struct {

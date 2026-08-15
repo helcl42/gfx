@@ -215,13 +215,15 @@ std::shared_ptr<RenderPipeline> DeviceImpl::createRenderPipeline(const RenderPip
     // Convert vertex state
     std::vector<std::vector<GfxVertexAttribute>> cAttributesPerBuffer;
     std::vector<GfxVertexBufferLayout> cVertexBuffers;
+    std::vector<GfxConstantEntry> cVertexConstants;
     GfxVertexState cVertexState;
-    convertVertexState(descriptor.vertex, vertexShaderImpl->getHandle(), cAttributesPerBuffer, cVertexBuffers, cVertexState);
+    convertVertexState(descriptor.vertex, vertexShaderImpl->getHandle(), cAttributesPerBuffer, cVertexBuffers, cVertexConstants, cVertexState);
 
     // Convert fragment state (optional)
     std::optional<GfxFragmentState> cFragmentState;
     std::vector<GfxColorTargetState> cColorTargets;
     std::vector<GfxBlendState> cBlendStates;
+    std::vector<GfxConstantEntry> cFragmentConstants;
 
     if (descriptor.fragment.has_value()) {
         const auto& fragment = *descriptor.fragment;
@@ -231,7 +233,7 @@ std::shared_ptr<RenderPipeline> DeviceImpl::createRenderPipeline(const RenderPip
         }
 
         cFragmentState.emplace();
-        convertFragmentState(fragment, fragmentShaderImpl->getHandle(), cColorTargets, cBlendStates, *cFragmentState);
+        convertFragmentState(fragment, fragmentShaderImpl->getHandle(), cColorTargets, cBlendStates, cFragmentConstants, *cFragmentState);
     }
 
     // Convert primitive state
@@ -278,8 +280,9 @@ std::shared_ptr<ComputePipeline> DeviceImpl::createComputePipeline(const Compute
     }
 
     std::vector<GfxBindGroupLayout> bindGroupLayoutHandles;
+    std::vector<GfxConstantEntry> cConstants;
     GfxComputePipelineDescriptor cDesc;
-    convertComputePipelineDescriptor(descriptor, shaderImpl->getHandle(), bindGroupLayoutHandles, cDesc);
+    convertComputePipelineDescriptor(descriptor, shaderImpl->getHandle(), bindGroupLayoutHandles, cConstants, cDesc);
 
     GfxComputePipeline pipeline = nullptr;
     GfxResult result = gfxDeviceCreateComputePipeline(m_handle, &cDesc, &pipeline);

@@ -1184,16 +1184,23 @@ struct VertexBufferLayout {
     VertexStepMode stepMode = VertexStepMode::Vertex;
 };
 
+struct ConstantEntry {
+    uint32_t id = 0;
+    std::variant<bool, int32_t, uint32_t, float> value;
+};
+
 struct VertexState {
     std::shared_ptr<Shader> module;
     std::string entryPoint = "main";
     std::vector<VertexBufferLayout> buffers;
+    std::vector<ConstantEntry> constants;
 };
 
 struct FragmentState {
     std::shared_ptr<Shader> module;
     std::string entryPoint = "main";
     std::vector<ColorTargetState> targets;
+    std::vector<ConstantEntry> constants;
 };
 
 struct PrimitiveState {
@@ -1242,6 +1249,7 @@ struct ComputePipelineDescriptor {
     std::shared_ptr<Shader> compute;
     std::string entryPoint = "main";
     std::vector<std::shared_ptr<BindGroupLayout>> bindGroupLayouts; // Bind group layouts used by the pipeline
+    std::vector<ConstantEntry> constants;
 };
 
 struct BindGroupLayoutEntry {

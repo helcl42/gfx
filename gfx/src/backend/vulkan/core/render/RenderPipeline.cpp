@@ -7,13 +7,24 @@
 namespace gfx::backend::vulkan::core {
 
 namespace {
-    VkPipelineShaderStageCreateInfo makeShaderStage(VkShaderStageFlagBits stage, VkShaderModule module, const char* entryPoint)
+    VkSpecializationInfo makeSpecializationInfo(const SpecializationConstants& constants)
+    {
+        VkSpecializationInfo info{};
+        info.mapEntryCount = static_cast<uint32_t>(constants.entries.size());
+        info.pMapEntries = constants.entries.data();
+        info.dataSize = constants.data.size();
+        info.pData = constants.data.data();
+        return info;
+    }
+
+    VkPipelineShaderStageCreateInfo makeShaderStage(VkShaderStageFlagBits stage, VkShaderModule module, const char* entryPoint, const VkSpecializationInfo* specialization)
     {
         VkPipelineShaderStageCreateInfo info{};
         info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         info.stage = stage;
         info.module = module;
         info.pName = entryPoint;
+        info.pSpecializationInfo = specialization;
         return info;
     }
 
@@ -111,14 +122,20 @@ RenderPipeline::RenderPipeline(Device* device, const RenderPipelineCreateInfo& c
         throw std::runtime_error("Failed to create pipeline layout");
     }
 
+    // Borrowed by the stages below until vkCreateGraphicsPipelines consumes them
+    const VkSpecializationInfo vertexSpecialization = makeSpecializationInfo(createInfo.vertex.constants);
+    const VkSpecializationInfo fragmentSpecialization = makeSpecializationInfo(createInfo.fragment.constants);
+
     // Shader stages (vertex always present, fragment optional)
     VkPipelineShaderStageCreateInfo shaderStages[2] = {
-        makeShaderStage(VK_SHADER_STAGE_VERTEX_BIT, createInfo.vertex.module, createInfo.vertex.entryPoint),
+        makeShaderStage(VK_SHADER_STAGE_VERTEX_BIT, createInfo.vertex.module, createInfo.vertex.entryPoint,
+            createInfo.vertex.constants.entries.empty() ? nullptr : &vertexSpecialization),
         {}
     };
     uint32_t stageCount = 1;
     if (createInfo.fragment.module != VK_NULL_HANDLE) {
-        shaderStages[1] = makeShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, createInfo.fragment.module, createInfo.fragment.entryPoint);
+        shaderStages[1] = makeShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, createInfo.fragment.module, createInfo.fragment.entryPoint,
+            createInfo.fragment.constants.entries.empty() ? nullptr : &fragmentSpecialization);
         stageCount = 2;
     }
 

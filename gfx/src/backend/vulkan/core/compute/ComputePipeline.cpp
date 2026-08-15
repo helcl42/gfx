@@ -6,6 +6,18 @@
 
 namespace gfx::backend::vulkan::core {
 
+namespace {
+    VkSpecializationInfo makeSpecializationInfo(const SpecializationConstants& constants)
+    {
+        VkSpecializationInfo info{};
+        info.mapEntryCount = static_cast<uint32_t>(constants.entries.size());
+        info.pMapEntries = constants.entries.data();
+        info.dataSize = constants.data.size();
+        info.pData = constants.data.data();
+        return info;
+    }
+} // namespace
+
 ComputePipeline::ComputePipeline(Device* device, const ComputePipelineCreateInfo& createInfo)
     : m_device(device)
 {
@@ -26,6 +38,12 @@ ComputePipeline::ComputePipeline(Device* device, const ComputePipelineCreateInfo
     computeShaderStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     computeShaderStageInfo.module = createInfo.module;
     computeShaderStageInfo.pName = createInfo.entryPoint;
+
+    // Borrowed by the stage below until vkCreateComputePipelines consumes it
+    const VkSpecializationInfo specializationInfo = makeSpecializationInfo(createInfo.constants);
+    if (!createInfo.constants.entries.empty()) {
+        computeShaderStageInfo.pSpecializationInfo = &specializationInfo;
+    }
 
     // Create compute pipeline
     VkComputePipelineCreateInfo pipelineInfo{};

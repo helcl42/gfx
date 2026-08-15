@@ -423,6 +423,38 @@ namespace {
         return GFX_RESULT_SUCCESS;
     }
 
+    GfxResult validateConstants(const GfxConstantEntry* constants, uint32_t constantCount)
+    {
+        if (constantCount == 0) {
+            return GFX_RESULT_SUCCESS;
+        }
+
+        if (!constants) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+
+        for (uint32_t i = 0; i < constantCount; ++i) {
+            switch (constants[i].type) {
+            case GFX_CONSTANT_TYPE_BOOL:
+            case GFX_CONSTANT_TYPE_I32:
+            case GFX_CONSTANT_TYPE_U32:
+            case GFX_CONSTANT_TYPE_F32:
+                break;
+            default:
+                return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+            }
+
+            // Duplicate ids would make the applied value depend on entry order
+            for (uint32_t j = i + 1; j < constantCount; ++j) {
+                if (constants[j].id == constants[i].id) {
+                    return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+                }
+            }
+        }
+
+        return GFX_RESULT_SUCCESS;
+    }
+
     GfxResult validateRenderPipelineDescriptor(const GfxRenderPipelineDescriptor* descriptor)
     {
         if (!descriptor) {
@@ -432,6 +464,18 @@ namespace {
         // Validate vertex state
         if (!descriptor->vertex) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+
+        GfxResult constantsResult = validateConstants(descriptor->vertex->constants, descriptor->vertex->constantCount);
+        if (constantsResult != GFX_RESULT_SUCCESS) {
+            return constantsResult;
+        }
+
+        if (descriptor->fragment) {
+            constantsResult = validateConstants(descriptor->fragment->constants, descriptor->fragment->constantCount);
+            if (constantsResult != GFX_RESULT_SUCCESS) {
+                return constantsResult;
+            }
         }
 
         // Validate render pass
@@ -464,7 +508,7 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        return GFX_RESULT_SUCCESS;
+        return validateConstants(descriptor->constants, descriptor->constantCount);
     }
 
     GfxResult validateRenderPassDescriptor(const GfxRenderPassDescriptor* descriptor)

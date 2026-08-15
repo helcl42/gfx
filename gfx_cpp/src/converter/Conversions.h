@@ -225,12 +225,13 @@ void convertPresentDescriptor(const PresentDescriptor& descriptor, std::vector<G
 void convertFramebufferDescriptor(const FramebufferDescriptor& descriptor, GfxRenderPass renderPassHandle, std::vector<GfxFramebufferAttachment>& outColorAttachments, GfxFramebufferAttachment& outDepthStencilAttachment, GfxFramebufferDescriptor& outDesc);
 
 // RenderPipeline state conversions
-void convertVertexState(const VertexState& input, GfxShader vertexShaderHandle, std::vector<std::vector<GfxVertexAttribute>>& outAttributesPerBuffer, std::vector<GfxVertexBufferLayout>& outVertexBuffers, GfxVertexState& out);
-void convertFragmentState(const FragmentState& input, GfxShader fragmentShaderHandle, std::vector<GfxColorTargetState>& outColorTargets, std::vector<GfxBlendState>& outBlendStates, GfxFragmentState& out);
+void convertConstants(const std::vector<ConstantEntry>& input, std::vector<GfxConstantEntry>& out);
+void convertVertexState(const VertexState& input, GfxShader vertexShaderHandle, std::vector<std::vector<GfxVertexAttribute>>& outAttributesPerBuffer, std::vector<GfxVertexBufferLayout>& outVertexBuffers, std::vector<GfxConstantEntry>& outConstants, GfxVertexState& out);
+void convertFragmentState(const FragmentState& input, GfxShader fragmentShaderHandle, std::vector<GfxColorTargetState>& outColorTargets, std::vector<GfxBlendState>& outBlendStates, std::vector<GfxConstantEntry>& outConstants, GfxFragmentState& out);
 void convertPrimitiveState(const PrimitiveState& input, GfxPrimitiveState& out);
 void convertDepthStencilState(const DepthStencilState& input, GfxDepthStencilState& out);
 void convertRenderPipelineDescriptor(const RenderPipelineDescriptor& descriptor, GfxRenderPass renderPassHandle, const GfxVertexState& vertexState, const std::optional<GfxFragmentState>& fragmentState, const GfxPrimitiveState& primitiveState, const std::optional<GfxDepthStencilState>& depthStencilState, std::vector<GfxBindGroupLayout>& outBindGroupLayouts, GfxRenderPipelineDescriptor& out);
-void convertComputePipelineDescriptor(const ComputePipelineDescriptor& descriptor, GfxShader computeShaderHandle, std::vector<GfxBindGroupLayout>& outBindGroupLayouts, GfxComputePipelineDescriptor& out);
+void convertComputePipelineDescriptor(const ComputePipelineDescriptor& descriptor, GfxShader computeShaderHandle, std::vector<GfxBindGroupLayout>& outBindGroupLayouts, std::vector<GfxConstantEntry>& outConstants, GfxComputePipelineDescriptor& out);
 
 // Window handle conversions
 PlatformWindowHandle cPlatformWindowHandleWin32ToCpp(const GfxPlatformWindowHandle& cHandle);

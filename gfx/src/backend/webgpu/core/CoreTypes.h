@@ -329,10 +329,16 @@ struct VertexBufferLayout {
     std::vector<VertexAttribute> attributes;
 };
 
+struct ConstantEntry {
+    std::string key;
+    double value;
+};
+
 struct VertexState {
     WGPUShaderModule module;
     const char* entryPoint;
     std::vector<VertexBufferLayout> buffers;
+    std::vector<ConstantEntry> constants;
 };
 
 struct BlendComponent {
@@ -356,6 +362,7 @@ struct FragmentState {
     WGPUShaderModule module;
     const char* entryPoint;
     std::vector<ColorTargetState> targets;
+    std::vector<ConstantEntry> constants;
 };
 
 struct PrimitiveState {
@@ -398,6 +405,7 @@ struct ComputePipelineCreateInfo {
     std::vector<WGPUBindGroupLayout> bindGroupLayouts;
     WGPUShaderModule module;
     const char* entryPoint;
+    std::vector<ConstantEntry> constants;
 };
 
 // Simplified color attachment info for RenderPass (ops only, no views)

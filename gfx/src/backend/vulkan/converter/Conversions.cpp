@@ -1941,12 +1941,53 @@ namespace {
         return (requested && requested[0] != '\0') ? requested : shader->entryPoint();
     }
 
+    core::SpecializationConstants convertSpecializationConstants(const GfxConstantEntry* constants, uint32_t constantCount)
+    {
+        core::SpecializationConstants result{};
+        if (!constants || constantCount == 0) {
+            return result;
+        }
+
+        result.entries.reserve(constantCount);
+        result.data.resize(static_cast<size_t>(constantCount) * sizeof(uint32_t));
+
+        for (uint32_t i = 0; i < constantCount; ++i) {
+            const uint32_t offset = i * static_cast<uint32_t>(sizeof(uint32_t));
+            uint32_t word = 0;
+
+            switch (constants[i].type) {
+            case GFX_CONSTANT_TYPE_BOOL:
+                word = constants[i].value.b ? VK_TRUE : VK_FALSE;
+                break;
+            case GFX_CONSTANT_TYPE_I32:
+                std::memcpy(&word, &constants[i].value.i32, sizeof(word));
+                break;
+            case GFX_CONSTANT_TYPE_U32:
+                word = constants[i].value.u32;
+                break;
+            case GFX_CONSTANT_TYPE_F32:
+                std::memcpy(&word, &constants[i].value.f32, sizeof(word));
+                break;
+            }
+
+            std::memcpy(result.data.data() + offset, &word, sizeof(word));
+
+            VkSpecializationMapEntry entry{};
+            entry.constantID = constants[i].id;
+            entry.offset = offset;
+            entry.size = sizeof(uint32_t);
+            result.entries.push_back(entry);
+        }
+        return result;
+    }
+
     core::VertexState convertVertexState(const GfxVertexState& vertex)
     {
         core::VertexState vkVertex{};
         auto* vertShader = converter::toNative<core::Shader>(vertex.module);
         vkVertex.module = vertShader->handle();
         vkVertex.entryPoint = resolveEntryPoint(vertex.entryPoint, vertShader);
+        vkVertex.constants = convertSpecializationConstants(vertex.constants, vertex.constantCount);
 
         for (uint32_t i = 0; i < vertex.bufferCount; ++i) {
             const auto& bufferLayout = vertex.buffers[i];
@@ -1978,6 +2019,7 @@ namespace {
         auto* fragShader = converter::toNative<core::Shader>(fragment.module);
         vkFragment.module = fragShader->handle();
         vkFragment.entryPoint = resolveEntryPoint(fragment.entryPoint, fragShader);
+        vkFragment.constants = convertSpecializationConstants(fragment.constants, fragment.constantCount);
 
         for (uint32_t i = 0; i < fragment.targetCount; ++i) {
             vkFragment.targets.push_back(convertColorTarget(fragment.targets[i]));
@@ -2045,6 +2087,7 @@ core::ComputePipelineCreateInfo gfxDescriptorToComputePipelineCreateInfo(const G
     auto* computeShader = converter::toNative<core::Shader>(descriptor->compute);
     createInfo.module = computeShader->handle();
     createInfo.entryPoint = (descriptor->entryPoint && descriptor->entryPoint[0] != '\0') ? descriptor->entryPoint : computeShader->entryPoint();
+    createInfo.constants = convertSpecializationConstants(descriptor->constants, descriptor->constantCount);
 
     return createInfo;
 }

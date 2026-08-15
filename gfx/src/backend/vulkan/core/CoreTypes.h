@@ -355,10 +355,16 @@ struct VertexBufferLayout {
     std::vector<VkVertexInputAttributeDescription> attributes;
 };
 
+struct SpecializationConstants {
+    std::vector<VkSpecializationMapEntry> entries;
+    std::vector<uint8_t> data;
+};
+
 struct VertexState {
     VkShaderModule module;
     const char* entryPoint;
     std::vector<VertexBufferLayout> buffers;
+    SpecializationConstants constants;
 };
 
 struct ColorTargetState {
@@ -371,6 +377,7 @@ struct FragmentState {
     VkShaderModule module;
     const char* entryPoint;
     std::vector<ColorTargetState> targets;
+    SpecializationConstants constants;
 };
 
 struct PrimitiveState {
@@ -400,6 +407,7 @@ struct ComputePipelineCreateInfo {
     std::vector<VkDescriptorSetLayout> bindGroupLayouts;
     VkShaderModule module;
     const char* entryPoint;
+    SpecializationConstants constants;
 };
 
 // Color attachment target for render pass (main or resolve)

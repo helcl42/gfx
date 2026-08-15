@@ -8,10 +8,24 @@
 namespace gfx::backend::webgpu::core {
 
 namespace {
+    std::vector<WGPUConstantEntry> makeConstantEntries(const std::vector<ConstantEntry>& constants)
+    {
+        std::vector<WGPUConstantEntry> entries;
+        entries.reserve(constants.size());
+        for (const auto& constant : constants) {
+            WGPUConstantEntry entry = WGPU_CONSTANT_ENTRY_INIT;
+            entry.key = { constant.key.c_str(), WGPU_STRLEN };
+            entry.value = constant.value;
+            entries.push_back(entry);
+        }
+        return entries;
+    }
+
     // Vertex state together with the attribute/buffer arrays it points into
     struct VertexStateData {
         std::vector<std::vector<WGPUVertexAttribute>> allAttributes;
         std::vector<WGPUVertexBufferLayout> buffers;
+        std::vector<WGPUConstantEntry> constants;
         WGPUVertexState state = WGPU_VERTEX_STATE_INIT;
     };
 
@@ -20,6 +34,10 @@ namespace {
         VertexStateData data;
         data.state.module = vertex.module;
         data.state.entryPoint = { vertex.entryPoint, WGPU_STRLEN };
+
+        data.constants = makeConstantEntries(vertex.constants);
+        data.state.constants = data.constants.empty() ? nullptr : data.constants.data();
+        data.state.constantCount = data.constants.size();
 
         if (vertex.buffers.empty()) {
             return data;
@@ -59,6 +77,7 @@ namespace {
     struct FragmentStateData {
         std::vector<WGPUBlendState> blendStates;
         std::vector<WGPUColorTargetState> colorTargets;
+        std::vector<WGPUConstantEntry> constants;
         WGPUFragmentState state = WGPU_FRAGMENT_STATE_INIT;
     };
 
@@ -72,6 +91,10 @@ namespace {
         FragmentStateData data;
         data.state.module = fragment->module;
         data.state.entryPoint = { fragment->entryPoint, WGPU_STRLEN };
+
+        data.constants = makeConstantEntries(fragment->constants);
+        data.state.constants = data.constants.empty() ? nullptr : data.constants.data();
+        data.state.constantCount = data.constants.size();
 
         if (fragment->targets.empty()) {
             return data;

@@ -1357,10 +1357,42 @@ void convertFramebufferDescriptor(const FramebufferDescriptor& descriptor, GfxRe
     outDesc.extent = { descriptor.extent.width, descriptor.extent.height };
 }
 
-void convertVertexState(const VertexState& input, GfxShader vertexShaderHandle, std::vector<std::vector<GfxVertexAttribute>>& outAttributesPerBuffer, std::vector<GfxVertexBufferLayout>& outVertexBuffers, GfxVertexState& out)
+void convertConstants(const std::vector<ConstantEntry>& input, std::vector<GfxConstantEntry>& out)
+{
+    out.clear();
+    out.reserve(input.size());
+
+    for (const auto& constant : input) {
+        GfxConstantEntry cEntry = {};
+        cEntry.id = constant.id;
+
+        std::visit([&cEntry](auto&& value) {
+            using T = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<T, bool>) {
+                cEntry.type = GFX_CONSTANT_TYPE_BOOL;
+                cEntry.value.b = value;
+            } else if constexpr (std::is_same_v<T, int32_t>) {
+                cEntry.type = GFX_CONSTANT_TYPE_I32;
+                cEntry.value.i32 = value;
+            } else if constexpr (std::is_same_v<T, uint32_t>) {
+                cEntry.type = GFX_CONSTANT_TYPE_U32;
+                cEntry.value.u32 = value;
+            } else {
+                cEntry.type = GFX_CONSTANT_TYPE_F32;
+                cEntry.value.f32 = value;
+            }
+        },
+            constant.value);
+
+        out.push_back(cEntry);
+    }
+}
+
+void convertVertexState(const VertexState& input, GfxShader vertexShaderHandle, std::vector<std::vector<GfxVertexAttribute>>& outAttributesPerBuffer, std::vector<GfxVertexBufferLayout>& outVertexBuffers, std::vector<GfxConstantEntry>& outConstants, GfxVertexState& out)
 {
     outAttributesPerBuffer.clear();
     outVertexBuffers.clear();
+    convertConstants(input.constants, outConstants);
 
     for (const auto& buffer : input.buffers) {
         std::vector<GfxVertexAttribute> cAttributes;
@@ -1386,12 +1418,15 @@ void convertVertexState(const VertexState& input, GfxShader vertexShaderHandle, 
     out.entryPoint = input.entryPoint.c_str();
     out.buffers = outVertexBuffers.empty() ? nullptr : outVertexBuffers.data();
     out.bufferCount = static_cast<uint32_t>(outVertexBuffers.size());
+    out.constants = outConstants.empty() ? nullptr : outConstants.data();
+    out.constantCount = static_cast<uint32_t>(outConstants.size());
 }
 
-void convertFragmentState(const FragmentState& input, GfxShader fragmentShaderHandle, std::vector<GfxColorTargetState>& outColorTargets, std::vector<GfxBlendState>& outBlendStates, GfxFragmentState& out)
+void convertFragmentState(const FragmentState& input, GfxShader fragmentShaderHandle, std::vector<GfxColorTargetState>& outColorTargets, std::vector<GfxBlendState>& outBlendStates, std::vector<GfxConstantEntry>& outConstants, GfxFragmentState& out)
 {
     outColorTargets.clear();
     outBlendStates.clear();
+    convertConstants(input.constants, outConstants);
 
     for (const auto& target : input.targets) {
         GfxColorTargetState cTarget = {};
@@ -1420,6 +1455,8 @@ void convertFragmentState(const FragmentState& input, GfxShader fragmentShaderHa
     out.entryPoint = input.entryPoint.c_str();
     out.targets = outColorTargets.data();
     out.targetCount = static_cast<uint32_t>(outColorTargets.size());
+    out.constants = outConstants.empty() ? nullptr : outConstants.data();
+    out.constantCount = static_cast<uint32_t>(outConstants.size());
 }
 
 void convertPrimitiveState(const PrimitiveState& input, GfxPrimitiveState& out)
@@ -1480,9 +1517,10 @@ void convertRenderPipelineDescriptor(const RenderPipelineDescriptor& descriptor,
     out.bindGroupLayoutCount = static_cast<uint32_t>(outBindGroupLayouts.size());
 }
 
-void convertComputePipelineDescriptor(const ComputePipelineDescriptor& descriptor, GfxShader computeShaderHandle, std::vector<GfxBindGroupLayout>& outBindGroupLayouts, GfxComputePipelineDescriptor& out)
+void convertComputePipelineDescriptor(const ComputePipelineDescriptor& descriptor, GfxShader computeShaderHandle, std::vector<GfxBindGroupLayout>& outBindGroupLayouts, std::vector<GfxConstantEntry>& outConstants, GfxComputePipelineDescriptor& out)
 {
     outBindGroupLayouts.clear();
+    convertConstants(descriptor.constants, outConstants);
     for (const auto& layout : descriptor.bindGroupLayouts) {
         auto layoutImpl = std::dynamic_pointer_cast<BindGroupLayoutImpl>(layout);
         if (layoutImpl) {
@@ -1498,6 +1536,8 @@ void convertComputePipelineDescriptor(const ComputePipelineDescriptor& descripto
     out.entryPoint = descriptor.entryPoint.c_str();
     out.bindGroupLayouts = outBindGroupLayouts.empty() ? nullptr : outBindGroupLayouts.data();
     out.bindGroupLayoutCount = static_cast<uint32_t>(outBindGroupLayouts.size());
+    out.constants = outConstants.empty() ? nullptr : outConstants.data();
+    out.constantCount = static_cast<uint32_t>(outConstants.size());
 }
 
 PlatformWindowHandle cPlatformWindowHandleWin32ToCpp(const GfxPlatformWindowHandle& cHandle)
