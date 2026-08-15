@@ -140,7 +140,7 @@ typedef struct {
 } CubeThreadData;
 #endif
 
-typedef struct CubeApp {
+struct CubeApp {
     GLFWwindow* window;
 
     GfxInstance instance;
@@ -212,7 +212,7 @@ typedef struct CubeApp {
     volatile bool threadsRunning;
     volatile uint32_t currentImageIndex;
 #endif
-} CubeApp;
+};
 
 // Private function declarations
 static bool createWindow(CubeApp* app, uint32_t width, uint32_t height);
