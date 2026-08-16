@@ -31,6 +31,22 @@
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
             margin: 20px 0;
+            /* The surface is sized from this CSS box x DPR, so an unconstrained canvas would
+               render at its attribute size even on a smaller display. */
+            max-width: 100%;
+            max-height: 90vh;
+        }
+
+        /* Emscripten fullscreens a wrapper div it creates around the canvas, so the canvas is only
+           a descendant of the fullscreen element - the caps above have to be lifted here. */
+        :fullscreen #canvas,
+        #canvas:fullscreen {
+            max-width: 100vw;
+            max-height: 100vh;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            margin: 0;
         }
 
         #output {
@@ -104,7 +120,7 @@
 
     <div class="controls">
         <label>
-            <input type="checkbox" id="resize">
+            <input type="checkbox" id="resize" checked>
             Resize canvas
         </label>
         <label>
