@@ -21,8 +21,6 @@ jobs:
           - os: macos-15
             c_compiler: clang
             cpp_compiler: clang++
-    env:
-      VULKAN_VERSION: 1.3.290.0
 
     steps:
     - uses: actions/checkout@v4
@@ -40,10 +38,10 @@ jobs:
 
     - name: Install Vulkan SDK
       run: |
-        wget "https://sdk.lunarg.com/sdk/download/$VULKAN_VERSION/mac/vulkansdk-macos-$VULKAN_VERSION.dmg?Human=true" -O vulkansdk.dmg
-        hdiutil attach vulkansdk.dmg
-        sudo /Volumes/vulkansdk-macos-$VULKAN_VERSION/InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/vulkansdk-macos-$VULKAN_VERSION --accept-licenses --default-answer --confirm-command install
-        hdiutil detach /Volumes/vulkansdk-macos-$VULKAN_VERSION
+        VULKAN_VERSION=$(curl -fsSL https://vulkan.lunarg.com/sdk/latest/mac.txt)
+        curl -fsSL "https://sdk.lunarg.com/sdk/download/$VULKAN_VERSION/mac/vulkansdk-macos-$VULKAN_VERSION.zip" -o vulkansdk.zip
+        unzip -q vulkansdk.zip
+        sudo ./vulkansdk-macOS-$VULKAN_VERSION.app/Contents/MacOS/vulkansdk-macOS-$VULKAN_VERSION --root $GITHUB_WORKSPACE/vulkansdk-macos-$VULKAN_VERSION --accept-licenses --default-answer --confirm-command install
         echo "VULKAN_SDK_PATH=$GITHUB_WORKSPACE/vulkansdk-macos-$VULKAN_VERSION" >> $GITHUB_ENV
         echo "VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-$VULKAN_VERSION/macOS" >> $GITHUB_ENV
         echo $GITHUB_ENV
