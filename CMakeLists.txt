@@ -776,7 +776,7 @@ if(BUILD_CPP_WRAPPER)
     if(MSVC)
         target_compile_options(gfx_cpp PRIVATE /W4)
     else()
-        target_compile_options(gfx_cpp PRIVATE -Wall -Wextra -Wpedantic -g)
+        target_compile_options(gfx_cpp PRIVATE -Wall -Wextra -Wpedantic)
     endif()
     gfx_apply_sanitizers(gfx_cpp)
 endif()  # BUILD_CPP_WRAPPER
@@ -785,7 +785,7 @@ endif()  # BUILD_CPP_WRAPPER
 if(MSVC)
     target_compile_options(gfx PRIVATE /W4)
 else()
-    target_compile_options(gfx PRIVATE -Wall -Wextra -Wpedantic -g)
+    target_compile_options(gfx PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 gfx_apply_sanitizers(gfx)
 
