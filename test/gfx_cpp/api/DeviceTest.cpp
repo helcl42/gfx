@@ -262,7 +262,7 @@ TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayoutDepthStencilReadOnly)
 
     gfx::AccessFlags flags = device->getAccessFlagsForLayout(gfx::TextureLayout::DepthStencilReadOnly);
     if (backend == gfx::Backend::Vulkan) {
-        EXPECT_EQ(flags, gfx::AccessFlags::DepthStencilAttachmentRead);
+        EXPECT_EQ(flags, gfx::AccessFlags::DepthStencilAttachmentRead | gfx::AccessFlags::ShaderRead);
     } else {
         EXPECT_EQ(flags, gfx::AccessFlags::None);
     }

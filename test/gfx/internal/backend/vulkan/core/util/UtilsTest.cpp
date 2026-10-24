@@ -196,10 +196,10 @@ TEST_F(VulkanUtilsTest, GetVkAccessFlagsForLayout_DepthStencilAttachment_Returns
     EXPECT_EQ(result, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
 }
 
-TEST_F(VulkanUtilsTest, GetVkAccessFlagsForLayout_DepthStencilReadOnly_ReturnsDepthStencilRead)
+TEST_F(VulkanUtilsTest, GetVkAccessFlagsForLayout_DepthStencilReadOnly_ReturnsDepthStencilAndShaderRead)
 {
     VkAccessFlags result = gfx::backend::vulkan::core::getVkAccessFlagsForLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
-    EXPECT_EQ(result, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
+    EXPECT_EQ(result, static_cast<VkAccessFlags>(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_SHADER_READ_BIT));
 }
 
 TEST_F(VulkanUtilsTest, GetVkAccessFlagsForLayout_ShaderReadOnly_ReturnsShaderRead)
