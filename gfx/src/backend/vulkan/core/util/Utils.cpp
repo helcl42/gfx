@@ -15,19 +15,22 @@ bool isDepthFormat(VkFormat format)
 
 bool hasStencilComponent(VkFormat format)
 {
-    return format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT_S8_UINT;
+    return format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_S8_UINT;
 }
 
 VkImageAspectFlags getImageAspectMask(VkFormat format)
 {
+    VkImageAspectFlags aspectMask = 0;
     if (isDepthFormat(format)) {
-        VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        if (hasStencilComponent(format)) {
-            aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-        }
-        return aspectMask;
+        aspectMask |= VK_IMAGE_ASPECT_DEPTH_BIT;
     }
-    return VK_IMAGE_ASPECT_COLOR_BIT;
+    if (hasStencilComponent(format)) {
+        aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    }
+    if (aspectMask == 0) {
+        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+    return aspectMask;
 }
 
 bool isCompressedVkFormat(VkFormat format)

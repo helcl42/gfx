@@ -114,6 +114,15 @@ TEST(VulkanConversionsTest, GfxTextureUsageToVkImageUsage_DepthFormat_AddsDepthB
     EXPECT_TRUE(result & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }
 
+TEST(VulkanConversionsTest, GfxTextureUsageToVkImageUsage_StencilFormat_AddsDepthStencilBit)
+{
+    VkImageUsageFlags result = gfx::backend::vulkan::converter::gfxTextureUsageToVkImageUsage(
+        GFX_TEXTURE_USAGE_RENDER_ATTACHMENT, VK_FORMAT_S8_UINT);
+
+    EXPECT_TRUE(result & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    EXPECT_FALSE(result & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+}
+
 TEST(VulkanConversionsTest, VkImageUsageToGfxTextureUsage_RoundTrip_Preserves)
 {
     VkImageUsageFlags vk = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
@@ -1081,6 +1090,12 @@ TEST(VulkanConversionsTest, GetImageAspectMask_DepthStencilFormat_ReturnsBothBit
     VkImageAspectFlags result = gfx::backend::vulkan::converter::getImageAspectMask(VK_FORMAT_D24_UNORM_S8_UINT);
     EXPECT_TRUE(result & VK_IMAGE_ASPECT_DEPTH_BIT);
     EXPECT_TRUE(result & VK_IMAGE_ASPECT_STENCIL_BIT);
+}
+
+TEST(VulkanConversionsTest, GetImageAspectMask_StencilFormat_ReturnsStencilBit)
+{
+    VkImageAspectFlags result = gfx::backend::vulkan::converter::getImageAspectMask(VK_FORMAT_S8_UINT);
+    EXPECT_EQ(result, static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_STENCIL_BIT));
 }
 
 TEST(VulkanConversionsTest, GfxTextureAspect_DepthOnly_ReturnsDepthBit)

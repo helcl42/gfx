@@ -737,14 +737,17 @@ bool hasStencilComponent(VkFormat format)
 
 VkImageAspectFlags getImageAspectMask(VkFormat format)
 {
+    VkImageAspectFlags aspectMask = 0;
     if (isDepthFormat(format)) {
-        VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        if (hasStencilComponent(format)) {
-            aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-        }
-        return aspectMask;
+        aspectMask |= VK_IMAGE_ASPECT_DEPTH_BIT;
     }
-    return VK_IMAGE_ASPECT_COLOR_BIT;
+    if (hasStencilComponent(format)) {
+        aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    }
+    if (aspectMask == 0) {
+        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+    return aspectMask;
 }
 
 VkImageLayout gfxLayoutToVkImageLayout(GfxTextureLayout layout)
@@ -1347,7 +1350,7 @@ VkImageUsageFlags gfxTextureUsageToVkImageUsage(GfxTextureUsageFlags gfxUsage, V
     }
     if (gfxUsage & GFX_TEXTURE_USAGE_RENDER_ATTACHMENT) {
         // Check if this is a depth/stencil format
-        if (isDepthFormat(format)) {
+        if (isDepthFormat(format) || hasStencilComponent(format)) {
             usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         } else {
             usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -1915,7 +1918,7 @@ core::BindGroupCreateInfo gfxDescriptorToBindGroupCreateInfo(const GfxBindGroupD
             // Set image layout based on descriptor type
             if (bindEntry.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
                 bindEntry.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-            } else if (isDepthFormat(textureView->getFormat())) {
+            } else if (isDepthFormat(textureView->getFormat()) || hasStencilComponent(textureView->getFormat())) {
                 bindEntry.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
             } else {
                 bindEntry.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -2090,10 +2093,13 @@ namespace {
 
     core::DepthStencilState convertDepthStencilState(const GfxDepthStencilState& depthStencil)
     {
+        // A stencil-only format may leave depthCompare UNDEFINED, which WebGPU treats as ALWAYS
+        const GfxCompareFunction depthCompare = (depthStencil.depthCompare == GFX_COMPARE_FUNCTION_UNDEFINED) ? GFX_COMPARE_FUNCTION_ALWAYS : depthStencil.depthCompare;
+
         core::DepthStencilState vkDepthStencil{};
         vkDepthStencil.format = gfxFormatToVkFormat(depthStencil.format);
         vkDepthStencil.depthWriteEnabled = depthStencil.depthWriteEnabled;
-        vkDepthStencil.depthCompareOp = gfxCompareOpToVkCompareOp(depthStencil.depthCompare);
+        vkDepthStencil.depthCompareOp = gfxCompareOpToVkCompareOp(depthCompare);
         vkDepthStencil.stencilFront = convertStencilFaceState(depthStencil.stencilFront, depthStencil.stencilReadMask, depthStencil.stencilWriteMask);
         vkDepthStencil.stencilBack = convertStencilFaceState(depthStencil.stencilBack, depthStencil.stencilReadMask, depthStencil.stencilWriteMask);
         vkDepthStencil.depthBias = depthStencil.depthBias;

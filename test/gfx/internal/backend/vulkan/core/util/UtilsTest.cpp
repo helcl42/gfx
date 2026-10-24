@@ -89,6 +89,12 @@ TEST_F(VulkanUtilsTest, HasStencilComponent_D32SfloatS8Uint_ReturnsTrue)
     EXPECT_TRUE(result);
 }
 
+TEST_F(VulkanUtilsTest, HasStencilComponent_S8Uint_ReturnsTrue)
+{
+    bool result = gfx::backend::vulkan::core::hasStencilComponent(VK_FORMAT_S8_UINT);
+    EXPECT_TRUE(result);
+}
+
 TEST_F(VulkanUtilsTest, HasStencilComponent_D32Sfloat_ReturnsFalse)
 {
     bool result = gfx::backend::vulkan::core::hasStencilComponent(VK_FORMAT_D32_SFLOAT);
@@ -139,6 +145,12 @@ TEST_F(VulkanUtilsTest, GetImageAspectMask_D32SfloatS8Uint_ReturnsDepthAndStenci
 {
     VkImageAspectFlags result = gfx::backend::vulkan::core::getImageAspectMask(VK_FORMAT_D32_SFLOAT_S8_UINT);
     EXPECT_EQ(result, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+}
+
+TEST_F(VulkanUtilsTest, GetImageAspectMask_S8Uint_ReturnsStencilBit)
+{
+    VkImageAspectFlags result = gfx::backend::vulkan::core::getImageAspectMask(VK_FORMAT_S8_UINT);
+    EXPECT_EQ(result, VK_IMAGE_ASPECT_STENCIL_BIT);
 }
 
 TEST_F(VulkanUtilsTest, GetImageAspectMask_MultipleColorFormats_AllReturnColorBit)
