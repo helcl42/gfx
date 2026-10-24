@@ -111,6 +111,16 @@ const TextureInfo& Texture::getInfo() const
     return m_info;
 }
 
+bool Texture::isFullSubresource(const VkOffset3D& origin, const VkExtent3D& extent, uint32_t mipLevel) const
+{
+    const uint32_t mipWidth = std::max(1u, m_info.size.width >> mipLevel);
+    const uint32_t mipHeight = std::max(1u, m_info.size.height >> mipLevel);
+    const uint32_t mipDepth = std::max(1u, m_info.size.depth >> mipLevel);
+    const bool is3D = m_info.imageType == VK_IMAGE_TYPE_3D;
+    return origin.x == 0 && origin.y == 0 && origin.z == 0
+        && extent.width == mipWidth && extent.height == mipHeight && (!is3D || extent.depth == mipDepth);
+}
+
 VkImageLayout Texture::getLayout() const
 {
     return m_currentLayout;

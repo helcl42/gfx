@@ -29,6 +29,7 @@ public:
     VkSampleCountFlagBits getSampleCount() const;
     VkImageUsageFlags getUsage() const;
     const TextureInfo& getInfo() const;
+    bool isFullSubresource(const VkOffset3D& origin, const VkExtent3D& extent, uint32_t mipLevel) const;
 
     VkImageLayout getLayout() const;
     void setLayout(VkImageLayout layout);

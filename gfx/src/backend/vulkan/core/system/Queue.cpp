@@ -231,11 +231,10 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
     memcpy(mappedData, data, dataSize);
     allocator->unmapMemory(staging.allocation);
 
-    // Reset tracked layout to UNDEFINED before each subresource write — the single
-    // m_currentLayout may not reflect this subresource's actual layout (e.g., texture
-    // array layers uploaded sequentially). UNDEFINED is always valid as oldLayout since
-    // writeTexture overwrites the entire subresource contents.
-    texture->setLayout(VK_IMAGE_LAYOUT_UNDEFINED);
+    // As in CommandEncoder::copyBufferToTexture: only a full-subresource write may discard prior contents
+    if (texture->isFullSubresource(origin, extent, mipLevel)) {
+        texture->setLayout(VK_IMAGE_LAYOUT_UNDEFINED);
+    }
 
     // For 3D textures extent.depth is the number of depth slices; for 1D/2D textures
     // it is the number of array layers to write starting at arrayLayer

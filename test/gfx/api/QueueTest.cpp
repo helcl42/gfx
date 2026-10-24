@@ -254,6 +254,85 @@ TEST_P(GfxQueueTest, ConcurrentQueueOperationsAreThreadSafe)
     gfxTextureDestroy(texture);
 }
 
+// Test: A partial texture write keeps the texels outside the written region
+TEST_P(GfxQueueTest, WriteTexturePartialPreservesContents)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    constexpr uint32_t kSize = 64;
+    constexpr uint32_t kBytesPerRow = kSize * 4; // 256, as WebGPU requires for texture-to-buffer copies
+
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { kSize, kSize, 1 };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.usage = GFX_FLAGS(GFX_TEXTURE_USAGE_COPY_DST | GFX_TEXTURE_USAGE_COPY_SRC | GFX_TEXTURE_USAGE_TEXTURE_BINDING);
+
+    GfxTexture texture = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &texture), GFX_RESULT_SUCCESS);
+
+    const std::vector<uint8_t> background(kSize * kSize * 4, 0x11);
+    GfxWriteTextureDescriptor fullWrite = {};
+    fullWrite.texture = texture;
+    fullWrite.extent = { kSize, kSize, 1 };
+    fullWrite.finalLayout = GFX_TEXTURE_LAYOUT_SHADER_READ_ONLY;
+    ASSERT_EQ(gfxQueueWriteTexture(queue, &fullWrite, background.data(), background.size()), GFX_RESULT_SUCCESS);
+
+    const std::vector<uint8_t> patch(16 * 16 * 4, 0x22);
+    GfxWriteTextureDescriptor partialWrite = fullWrite;
+    partialWrite.origin = { 16, 16, 0 };
+    partialWrite.extent = { 16, 16, 1 };
+    ASSERT_EQ(gfxQueueWriteTexture(queue, &partialWrite, patch.data(), patch.size()), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor readbackDesc = {};
+    readbackDesc.size = kBytesPerRow * kSize;
+    readbackDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_READ | GFX_BUFFER_USAGE_COPY_DST);
+    readbackDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+    GfxBuffer readback = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &readbackDesc, &readback), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoder encoder = nullptr;
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxCopyTextureToBufferDescriptor copyDesc = {};
+    copyDesc.source = texture;
+    copyDesc.destination = readback;
+    copyDesc.bytesPerRow = kBytesPerRow;
+    copyDesc.extent = { kSize, kSize, 1 };
+    copyDesc.finalLayout = GFX_TEXTURE_LAYOUT_SHADER_READ_ONLY;
+    ASSERT_EQ(gfxCommandEncoderCopyTextureToBuffer(encoder, &copyDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+    GfxFenceDescriptor fenceDesc = {};
+    GfxFence fence = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFence(device, &fenceDesc, &fence), GFX_RESULT_SUCCESS);
+
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    submitDesc.signalFence = fence;
+    ASSERT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxFenceWait(fence, GFX_TIMEOUT_INFINITE), GFX_RESULT_SUCCESS);
+
+    void* mapped = nullptr;
+    ASSERT_EQ(gfxBufferMap(readback, 0, readbackDesc.size, &mapped), GFX_RESULT_SUCCESS);
+    const auto* bytes = static_cast<const uint8_t*>(mapped);
+    EXPECT_EQ(bytes[0], 0x11); // outside the patch: must survive the partial write
+    EXPECT_EQ(bytes[(kSize - 1) * kBytesPerRow + (kSize - 1) * 4], 0x11);
+    EXPECT_EQ(bytes[16 * kBytesPerRow + 16 * 4], 0x22); // inside the patch
+    ASSERT_EQ(gfxBufferUnmap(readback), GFX_RESULT_SUCCESS);
+
+    gfxFenceDestroy(fence);
+    gfxCommandEncoderDestroy(encoder);
+    gfxBufferDestroy(readback);
+    gfxTextureDestroy(texture);
+}
+
 // Test: Queue write buffer with NULL queue
 TEST_P(GfxQueueTest, WriteBufferWithNullQueue)
 {
