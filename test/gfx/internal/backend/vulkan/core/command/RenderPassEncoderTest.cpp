@@ -383,12 +383,11 @@ TEST_F(VulkanRenderPassEncoderTest, BundleMode_CreateFromBundleEncoder)
 {
     auto bundleCommandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), true);
 
-    bundleCommandEncoder->beginBundle(renderPass.get());
+    bundleCommandEncoder->beginBundle();
 
     auto encoder = std::make_unique<gfx::backend::vulkan::core::RenderPassEncoder>(bundleCommandEncoder.get());
 
     EXPECT_TRUE(encoder->isBundleMode());
-    EXPECT_NE(encoder->handle(), VK_NULL_HANDLE);
     EXPECT_EQ(encoder->device(), device.get());
 }
 
@@ -397,28 +396,26 @@ TEST_F(VulkanRenderPassEncoderTest, BundleMode_ExecuteBundles_WorksCorrectly)
     // Create a bundle command encoder and record into it
     auto bundleCommandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), true);
 
-    bundleCommandEncoder->beginBundle(renderPass.get());
+    bundleCommandEncoder->beginBundle();
 
     {
         auto bundleEncoder = std::make_unique<gfx::backend::vulkan::core::RenderPassEncoder>(bundleCommandEncoder.get());
-        // RenderPassEncoder destructor in bundle mode calls vkEndCommandBuffer
     }
 
-    VkCommandBuffer bundleBuffer = bundleCommandEncoder->handle();
+    const gfx::backend::vulkan::core::CommandEncoder* bundle = bundleCommandEncoder.get();
 
-    // Create main command encoder and render pass with bundle execution enabled
+    // Create main command encoder and render pass that replays the bundle
     auto mainCommandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
     mainCommandEncoder->begin();
 
     gfx::backend::vulkan::core::RenderPassEncoderBeginInfo beginInfo{};
     VkClearColorValue clearColor = { { 0.0f, 0.0f, 0.0f, 1.0f } };
     beginInfo.colorClearValues = { clearColor };
-    beginInfo.bundleExecution = true;
 
     auto mainEncoder = std::make_unique<gfx::backend::vulkan::core::RenderPassEncoder>(
         mainCommandEncoder.get(), renderPass.get(), framebuffer.get(), beginInfo);
 
-    EXPECT_NO_THROW(mainEncoder->executeBundles(&bundleBuffer, 1));
+    EXPECT_NO_THROW(mainEncoder->executeBundles(&bundle, 1));
 }
 
 } // anonymous namespace

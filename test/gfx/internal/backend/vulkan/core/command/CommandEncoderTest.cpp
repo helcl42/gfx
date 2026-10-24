@@ -397,7 +397,6 @@ TEST_F(VulkanCommandEncoderTest, CreateBundleEncoder_CreatesSuccessfully)
 {
     auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), true);
 
-    EXPECT_NE(encoder->handle(), VK_NULL_HANDLE);
     EXPECT_TRUE(encoder->isBundleEncoder());
 }
 
@@ -415,12 +414,12 @@ TEST_F(VulkanCommandEncoderTest, RegularEncoder_IsBundleEncoder_ReturnsFalse)
     EXPECT_FALSE(encoder->isBundleEncoder());
 }
 
-TEST_F(VulkanCommandEncoderTest, BundleEncoder_Handle_ReturnsValidCommandBuffer)
+TEST_F(VulkanCommandEncoderTest, BundleEncoder_Handle_ReturnsNullCommandBuffer)
 {
     auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), true);
 
-    VkCommandBuffer handle = encoder->handle();
-    EXPECT_NE(handle, VK_NULL_HANDLE);
+    // Bundles record commands for replay instead of owning a Vulkan command buffer
+    EXPECT_EQ(encoder->handle(), VK_NULL_HANDLE);
 }
 
 TEST_F(VulkanCommandEncoderTest, BundleEncoder_GetDevice_ReturnsCorrectDevice)

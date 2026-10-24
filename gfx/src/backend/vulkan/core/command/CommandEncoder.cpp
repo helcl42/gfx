@@ -1,6 +1,5 @@
 #include "CommandEncoder.h"
 
-#include "../render/RenderPass.h"
 #include "../resource/Buffer.h"
 #include "../resource/Texture.h"
 #include "../system/Device.h"
@@ -57,10 +56,13 @@ namespace {
 
 CommandEncoder::CommandEncoder(Device* device, bool bundle)
     : m_device(device)
-    , m_commandPool(createCommandPool(device->handle(), device->getQueue()->family()))
-    , m_commandBuffer(allocateCommandBuffer(device->handle(), m_commandPool, bundle ? VK_COMMAND_BUFFER_LEVEL_SECONDARY : VK_COMMAND_BUFFER_LEVEL_PRIMARY))
     , m_isBundleEncoder(bundle)
 {
+    // A bundle only records commands for replay, so it needs no Vulkan command buffer
+    if (!bundle) {
+        m_commandPool = createCommandPool(device->handle(), device->getQueue()->family());
+        m_commandBuffer = allocateCommandBuffer(device->handle(), m_commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    }
 }
 
 CommandEncoder::~CommandEncoder()
@@ -110,25 +112,10 @@ void CommandEncoder::begin()
     }
 }
 
-void CommandEncoder::beginBundle(RenderPass* renderPass)
+void CommandEncoder::beginBundle()
 {
-    end();
-
-    vkResetCommandBuffer(m_commandBuffer, 0);
-
-    VkCommandBufferInheritanceInfo inheritance{};
-    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritance.renderPass = renderPass->handle();
-    inheritance.subpass = 0;
-    inheritance.framebuffer = VK_NULL_HANDLE;
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT | VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-    beginInfo.pInheritanceInfo = &inheritance;
-
-    vkBeginCommandBuffer(m_commandBuffer, &beginInfo);
-    m_isRecording = true;
+    m_currentPipelineLayout = VK_NULL_HANDLE;
+    m_bundleCommands.clear();
 }
 
 void CommandEncoder::end()
@@ -141,6 +128,11 @@ void CommandEncoder::end()
 
 void CommandEncoder::reset()
 {
+    if (m_isBundleEncoder) {
+        beginBundle();
+        return;
+    }
+
     m_currentPipelineLayout = VK_NULL_HANDLE;
 
     // Reset the command pool (this implicitly resets all command buffers)
@@ -151,6 +143,18 @@ void CommandEncoder::reset()
 
     // Begin recording again
     begin();
+}
+
+void CommandEncoder::recordBundleCommand(std::function<void(VkCommandBuffer)> command)
+{
+    m_bundleCommands.push_back(std::move(command));
+}
+
+void CommandEncoder::replayBundle(VkCommandBuffer commandBuffer) const
+{
+    for (const auto& command : m_bundleCommands) {
+        command(commandBuffer);
+    }
 }
 
 void CommandEncoder::pipelineBarrier(const MemoryBarrier* memoryBarriers, uint32_t memoryBarrierCount, const BufferBarrier* bufferBarriers, uint32_t bufferBarrierCount, const TextureBarrier* textureBarriers, uint32_t textureBarrierCount)

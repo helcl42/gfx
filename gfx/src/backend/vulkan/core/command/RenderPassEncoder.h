@@ -44,7 +44,7 @@ public:
     void beginOcclusionQuery(VkQueryPool queryPool, uint32_t queryIndex, VkQueryControlFlags flags = 0);
     void endOcclusionQuery();
 
-    void executeBundles(const VkCommandBuffer* commandBuffers, uint32_t count);
+    void executeBundles(const CommandEncoder* const* bundles, uint32_t count);
 
     bool isOcclusionQueryPoolCompatible(VkQueryPool queryPool) const;
 

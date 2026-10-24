@@ -83,7 +83,7 @@ GfxResult CommandComponent::commandEncoderBeginRenderPass(GfxCommandEncoder comm
     auto* renderPass = converter::toNative<core::RenderPass>(beginDescriptor->renderPass);
 
     if (encoderPtr->isBundleEncoder()) {
-        encoderPtr->beginBundle(renderPass);
+        encoderPtr->beginBundle();
         auto* renderPassEncoder = new core::RenderPassEncoder(encoderPtr);
         *outRenderPass = converter::toGfx<GfxRenderPassEncoder>(renderPassEncoder);
     } else {
@@ -545,12 +545,11 @@ GfxResult CommandComponent::renderPassEncoderExecuteBundles(GfxRenderPassEncoder
     }
 
     auto* rpe = converter::toNative<core::RenderPassEncoder>(renderPassEncoder);
-    std::vector<VkCommandBuffer> commandBuffers(bundleCount);
+    std::vector<const core::CommandEncoder*> bundles(bundleCount);
     for (uint32_t i = 0; i < bundleCount; ++i) {
-        auto* encoder = converter::toNative<core::CommandEncoder>(bundleEncoders[i]);
-        commandBuffers[i] = encoder->handle();
+        bundles[i] = converter::toNative<core::CommandEncoder>(bundleEncoders[i]);
     }
-    rpe->executeBundles(commandBuffers.data(), bundleCount);
+    rpe->executeBundles(bundles.data(), bundleCount);
     return GFX_RESULT_SUCCESS;
 }
 

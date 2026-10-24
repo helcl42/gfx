@@ -3,10 +3,12 @@
 
 #include "../CoreTypes.h"
 
+#include <functional>
+#include <vector>
+
 namespace gfx::backend::vulkan::core {
 
 class Device;
-class RenderPass;
 
 class CommandEncoder {
 public:
@@ -25,9 +27,14 @@ public:
     bool isBundleEncoder() const;
 
     void begin();
-    void beginBundle(RenderPass* renderPass);
+    void beginBundle();
     void end();
     void reset();
+
+    // A bundle records its commands and replays them into the pass that executes it (as Dawn does),
+    // so they use that pass's dynamic state; a Vulkan secondary command buffer would not inherit it
+    void recordBundleCommand(std::function<void(VkCommandBuffer)> command);
+    void replayBundle(VkCommandBuffer commandBuffer) const;
 
     void pipelineBarrier(const MemoryBarrier* memoryBarriers, uint32_t memoryBarrierCount, const BufferBarrier* bufferBarriers, uint32_t bufferBarrierCount, const TextureBarrier* textureBarriers, uint32_t textureBarrierCount);
 
@@ -48,6 +55,7 @@ private:
     bool m_isBundleEncoder = false;
     bool m_isRecording = false;
     VkPipelineLayout m_currentPipelineLayout = VK_NULL_HANDLE;
+    std::vector<std::function<void(VkCommandBuffer)>> m_bundleCommands;
 };
 
 } // namespace gfx::backend::vulkan::core

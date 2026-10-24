@@ -10,6 +10,7 @@
 #include "../system/Device.h"
 
 #include <stdexcept>
+#include <vector>
 
 namespace gfx::backend::vulkan::core {
 
@@ -60,14 +61,13 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
     vkBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     vkBeginInfo.pClearValues = clearValues.data();
 
-    vkCmdBeginRenderPass(m_commandBuffer, &vkBeginInfo, beginInfo.bundleExecution ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS : VK_SUBPASS_CONTENTS_INLINE);
+    // Always inline: executed bundles are replayed into this pass rather than run as secondary command buffers
+    vkCmdBeginRenderPass(m_commandBuffer, &vkBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     // Match WebGPU defaults: blend constant (0,0,0,0) and stencil reference 0 at pass begin
-    if (!beginInfo.bundleExecution) {
-        const float defaultBlendConstants[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-        vkCmdSetBlendConstants(m_commandBuffer, defaultBlendConstants);
-        vkCmdSetStencilReference(m_commandBuffer, VK_STENCIL_FACE_FRONT_AND_BACK, 0);
-    }
+    const float defaultBlendConstants[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    vkCmdSetBlendConstants(m_commandBuffer, defaultBlendConstants);
+    vkCmdSetStencilReference(m_commandBuffer, VK_STENCIL_FACE_FRONT_AND_BACK, 0);
 
     // Write start timestamp if requested
     if (m_passTimestampQueryPool != VK_NULL_HANDLE) {
@@ -86,9 +86,7 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* bundleCommandEncoder)
 RenderPassEncoder::~RenderPassEncoder()
 {
     if (m_isBundleMode) {
-        // In bundle mode, end the secondary command buffer recording
-        vkEndCommandBuffer(m_commandBuffer);
-        return;
+        return; // A bundle only records commands; it has no render pass to end
     }
 
     // Write end timestamp before ending the pass
@@ -121,7 +119,12 @@ bool RenderPassEncoder::isBundleMode() const
 
 void RenderPassEncoder::setPipeline(RenderPipeline* pipeline)
 {
-    vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->handle());
+    VkPipeline vkPipeline = pipeline->handle();
+    if (m_isBundleMode) {
+        m_commandEncoder->recordBundleCommand([=](VkCommandBuffer cmd) { vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline); });
+    } else {
+        vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline);
+    }
     m_commandEncoder->setCurrentPipelineLayout(pipeline->layout());
 }
 
@@ -130,24 +133,45 @@ void RenderPassEncoder::setBindGroup(uint32_t index, BindGroup* bindGroup, const
     VkPipelineLayout layout = m_commandEncoder->currentPipelineLayout();
     if (layout != VK_NULL_HANDLE) {
         VkDescriptorSet set = bindGroup->handle();
-        vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, index, 1, &set, dynamicOffsetCount, dynamicOffsets);
+        if (m_isBundleMode) {
+            // Copied: the caller's offsets array is gone by the time the bundle is replayed
+            std::vector<uint32_t> offsets(dynamicOffsets, dynamicOffsets + dynamicOffsetCount);
+            m_commandEncoder->recordBundleCommand([=](VkCommandBuffer cmd) {
+                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, index, 1, &set, static_cast<uint32_t>(offsets.size()), offsets.data());
+            });
+        } else {
+            vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, index, 1, &set, dynamicOffsetCount, dynamicOffsets);
+        }
     }
 }
 
 void RenderPassEncoder::setVertexBuffer(uint32_t slot, Buffer* buffer, uint64_t offset)
 {
     VkBuffer vkBuf = buffer->handle();
-    VkDeviceSize offsets[] = { offset };
-    vkCmdBindVertexBuffers(m_commandBuffer, slot, 1, &vkBuf, offsets);
+    VkDeviceSize vkOffset = offset;
+    if (m_isBundleMode) {
+        m_commandEncoder->recordBundleCommand([=](VkCommandBuffer cmd) { vkCmdBindVertexBuffers(cmd, slot, 1, &vkBuf, &vkOffset); });
+    } else {
+        vkCmdBindVertexBuffers(m_commandBuffer, slot, 1, &vkBuf, &vkOffset);
+    }
 }
 
 void RenderPassEncoder::setIndexBuffer(Buffer* buffer, VkIndexType indexType, uint64_t offset)
 {
-    vkCmdBindIndexBuffer(m_commandBuffer, buffer->handle(), offset, indexType);
+    VkBuffer vkBuf = buffer->handle();
+    if (m_isBundleMode) {
+        m_commandEncoder->recordBundleCommand([=](VkCommandBuffer cmd) { vkCmdBindIndexBuffer(cmd, vkBuf, offset, indexType); });
+    } else {
+        vkCmdBindIndexBuffer(m_commandBuffer, vkBuf, offset, indexType);
+    }
 }
 
 void RenderPassEncoder::setViewport(const Viewport& viewport)
 {
+    if (m_isBundleMode) {
+        return; // Dynamic state comes from the executing render pass, as in WebGPU
+    }
+
     VkViewport vkViewport{};
     vkViewport.x = viewport.x;
     vkViewport.y = viewport.y;
@@ -160,6 +184,10 @@ void RenderPassEncoder::setViewport(const Viewport& viewport)
 
 void RenderPassEncoder::setScissorRect(const ScissorRect& scissor)
 {
+    if (m_isBundleMode) {
+        return; // Dynamic state comes from the executing render pass, as in WebGPU
+    }
+
     VkRect2D vkScissor{};
     vkScissor.offset = { scissor.x, scissor.y };
     vkScissor.extent = { scissor.width, scissor.height };
@@ -168,32 +196,56 @@ void RenderPassEncoder::setScissorRect(const ScissorRect& scissor)
 
 void RenderPassEncoder::setBlendConstant(const float color[4])
 {
+    if (m_isBundleMode) {
+        return; // Dynamic state comes from the executing render pass, as in WebGPU
+    }
     vkCmdSetBlendConstants(m_commandBuffer, color);
 }
 
 void RenderPassEncoder::setStencilReference(uint32_t reference)
 {
+    if (m_isBundleMode) {
+        return; // Dynamic state comes from the executing render pass, as in WebGPU
+    }
     vkCmdSetStencilReference(m_commandBuffer, VK_STENCIL_FACE_FRONT_AND_BACK, reference);
 }
 
 void RenderPassEncoder::draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
-    vkCmdDraw(m_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+    if (m_isBundleMode) {
+        m_commandEncoder->recordBundleCommand([=](VkCommandBuffer cmd) { vkCmdDraw(cmd, vertexCount, instanceCount, firstVertex, firstInstance); });
+    } else {
+        vkCmdDraw(m_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+    }
 }
 
 void RenderPassEncoder::drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance)
 {
-    vkCmdDrawIndexed(m_commandBuffer, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
+    if (m_isBundleMode) {
+        m_commandEncoder->recordBundleCommand([=](VkCommandBuffer cmd) { vkCmdDrawIndexed(cmd, indexCount, instanceCount, firstIndex, baseVertex, firstInstance); });
+    } else {
+        vkCmdDrawIndexed(m_commandBuffer, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
+    }
 }
 
 void RenderPassEncoder::drawIndirect(Buffer* buffer, uint64_t offset)
 {
-    vkCmdDrawIndirect(m_commandBuffer, buffer->handle(), offset, 1, 0);
+    VkBuffer vkBuf = buffer->handle();
+    if (m_isBundleMode) {
+        m_commandEncoder->recordBundleCommand([=](VkCommandBuffer cmd) { vkCmdDrawIndirect(cmd, vkBuf, offset, 1, 0); });
+    } else {
+        vkCmdDrawIndirect(m_commandBuffer, vkBuf, offset, 1, 0);
+    }
 }
 
 void RenderPassEncoder::drawIndexedIndirect(Buffer* buffer, uint64_t offset)
 {
-    vkCmdDrawIndexedIndirect(m_commandBuffer, buffer->handle(), offset, 1, 0);
+    VkBuffer vkBuf = buffer->handle();
+    if (m_isBundleMode) {
+        m_commandEncoder->recordBundleCommand([=](VkCommandBuffer cmd) { vkCmdDrawIndexedIndirect(cmd, vkBuf, offset, 1, 0); });
+    } else {
+        vkCmdDrawIndexedIndirect(m_commandBuffer, vkBuf, offset, 1, 0);
+    }
 }
 
 void RenderPassEncoder::beginOcclusionQuery(VkQueryPool queryPool, uint32_t queryIndex, VkQueryControlFlags flags)
@@ -227,9 +279,11 @@ bool RenderPassEncoder::isOcclusionQueryPoolCompatible(VkQueryPool queryPool) co
     return m_passOcclusionQueryPool != VK_NULL_HANDLE && queryPool == m_passOcclusionQueryPool;
 }
 
-void RenderPassEncoder::executeBundles(const VkCommandBuffer* commandBuffers, uint32_t count)
+void RenderPassEncoder::executeBundles(const CommandEncoder* const* bundles, uint32_t count)
 {
-    vkCmdExecuteCommands(m_commandBuffer, count, commandBuffers);
+    for (uint32_t i = 0; i < count; ++i) {
+        bundles[i]->replayBundle(m_commandBuffer);
+    }
 }
 
 } // namespace gfx::backend::vulkan::core

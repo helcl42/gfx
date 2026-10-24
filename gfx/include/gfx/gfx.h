@@ -1271,7 +1271,6 @@ typedef struct {
     GfxQuerySet timestampQuerySet;
 
     // If true, the render pass will only contain executeBundles calls (no inline draw commands).
-    // On Vulkan this uses VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS.
     bool bundleExecution;
 } GfxRenderPassBeginDescriptor;
 
