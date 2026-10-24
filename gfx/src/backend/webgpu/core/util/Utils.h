@@ -23,6 +23,11 @@ void getWGPUFormatBlockDimensions(WGPUTextureFormat format, uint32_t* outWidth, 
 // Tightly packed bytes per row of an aspect (block-aware: blocks-per-row * bytes-per-block)
 uint32_t getPackedBytesPerRow(WGPUTextureFormat format, WGPUTextureAspect aspect, uint32_t width);
 
+// Completes once the work submitted to the queue is done
+WGPUFuture queueWorkDoneFuture(WGPUQueue queue);
+// Returns whether the future completed within timeoutNs (0 polls); a completed future stays completed
+bool waitForFuture(WGPUInstance instance, WGPUFuture future, uint64_t timeoutNs);
+
 } // namespace gfx::backend::webgpu::core
 
 #endif // GFX_WEBGPU_UTILS_H

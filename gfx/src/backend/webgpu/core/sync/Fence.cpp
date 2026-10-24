@@ -1,5 +1,7 @@
 #include "../sync/Fence.h"
 
+#include "../util/Utils.h"
+
 namespace gfx::backend::webgpu::core {
 
 Fence::Fence(bool signaled)
@@ -9,7 +11,7 @@ Fence::Fence(bool signaled)
 
 bool Fence::isSignaled() const
 {
-    return m_signaled;
+    return wait(0);
 }
 
 void Fence::signal()
@@ -20,18 +22,25 @@ void Fence::signal()
 void Fence::reset()
 {
     m_signaled = false;
+    m_pendingWork = {};
 }
 
-bool Fence::wait(uint64_t timeoutNs)
+bool Fence::wait(uint64_t timeoutNs) const
 {
-    // WebGPU fence is mock implementation - always immediately satisfied
-    (void)timeoutNs;
-    return m_signaled;
+    return m_signaled || (m_pendingWork.id != 0 && waitForFuture(m_instance, m_pendingWork, timeoutNs));
 }
 
-void Fence::setSignaled(bool signaled)
+void Fence::signalOnCompletion(WGPUQueue queue, WGPUInstance instance)
 {
-    m_signaled = signaled;
+#ifdef __EMSCRIPTEN__
+    // The web cannot block on the GPU, so signal at submit
+    (void)queue;
+    (void)instance;
+    signal();
+#else
+    m_instance = instance;
+    m_pendingWork = queueWorkDoneFuture(queue);
+#endif
 }
 
 } // namespace gfx::backend::webgpu::core

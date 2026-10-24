@@ -17,11 +17,15 @@ public:
     bool isSignaled() const;
     void signal();
     void reset();
-    bool wait(uint64_t timeoutNs);
+    bool wait(uint64_t timeoutNs) const;
+
+    // Signals once the work submitted to the queue completes
+    void signalOnCompletion(WGPUQueue queue, WGPUInstance instance);
 
 private:
-    void setSignaled(bool signaled);
     bool m_signaled = false;
+    WGPUInstance m_instance = nullptr;
+    WGPUFuture m_pendingWork = {};
 };
 
 } // namespace gfx::backend::webgpu::core

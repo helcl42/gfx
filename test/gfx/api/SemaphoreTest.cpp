@@ -1,6 +1,7 @@
 #include "CommonTest.h"
 
 #include <cstring>
+#include <thread>
 
 // C API tests compiled with C++ for GoogleTest compatibility
 
@@ -300,6 +301,83 @@ TEST_P(GfxSemaphoreTest, TimelineWait)
     // Should succeed immediately since value is already 5
     EXPECT_EQ(gfxSemaphoreWait(semaphore, 5, 0), GFX_RESULT_SUCCESS);
 
+    gfxSemaphoreDestroy(semaphore);
+}
+
+// ===========================================================================
+// Queue Signal Tests
+// ===========================================================================
+
+// Submits an empty encoder that signals semaphore to value
+static void submitSignal(GfxQueue queue, GfxCommandEncoder encoder, GfxSemaphore semaphore, uint64_t value)
+{
+    ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    submitDesc.signalSemaphores = &semaphore;
+    submitDesc.signalValues = &value;
+    submitDesc.signalSemaphoreCount = 1;
+    ASSERT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+}
+
+// A host wait observes the value signaled by a submit
+TEST_P(GfxSemaphoreTest, TimelineSignaledBySubmit)
+{
+    GfxSemaphoreDescriptor semaphoreDesc = {};
+    semaphoreDesc.type = GFX_SEMAPHORE_TYPE_TIMELINE;
+    GfxSemaphore semaphore = nullptr;
+    if (gfxDeviceCreateSemaphore(device, &semaphoreDesc, &semaphore) != GFX_RESULT_SUCCESS) {
+        GTEST_SKIP() << "Timeline semaphores not supported";
+    }
+
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+    GfxCommandEncoder encoder = nullptr;
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    ASSERT_NO_FATAL_FAILURE(submitSignal(queue, encoder, semaphore, 1));
+
+    EXPECT_EQ(gfxSemaphoreWait(semaphore, 1, GFX_TIMEOUT_INFINITE), GFX_RESULT_SUCCESS);
+    uint64_t value = 0;
+    EXPECT_EQ(gfxSemaphoreGetValue(semaphore, &value), GFX_RESULT_SUCCESS);
+    EXPECT_EQ(value, 1u);
+
+    gfxQueueWaitIdle(queue);
+    gfxCommandEncoderDestroy(encoder);
+    gfxSemaphoreDestroy(semaphore);
+}
+
+// A wait started before the signaling submit still completes
+TEST_P(GfxSemaphoreTest, TimelineWaitBeforeSubmit)
+{
+    GfxSemaphoreDescriptor semaphoreDesc = {};
+    semaphoreDesc.type = GFX_SEMAPHORE_TYPE_TIMELINE;
+    GfxSemaphore semaphore = nullptr;
+    if (gfxDeviceCreateSemaphore(device, &semaphoreDesc, &semaphore) != GFX_RESULT_SUCCESS) {
+        GTEST_SKIP() << "Timeline semaphores not supported";
+    }
+
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+    GfxCommandEncoder encoder = nullptr;
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    constexpr uint64_t kTimeoutNs = 5'000'000'000ull; // Fail rather than hang
+    GfxResult waitResult = GFX_RESULT_ERROR_UNKNOWN;
+    std::thread consumer([&]() { waitResult = gfxSemaphoreWait(semaphore, 1, kTimeoutNs); });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    submitSignal(queue, encoder, semaphore, 1);
+    consumer.join();
+
+    EXPECT_EQ(waitResult, GFX_RESULT_SUCCESS);
+
+    gfxQueueWaitIdle(queue);
+    gfxCommandEncoderDestroy(encoder);
     gfxSemaphoreDestroy(semaphore);
 }
 

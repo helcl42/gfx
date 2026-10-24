@@ -251,4 +251,20 @@ uint32_t getPackedBytesPerRow(WGPUTextureFormat format, WGPUTextureAspect aspect
     return ((width + blockWidth - 1) / blockWidth) * getAspectTexelSize(format, aspect);
 }
 
+WGPUFuture queueWorkDoneFuture(WGPUQueue queue)
+{
+    // Completion is observed through waitForFuture
+    WGPUQueueWorkDoneCallbackInfo callbackInfo = WGPU_QUEUE_WORK_DONE_CALLBACK_INFO_INIT;
+    callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+    callbackInfo.callback = [](WGPUQueueWorkDoneStatus, WGPUStringView, void*, void*) {};
+    return wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
+}
+
+bool waitForFuture(WGPUInstance instance, WGPUFuture future, uint64_t timeoutNs)
+{
+    WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
+    waitInfo.future = future;
+    return wgpuInstanceWaitAny(instance, 1, &waitInfo, timeoutNs) == WGPUWaitStatus_Success;
+}
+
 } // namespace gfx::backend::webgpu::core
