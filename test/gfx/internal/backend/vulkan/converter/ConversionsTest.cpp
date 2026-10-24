@@ -1001,6 +1001,18 @@ TEST(VulkanConversionsTest, GfxCompareOpToVkCompareOp_AllOperations_ConvertsCorr
     EXPECT_EQ(gfx::backend::vulkan::converter::gfxCompareOpToVkCompareOp(GFX_COMPARE_FUNCTION_ALWAYS), VK_COMPARE_OP_ALWAYS);
 }
 
+TEST(VulkanConversionsTest, GfxStencilOperationToVkStencilOp_AllOperations_ConvertsCorrectly)
+{
+    EXPECT_EQ(gfx::backend::vulkan::converter::gfxStencilOperationToVkStencilOp(GFX_STENCIL_OPERATION_KEEP), VK_STENCIL_OP_KEEP);
+    EXPECT_EQ(gfx::backend::vulkan::converter::gfxStencilOperationToVkStencilOp(GFX_STENCIL_OPERATION_ZERO), VK_STENCIL_OP_ZERO);
+    EXPECT_EQ(gfx::backend::vulkan::converter::gfxStencilOperationToVkStencilOp(GFX_STENCIL_OPERATION_REPLACE), VK_STENCIL_OP_REPLACE);
+    EXPECT_EQ(gfx::backend::vulkan::converter::gfxStencilOperationToVkStencilOp(GFX_STENCIL_OPERATION_INCREMENT_CLAMP), VK_STENCIL_OP_INCREMENT_AND_CLAMP);
+    EXPECT_EQ(gfx::backend::vulkan::converter::gfxStencilOperationToVkStencilOp(GFX_STENCIL_OPERATION_DECREMENT_CLAMP), VK_STENCIL_OP_DECREMENT_AND_CLAMP);
+    EXPECT_EQ(gfx::backend::vulkan::converter::gfxStencilOperationToVkStencilOp(GFX_STENCIL_OPERATION_INVERT), VK_STENCIL_OP_INVERT);
+    EXPECT_EQ(gfx::backend::vulkan::converter::gfxStencilOperationToVkStencilOp(GFX_STENCIL_OPERATION_INCREMENT_WRAP), VK_STENCIL_OP_INCREMENT_AND_WRAP);
+    EXPECT_EQ(gfx::backend::vulkan::converter::gfxStencilOperationToVkStencilOp(GFX_STENCIL_OPERATION_DECREMENT_WRAP), VK_STENCIL_OP_DECREMENT_AND_WRAP);
+}
+
 // ============================================================================
 // Query Type Conversion
 // ============================================================================

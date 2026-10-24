@@ -84,7 +84,7 @@ namespace {
         return state;
     }
 
-    VkPipelineRasterizationStateCreateInfo makeRasterizerState(const PrimitiveState& primitive)
+    VkPipelineRasterizationStateCreateInfo makeRasterizerState(const PrimitiveState& primitive, const std::optional<DepthStencilState>& depthStencil)
     {
         VkPipelineRasterizationStateCreateInfo info{};
         info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -92,7 +92,21 @@ namespace {
         info.lineWidth = 1.0f;
         info.cullMode = primitive.cullMode;
         info.frontFace = primitive.frontFace;
+        if (depthStencil.has_value()) {
+            info.depthBiasEnable = (depthStencil->depthBias != 0 || depthStencil->depthBiasSlopeScale != 0.0f) ? VK_TRUE : VK_FALSE;
+            info.depthBiasConstantFactor = static_cast<float>(depthStencil->depthBias);
+            info.depthBiasSlopeFactor = depthStencil->depthBiasSlopeScale;
+            info.depthBiasClamp = depthStencil->depthBiasClamp;
+        }
         return info;
+    }
+
+    bool usesStencil(const VkStencilOpState& face)
+    {
+        return face.compareOp != VK_COMPARE_OP_ALWAYS
+            || face.failOp != VK_STENCIL_OP_KEEP
+            || face.depthFailOp != VK_STENCIL_OP_KEEP
+            || face.passOp != VK_STENCIL_OP_KEEP;
     }
 
     VkPipelineDepthStencilStateCreateInfo makeDepthStencilState(const DepthStencilState& depthStencilState)
@@ -103,7 +117,9 @@ namespace {
         info.depthWriteEnable = depthStencilState.depthWriteEnabled ? VK_TRUE : VK_FALSE;
         info.depthCompareOp = depthStencilState.depthCompareOp;
         info.depthBoundsTestEnable = VK_FALSE;
-        info.stencilTestEnable = VK_FALSE;
+        info.stencilTestEnable = (usesStencil(depthStencilState.stencilFront) || usesStencil(depthStencilState.stencilBack)) ? VK_TRUE : VK_FALSE;
+        info.front = depthStencilState.stencilFront;
+        info.back = depthStencilState.stencilBack;
         return info;
     }
 } // anonymous namespace
@@ -141,7 +157,7 @@ RenderPipeline::RenderPipeline(Device* device, const RenderPipelineCreateInfo& c
 
     VertexInputState vertexInput = buildVertexInputState(createInfo.vertex);
     ColorBlendState colorBlend = buildColorBlendState(createInfo.fragment);
-    VkPipelineRasterizationStateCreateInfo rasterizer = makeRasterizerState(createInfo.primitive);
+    VkPipelineRasterizationStateCreateInfo rasterizer = makeRasterizerState(createInfo.primitive, createInfo.depthStencil);
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;

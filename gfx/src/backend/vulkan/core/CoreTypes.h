@@ -391,6 +391,11 @@ struct DepthStencilState {
     VkFormat format;
     bool depthWriteEnabled;
     VkCompareOp depthCompareOp;
+    VkStencilOpState stencilFront;
+    VkStencilOpState stencilBack;
+    int32_t depthBias;
+    float depthBiasSlopeScale;
+    float depthBiasClamp;
 };
 
 struct RenderPipelineCreateInfo {

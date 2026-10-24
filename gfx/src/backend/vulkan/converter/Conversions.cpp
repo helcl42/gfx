@@ -1260,6 +1260,30 @@ VkCompareOp gfxCompareOpToVkCompareOp(GfxCompareFunction func)
     }
 }
 
+VkStencilOp gfxStencilOperationToVkStencilOp(GfxStencilOperation op)
+{
+    switch (op) {
+    case GFX_STENCIL_OPERATION_KEEP:
+        return VK_STENCIL_OP_KEEP;
+    case GFX_STENCIL_OPERATION_ZERO:
+        return VK_STENCIL_OP_ZERO;
+    case GFX_STENCIL_OPERATION_REPLACE:
+        return VK_STENCIL_OP_REPLACE;
+    case GFX_STENCIL_OPERATION_INCREMENT_CLAMP:
+        return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+    case GFX_STENCIL_OPERATION_DECREMENT_CLAMP:
+        return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+    case GFX_STENCIL_OPERATION_INVERT:
+        return VK_STENCIL_OP_INVERT;
+    case GFX_STENCIL_OPERATION_INCREMENT_WRAP:
+        return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+    case GFX_STENCIL_OPERATION_DECREMENT_WRAP:
+        return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+    default:
+        return VK_STENCIL_OP_MAX_ENUM;
+    }
+}
+
 VkQueryType gfxQueryTypeToVkQueryType(GfxQueryType type)
 {
     switch (type) {
@@ -2049,12 +2073,32 @@ namespace {
         return vkPrimitive;
     }
 
+    VkStencilOpState convertStencilFaceState(const GfxStencilFaceState& face, uint32_t readMask, uint32_t writeMask)
+    {
+        // A zero-initialized face has an UNDEFINED compare, which WebGPU treats as ALWAYS
+        const GfxCompareFunction compare = (face.compare == GFX_COMPARE_FUNCTION_UNDEFINED) ? GFX_COMPARE_FUNCTION_ALWAYS : face.compare;
+
+        VkStencilOpState vkFace{};
+        vkFace.compareOp = gfxCompareOpToVkCompareOp(compare);
+        vkFace.failOp = gfxStencilOperationToVkStencilOp(face.failOp);
+        vkFace.depthFailOp = gfxStencilOperationToVkStencilOp(face.depthFailOp);
+        vkFace.passOp = gfxStencilOperationToVkStencilOp(face.passOp);
+        vkFace.compareMask = readMask;
+        vkFace.writeMask = writeMask;
+        return vkFace;
+    }
+
     core::DepthStencilState convertDepthStencilState(const GfxDepthStencilState& depthStencil)
     {
         core::DepthStencilState vkDepthStencil{};
         vkDepthStencil.format = gfxFormatToVkFormat(depthStencil.format);
         vkDepthStencil.depthWriteEnabled = depthStencil.depthWriteEnabled;
         vkDepthStencil.depthCompareOp = gfxCompareOpToVkCompareOp(depthStencil.depthCompare);
+        vkDepthStencil.stencilFront = convertStencilFaceState(depthStencil.stencilFront, depthStencil.stencilReadMask, depthStencil.stencilWriteMask);
+        vkDepthStencil.stencilBack = convertStencilFaceState(depthStencil.stencilBack, depthStencil.stencilReadMask, depthStencil.stencilWriteMask);
+        vkDepthStencil.depthBias = depthStencil.depthBias;
+        vkDepthStencil.depthBiasSlopeScale = depthStencil.depthBiasSlopeScale;
+        vkDepthStencil.depthBiasClamp = depthStencil.depthBiasClamp;
         return vkDepthStencil;
     }
 } // anonymous namespace

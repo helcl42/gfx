@@ -136,6 +136,7 @@ VkSamplerMipmapMode gfxFilterModeToVkMipMapFilterMode(GfxFilterMode filter);
 VkBlendFactor gfxBlendFactorToVkBlendFactor(GfxBlendFactor factor);
 VkBlendOp gfxBlendOpToVkBlendOp(GfxBlendOperation op);
 VkCompareOp gfxCompareOpToVkCompareOp(GfxCompareFunction func);
+VkStencilOp gfxStencilOperationToVkStencilOp(GfxStencilOperation op);
 VkQueryType gfxQueryTypeToVkQueryType(GfxQueryType type);
 
 // ============================================================================

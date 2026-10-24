@@ -120,6 +120,8 @@ namespace {
             deviceFeatures.textureCompressionASTC_LDR = VK_TRUE;
         }
 
+        deviceFeatures.depthBiasClamp = availableFeatures.depthBiasClamp;
+
         return deviceFeatures;
     }
 
