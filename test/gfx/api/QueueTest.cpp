@@ -377,6 +377,32 @@ TEST_P(GfxQueueTest, WriteBufferWithNullData)
     gfxBufferDestroy(buffer);
 }
 
+// Test: Queue write buffer is rejected while the buffer is mapped
+TEST_P(GfxQueueTest, WriteBufferWhileMapped)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor bufferDesc = {};
+    bufferDesc.size = 256;
+    bufferDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_READ | GFX_BUFFER_USAGE_COPY_DST);
+    bufferDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+
+    GfxBuffer buffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &bufferDesc, &buffer), GFX_RESULT_SUCCESS);
+
+    const uint32_t data = 42;
+    void* mapped = nullptr;
+    ASSERT_EQ(gfxBufferMap(buffer, 0, bufferDesc.size, &mapped), GFX_RESULT_SUCCESS);
+    EXPECT_EQ(gfxQueueWriteBuffer(queue, buffer, 0, &data, sizeof(data)), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    ASSERT_EQ(gfxBufferUnmap(buffer), GFX_RESULT_SUCCESS);
+
+    EXPECT_EQ(gfxQueueWriteBuffer(queue, buffer, 0, &data, sizeof(data)), GFX_RESULT_SUCCESS);
+
+    gfxQueueWaitIdle(queue);
+    gfxBufferDestroy(buffer);
+}
+
 // Test: Queue write buffer
 TEST_P(GfxQueueTest, WriteBuffer)
 {

@@ -107,6 +107,11 @@ void Buffer::unmap()
     m_mappedBase = nullptr;
 }
 
+bool Buffer::isMapped() const
+{
+    return m_mappedBase != nullptr;
+}
+
 void Buffer::flushMappedRange(uint64_t offset, uint64_t size)
 {
     // Only needed for non-coherent memory

@@ -167,6 +167,7 @@ void Queue::writeBuffer(Buffer* buffer, uint64_t offset, const void* data, uint6
     if (mapped) {
         // Buffer is host-visible, can map directly
         memcpy(mapped, data, size);
+        buffer->flushMappedRange(offset, size);
         buffer->unmap();
     } else {
         // Buffer is not host-visible (device-local), use VMA staging buffer

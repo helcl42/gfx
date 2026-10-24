@@ -34,6 +34,7 @@ public:
     // Waits up to timeoutNs for the mapping; 0 polls (Pending if not landed yet).
     MapStatus map(uint64_t offset, uint64_t size, void** outPointer, uint64_t timeoutNs = 0);
     void unmap();
+    bool isMapped() const;
 
     // Memory synchronization (no-ops on WebGPU - memory is always coherent)
     void flushMappedRange(uint64_t offset, uint64_t size);

@@ -144,6 +144,11 @@ void Buffer::unmap()
     m_asyncCallbackData = {};
 }
 
+bool Buffer::isMapped() const
+{
+    return m_mapped || m_asyncMapPending;
+}
+
 void Buffer::flushMappedRange(uint64_t offset, uint64_t size)
 {
     // WebGPU memory is always coherent - no-op

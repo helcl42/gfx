@@ -2032,6 +2032,7 @@ GFX_API GfxAccessFlags gfxDeviceGetAccessFlagsForLayout(GfxDevice device, GfxTex
 GFX_API GfxResult gfxQueueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitDescriptor);
 GFX_API GfxResult gfxQueueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo);
 GFX_API GfxResult gfxQueueGetNativeHandle(GfxQueue queue, void** outHandle);
+// Vulkan writes host-visible buffers immediately from the CPU: the GPU must not be using the buffer.
 GFX_API GfxResult gfxQueueWriteBuffer(GfxQueue queue, GfxBuffer buffer, uint64_t offset, const void* data, uint64_t size);
 GFX_API GfxResult gfxQueueWriteTexture(GfxQueue queue, const GfxWriteTextureDescriptor* descriptor, const void* data, uint64_t dataSize);
 GFX_API GfxResult gfxQueueWaitIdle(GfxQueue queue);

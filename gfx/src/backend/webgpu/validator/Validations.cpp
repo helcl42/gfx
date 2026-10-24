@@ -1239,6 +1239,9 @@ GfxResult validateQueueWriteBuffer(GfxQueue queue, GfxBuffer buffer, const void*
     if (!queue || !buffer || !data) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
+    if (converter::toNative<core::Buffer>(buffer)->isMapped()) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
     return GFX_RESULT_SUCCESS;
 }
 

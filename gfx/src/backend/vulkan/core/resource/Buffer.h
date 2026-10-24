@@ -19,6 +19,7 @@ public:
 
     void* map(uint64_t offset, uint64_t size);
     void unmap();
+    bool isMapped() const;
     void flushMappedRange(uint64_t offset, uint64_t size);
     void invalidateMappedRange(uint64_t offset, uint64_t size);
 
