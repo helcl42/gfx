@@ -1296,6 +1296,8 @@ typedef struct {
 
 // Buffer data layout for buffer<->texture copies:
 // - bytesPerRow: byte stride between rows in the buffer, 0 = tightly packed (extent.width * texel size)
+//   Must be a multiple of 256 (as in WebGPU); 0 is accepted only for a single row or when the
+//   packed row already is. gfxQueueWriteTexture has no such restriction.
 // - rowsPerImage: rows per image slice in the buffer, 0 = tightly packed (= extent.height)
 // Extent semantics:
 // - 3D textures: extent.depth = number of depth slices to copy (origin.z = first slice)

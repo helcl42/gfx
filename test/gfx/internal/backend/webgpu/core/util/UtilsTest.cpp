@@ -236,120 +236,26 @@ TEST_F(WebGPUUtilsTest, GetFormatBytesPerPixel_UndefinedFormat_Returns0)
 }
 
 // ============================================================================
-// Alignment Tests
+// Packed Bytes Per Row Tests
 // ============================================================================
 
-TEST_F(WebGPUUtilsTest, AlignUp_AlreadyAligned_ReturnsOriginal)
+TEST_F(WebGPUUtilsTest, GetPackedBytesPerRow_UncompressedFormats_IsWidthTimesTexelSize)
 {
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(256, 256), 256u);
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(512, 256), 512u);
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(1024, 256), 1024u);
+    EXPECT_EQ(gfx::backend::webgpu::core::getPackedBytesPerRow(WGPUTextureFormat_RGBA8Unorm, WGPUTextureAspect_All, 1), 4u);
+    EXPECT_EQ(gfx::backend::webgpu::core::getPackedBytesPerRow(WGPUTextureFormat_RGBA8Unorm, WGPUTextureAspect_All, 65), 260u);
+    EXPECT_EQ(gfx::backend::webgpu::core::getPackedBytesPerRow(WGPUTextureFormat_R8Unorm, WGPUTextureAspect_All, 257), 257u);
+    EXPECT_EQ(gfx::backend::webgpu::core::getPackedBytesPerRow(WGPUTextureFormat_RGBA32Float, WGPUTextureAspect_All, 17), 272u);
 }
 
-TEST_F(WebGPUUtilsTest, AlignUp_NotAligned_RoundsUp)
+TEST_F(WebGPUUtilsTest, GetPackedBytesPerRow_CompressedFormat_CountsBlocks)
 {
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(1, 256), 256u);
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(255, 256), 256u);
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(257, 256), 512u);
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(500, 256), 512u);
+    // BC1 uses 4x4 blocks of 8 bytes, so 10 texels need 3 blocks
+    EXPECT_EQ(gfx::backend::webgpu::core::getPackedBytesPerRow(WGPUTextureFormat_BC1RGBAUnorm, WGPUTextureAspect_All, 10), 24u);
 }
 
-TEST_F(WebGPUUtilsTest, AlignUp_ZeroAlignment_ReturnsOriginal)
+TEST_F(WebGPUUtilsTest, GetPackedBytesPerRow_ZeroWidth_Returns0)
 {
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(123, 0), 123u);
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(0, 0), 0u);
-}
-
-TEST_F(WebGPUUtilsTest, AlignUp_SmallAlignments_Works)
-{
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(5, 4), 8u);
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(7, 8), 8u);
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(9, 8), 16u);
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(15, 16), 16u);
-    EXPECT_EQ(gfx::backend::webgpu::core::alignUp(17, 16), 32u);
-}
-
-TEST_F(WebGPUUtilsTest, AlignUp_PowerOfTwo_AlwaysWorks)
-{
-    for (uint32_t alignment : { 1u, 2u, 4u, 8u, 16u, 32u, 64u, 128u, 256u }) {
-        uint32_t value = 123;
-        uint32_t result = gfx::backend::webgpu::core::alignUp(value, alignment);
-        EXPECT_EQ(result % alignment, 0u) << "Alignment: " << alignment;
-        EXPECT_GE(result, value) << "Alignment: " << alignment;
-        EXPECT_LT(result, value + alignment) << "Alignment: " << alignment;
-    }
-}
-
-// ============================================================================
-// Calculate Bytes Per Row Tests
-// ============================================================================
-
-TEST_F(WebGPUUtilsTest, CalculateBytesPerRow_RGBA8_AlignsTo256)
-{
-    // 1 pixel * 4 bytes = 4, rounds up to 256
-    EXPECT_EQ(gfx::backend::webgpu::core::calculateBytesPerRow(WGPUTextureFormat_RGBA8Unorm, 1), 256u);
-
-    // 64 pixels * 4 bytes = 256, already aligned
-    EXPECT_EQ(gfx::backend::webgpu::core::calculateBytesPerRow(WGPUTextureFormat_RGBA8Unorm, 64), 256u);
-
-    // 65 pixels * 4 bytes = 260, rounds up to 512
-    EXPECT_EQ(gfx::backend::webgpu::core::calculateBytesPerRow(WGPUTextureFormat_RGBA8Unorm, 65), 512u);
-
-    // 128 pixels * 4 bytes = 512, already aligned
-    EXPECT_EQ(gfx::backend::webgpu::core::calculateBytesPerRow(WGPUTextureFormat_RGBA8Unorm, 128), 512u);
-}
-
-TEST_F(WebGPUUtilsTest, CalculateBytesPerRow_R8_AlignsTo256)
-{
-    // 1 pixel * 1 byte = 1, rounds up to 256
-    EXPECT_EQ(gfx::backend::webgpu::core::calculateBytesPerRow(WGPUTextureFormat_R8Unorm, 1), 256u);
-
-    // 256 pixels * 1 byte = 256, already aligned
-    EXPECT_EQ(gfx::backend::webgpu::core::calculateBytesPerRow(WGPUTextureFormat_R8Unorm, 256), 256u);
-
-    // 257 pixels * 1 byte = 257, rounds up to 512
-    EXPECT_EQ(gfx::backend::webgpu::core::calculateBytesPerRow(WGPUTextureFormat_R8Unorm, 257), 512u);
-}
-
-TEST_F(WebGPUUtilsTest, CalculateBytesPerRow_RGBA32Float_AlignsTo256)
-{
-    // 1 pixel * 16 bytes = 16, rounds up to 256
-    EXPECT_EQ(gfx::backend::webgpu::core::calculateBytesPerRow(WGPUTextureFormat_RGBA32Float, 1), 256u);
-
-    // 16 pixels * 16 bytes = 256, already aligned
-    EXPECT_EQ(gfx::backend::webgpu::core::calculateBytesPerRow(WGPUTextureFormat_RGBA32Float, 16), 256u);
-
-    // 17 pixels * 16 bytes = 272, rounds up to 512
-    EXPECT_EQ(gfx::backend::webgpu::core::calculateBytesPerRow(WGPUTextureFormat_RGBA32Float, 17), 512u);
-}
-
-TEST_F(WebGPUUtilsTest, CalculateBytesPerRow_CommonWidths_AllAlignedTo256)
-{
-    WGPUTextureFormat formats[] = {
-        WGPUTextureFormat_RGBA8Unorm,
-        WGPUTextureFormat_BGRA8Unorm,
-        WGPUTextureFormat_R32Float,
-        WGPUTextureFormat_RG16Float
-    };
-
-    uint32_t widths[] = { 1, 64, 128, 256, 512, 1024, 1920, 2048 };
-
-    for (auto format : formats) {
-        for (auto width : widths) {
-            uint32_t result = gfx::backend::webgpu::core::calculateBytesPerRow(format, width);
-            EXPECT_EQ(result % 256, 0u) << "Format: " << format << ", Width: " << width;
-
-            uint32_t bytesPerPixel = gfx::backend::webgpu::core::getFormatBytesPerPixel(format);
-            uint32_t minBytes = width * bytesPerPixel;
-            EXPECT_GE(result, minBytes) << "Format: " << format << ", Width: " << width;
-        }
-    }
-}
-
-TEST_F(WebGPUUtilsTest, CalculateBytesPerRow_ZeroWidth_Returns0)
-{
-    // Edge case: 0 width returns 0
-    EXPECT_EQ(gfx::backend::webgpu::core::calculateBytesPerRow(WGPUTextureFormat_RGBA8Unorm, 0), 0u);
+    EXPECT_EQ(gfx::backend::webgpu::core::getPackedBytesPerRow(WGPUTextureFormat_RGBA8Unorm, WGPUTextureAspect_All, 0), 0u);
 }
 
 // ============================================================================

@@ -96,10 +96,9 @@ void Queue::writeTexture(Texture* texture, uint32_t mipLevel, uint32_t arrayLaye
 {
     // For WriteTexture (CPU→texture), bytesPerRow doesn't require 256-byte alignment
     // (unlike buffer-to-texture copies). Use tight packing if bytesPerRow is 0.
-    uint32_t blockWidth = 1, blockHeight = 1;
-    getWGPUFormatBlockDimensions(texture->getFormat(), &blockWidth, &blockHeight);
-    // For compressed formats a "row" is a row of blocks and getAspectTexelSize returns the block size
-    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? ((extent.width + blockWidth - 1) / blockWidth) * getAspectTexelSize(texture->getFormat(), aspect) : bytesPerRow;
+    uint32_t blockHeight = 1;
+    getWGPUFormatBlockDimensions(texture->getFormat(), nullptr, &blockHeight);
+    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? getPackedBytesPerRow(texture->getFormat(), aspect, extent.width) : bytesPerRow;
 
     WGPUTexelCopyTextureInfo dest = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
     dest.texture = texture->handle();

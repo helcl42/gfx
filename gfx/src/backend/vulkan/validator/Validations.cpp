@@ -641,6 +641,30 @@ namespace {
         return GFX_RESULT_SUCCESS;
     }
 
+    // WebGPU rule: the buffer row pitch of a buffer<->texture copy must be a multiple of 256 bytes;
+    // bytesPerRow = 0 (tightly packed) qualifies when the copy is a single row or the packed row is aligned
+    GfxResult validateBufferCopyRowPitch(GfxTexture texture, GfxTextureAspect aspect, const GfxExtent3D& extent, uint32_t bytesPerRow)
+    {
+        if (bytesPerRow % 256 != 0) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+        if (bytesPerRow != 0) {
+            return GFX_RESULT_SUCCESS;
+        }
+
+        const auto* tex = converter::toNative<core::Texture>(texture);
+        VkFormat format = tex->getFormat();
+        uint32_t blockWidth = 1;
+        uint32_t blockHeight = 1;
+        core::getVkFormatBlockDimensions(format, &blockWidth, &blockHeight);
+        const uint32_t rowCount = (extent.height + blockHeight - 1) / blockHeight;
+        const uint32_t packedBytesPerRow = ((extent.width + blockWidth - 1) / blockWidth) * core::getAspectTexelSize(format, converter::gfxTextureAspectToVkAspectMask(aspect, format));
+        if ((rowCount > 1 || extent.depth > 1) && packedBytesPerRow % 256 != 0) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+        return GFX_RESULT_SUCCESS;
+    }
+
     GfxResult validateCopyBufferToTextureDescriptor(const GfxCopyBufferToTextureDescriptor* descriptor)
     {
         if (!descriptor) {
@@ -657,7 +681,11 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        return validateCopyAspectAndRowPitch(descriptor->destination, descriptor->aspect, descriptor->bytesPerRow);
+        GfxResult aspectResult = validateCopyAspectAndRowPitch(descriptor->destination, descriptor->aspect, descriptor->bytesPerRow);
+        if (aspectResult != GFX_RESULT_SUCCESS) {
+            return aspectResult;
+        }
+        return validateBufferCopyRowPitch(descriptor->destination, descriptor->aspect, descriptor->extent, descriptor->bytesPerRow);
     }
 
     GfxResult validateCopyTextureToBufferDescriptor(const GfxCopyTextureToBufferDescriptor* descriptor)
@@ -681,7 +709,7 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        return GFX_RESULT_SUCCESS;
+        return validateBufferCopyRowPitch(descriptor->source, descriptor->aspect, descriptor->extent, descriptor->bytesPerRow);
     }
 
     GfxResult validateCopyTextureToTextureDescriptor(const GfxCopyTextureToTextureDescriptor* descriptor)

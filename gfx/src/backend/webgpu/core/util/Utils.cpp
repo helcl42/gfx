@@ -15,14 +15,6 @@ bool hasStencil(WGPUTextureFormat format)
     return format == WGPUTextureFormat_Stencil8 || format == WGPUTextureFormat_Depth24PlusStencil8 || format == WGPUTextureFormat_Depth32FloatStencil8;
 }
 
-uint32_t alignUp(uint32_t value, uint32_t alignment)
-{
-    if (alignment == 0) {
-        return value;
-    }
-    return (value + alignment - 1) & ~(alignment - 1);
-}
-
 uint32_t getFormatBytesPerPixel(WGPUTextureFormat format)
 {
     switch (format) {
@@ -252,19 +244,11 @@ void getWGPUFormatBlockDimensions(WGPUTextureFormat format, uint32_t* outWidth, 
     }
 }
 
-uint32_t calculateBytesPerRow(WGPUTextureFormat format, uint32_t width)
+uint32_t getPackedBytesPerRow(WGPUTextureFormat format, WGPUTextureAspect aspect, uint32_t width)
 {
-    constexpr uint32_t WEBGPU_COPY_BUFFER_ALIGNMENT = 256;
-
-    // For compressed formats getFormatBytesPerPixel returns the block size,
-    // and a "row" is a row of blocks
     uint32_t blockWidth = 1;
     getWGPUFormatBlockDimensions(format, &blockWidth, nullptr);
-    uint32_t blocksPerRow = (width + blockWidth - 1) / blockWidth;
-    uint32_t bytesPerRow = blocksPerRow * getFormatBytesPerPixel(format);
-
-    // Align to 256 bytes as required by WebGPU spec
-    return alignUp(bytesPerRow, WEBGPU_COPY_BUFFER_ALIGNMENT);
+    return ((width + blockWidth - 1) / blockWidth) * getAspectTexelSize(format, aspect);
 }
 
 } // namespace gfx::backend::webgpu::core

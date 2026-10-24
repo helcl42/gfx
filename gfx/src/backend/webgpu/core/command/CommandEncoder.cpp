@@ -67,6 +67,22 @@ namespace {
         }
     }
 
+    // bytesPerRow = 0 means tightly packed; a single-row copy leaves the pitch undefined, since WebGPU
+    // requires a defined pitch to be a multiple of 256 (validation ensures that for multi-row copies)
+    uint32_t bufferCopyBytesPerRow(uint32_t bytesPerRow, WGPUTextureFormat format, WGPUTextureAspect aspect, const WGPUExtent3D& extent)
+    {
+        if (bytesPerRow != 0) {
+            return bytesPerRow;
+        }
+        uint32_t blockHeight = 1;
+        getWGPUFormatBlockDimensions(format, nullptr, &blockHeight);
+        const uint32_t rowCount = (extent.height + blockHeight - 1) / blockHeight;
+        if (rowCount <= 1 && extent.depthOrArrayLayers <= 1) {
+            return WGPU_COPY_STRIDE_UNDEFINED;
+        }
+        return getPackedBytesPerRow(format, aspect, extent.width);
+    }
+
 } // anonymous namespace
 
 CommandEncoder::CommandEncoder(Device* device, const CommandEncoderCreateInfo& createInfo)
@@ -190,16 +206,13 @@ void CommandEncoder::copyBufferToBuffer(Buffer* source, uint64_t sourceOffset, B
 
 void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, Texture* destination, const WGPUOrigin3D& origin, const WGPUExtent3D& extent, uint32_t mipLevel, uint32_t arrayLayer, uint32_t bytesPerRow, uint32_t rowsPerImage, WGPUTextureAspect aspect)
 {
-    // Buffer-to-texture copies require 256-byte-aligned bytesPerRow; compute an aligned default
     uint32_t blockWidth = 1, blockHeight = 1;
     getWGPUFormatBlockDimensions(destination->getFormat(), &blockWidth, &blockHeight);
-    // For compressed formats a "row" is a row of blocks and getAspectTexelSize returns the block size
-    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? alignUp(((extent.width + blockWidth - 1) / blockWidth) * getAspectTexelSize(destination->getFormat(), aspect), 256) : bytesPerRow;
 
     WGPUTexelCopyBufferInfo sourceInfo = WGPU_TEXEL_COPY_BUFFER_INFO_INIT;
     sourceInfo.buffer = source->handle();
     sourceInfo.layout.offset = sourceOffset;
-    sourceInfo.layout.bytesPerRow = effectiveBytesPerRow;
+    sourceInfo.layout.bytesPerRow = bufferCopyBytesPerRow(bytesPerRow, destination->getFormat(), aspect, extent);
     sourceInfo.layout.rowsPerImage = (rowsPerImage == 0) ? (extent.height + blockHeight - 1) / blockHeight : rowsPerImage; // rows of blocks for compressed formats
 
     WGPUTexelCopyTextureInfo destInfo = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
@@ -217,11 +230,8 @@ void CommandEncoder::copyBufferToTexture(Buffer* source, uint64_t sourceOffset, 
 
 void CommandEncoder::copyTextureToBuffer(Texture* source, const WGPUOrigin3D& origin, uint32_t mipLevel, uint32_t arrayLayer, Buffer* destination, uint64_t destinationOffset, const WGPUExtent3D& extent, uint32_t bytesPerRow, uint32_t rowsPerImage, WGPUTextureAspect aspect)
 {
-    // Texture-to-buffer copies require 256-byte-aligned bytesPerRow; compute an aligned default
     uint32_t blockWidth = 1, blockHeight = 1;
     getWGPUFormatBlockDimensions(source->getFormat(), &blockWidth, &blockHeight);
-    // For compressed formats a "row" is a row of blocks and getAspectTexelSize returns the block size
-    uint32_t effectiveBytesPerRow = (bytesPerRow == 0) ? alignUp(((extent.width + blockWidth - 1) / blockWidth) * getAspectTexelSize(source->getFormat(), aspect), 256) : bytesPerRow;
 
     WGPUTexelCopyTextureInfo sourceInfo = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
     sourceInfo.texture = source->handle();
@@ -236,7 +246,7 @@ void CommandEncoder::copyTextureToBuffer(Texture* source, const WGPUOrigin3D& or
     WGPUTexelCopyBufferInfo destInfo = WGPU_TEXEL_COPY_BUFFER_INFO_INIT;
     destInfo.buffer = destination->handle();
     destInfo.layout.offset = destinationOffset;
-    destInfo.layout.bytesPerRow = effectiveBytesPerRow;
+    destInfo.layout.bytesPerRow = bufferCopyBytesPerRow(bytesPerRow, source->getFormat(), aspect, extent);
     destInfo.layout.rowsPerImage = (rowsPerImage == 0) ? (extent.height + blockHeight - 1) / blockHeight : rowsPerImage; // rows of blocks for compressed formats
 
     wgpuCommandEncoderCopyTextureToBuffer(m_encoder, &sourceInfo, &destInfo, &extent);

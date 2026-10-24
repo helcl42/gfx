@@ -382,6 +382,60 @@ TEST_P(GfxCommandEncoderTest, CopyTextureToBufferWithNullDescriptor)
     gfxCommandEncoderDestroy(encoder);
 }
 
+// Multi-row buffer<->texture copies need a 256-byte-aligned row pitch, tightly packed or not
+TEST_P(GfxCommandEncoderTest, BufferTextureCopiesRequireAlignedRowPitch)
+{
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { 100, 100, 1 }; // 400-byte rows
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.usage = GFX_FLAGS(GFX_TEXTURE_USAGE_COPY_DST | GFX_TEXTURE_USAGE_COPY_SRC);
+    GfxTexture texture = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &texture), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor bufferDesc = {};
+    bufferDesc.size = 512 * 100;
+    bufferDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_COPY_SRC | GFX_BUFFER_USAGE_COPY_DST);
+    bufferDesc.memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL;
+    GfxBuffer buffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &bufferDesc, &buffer), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoder encoder = nullptr;
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxCopyBufferToTextureDescriptor upload = {};
+    upload.source = buffer;
+    upload.destination = texture;
+    upload.extent = { 100, 100, 1 };
+    upload.finalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_SRC;
+
+    GfxCopyTextureToBufferDescriptor readback = {};
+    readback.source = texture;
+    readback.destination = buffer;
+    readback.extent = { 100, 100, 1 };
+    readback.finalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_SRC;
+
+    for (uint32_t bytesPerRow : { 0u, 400u }) {
+        upload.bytesPerRow = bytesPerRow;
+        readback.bytesPerRow = bytesPerRow;
+        EXPECT_EQ(gfxCommandEncoderCopyBufferToTexture(encoder, &upload), GFX_RESULT_ERROR_INVALID_ARGUMENT) << bytesPerRow;
+        EXPECT_EQ(gfxCommandEncoderCopyTextureToBuffer(encoder, &readback), GFX_RESULT_ERROR_INVALID_ARGUMENT) << bytesPerRow;
+    }
+
+    upload.bytesPerRow = 512;
+    readback.bytesPerRow = 512;
+    EXPECT_EQ(gfxCommandEncoderCopyBufferToTexture(encoder, &upload), GFX_RESULT_SUCCESS);
+    EXPECT_EQ(gfxCommandEncoderCopyTextureToBuffer(encoder, &readback), GFX_RESULT_SUCCESS);
+
+    gfxCommandEncoderDestroy(encoder);
+    gfxBufferDestroy(buffer);
+    gfxTextureDestroy(texture);
+}
+
 TEST_P(GfxCommandEncoderTest, CopyTextureToTextureWithNullEncoder)
 {
     GfxCopyTextureToTextureDescriptor copyDesc = {};

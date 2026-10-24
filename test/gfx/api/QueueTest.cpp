@@ -333,6 +333,77 @@ TEST_P(GfxQueueTest, WriteTexturePartialPreservesContents)
     gfxTextureDestroy(texture);
 }
 
+// Test: A single-row copy may be tightly packed even when the row is not 256-byte aligned
+TEST_P(GfxQueueTest, CopySingleRowTightlyPacked)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    constexpr uint32_t kWidth = 50; // 200-byte row
+    constexpr uint32_t kRowBytes = kWidth * 4;
+
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { kWidth, 1, 1 };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.usage = GFX_FLAGS(GFX_TEXTURE_USAGE_COPY_DST | GFX_TEXTURE_USAGE_COPY_SRC);
+    GfxTexture texture = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &texture), GFX_RESULT_SUCCESS);
+
+    std::vector<uint8_t> pixels(kRowBytes);
+    for (uint32_t i = 0; i < kRowBytes; ++i) {
+        pixels[i] = static_cast<uint8_t>(i);
+    }
+    GfxWriteTextureDescriptor writeDesc = {};
+    writeDesc.texture = texture;
+    writeDesc.extent = { kWidth, 1, 1 };
+    writeDesc.finalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_SRC;
+    ASSERT_EQ(gfxQueueWriteTexture(queue, &writeDesc, pixels.data(), pixels.size()), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor readbackDesc = {};
+    readbackDesc.size = kRowBytes;
+    readbackDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_READ | GFX_BUFFER_USAGE_COPY_DST);
+    readbackDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+    GfxBuffer readback = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &readbackDesc, &readback), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoder encoder = nullptr;
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxCopyTextureToBufferDescriptor copyDesc = {};
+    copyDesc.source = texture;
+    copyDesc.destination = readback;
+    copyDesc.extent = { kWidth, 1, 1 };
+    copyDesc.finalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_SRC;
+    ASSERT_EQ(gfxCommandEncoderCopyTextureToBuffer(encoder, &copyDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+    GfxFenceDescriptor fenceDesc = {};
+    GfxFence fence = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFence(device, &fenceDesc, &fence), GFX_RESULT_SUCCESS);
+
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    submitDesc.signalFence = fence;
+    ASSERT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxFenceWait(fence, GFX_TIMEOUT_INFINITE), GFX_RESULT_SUCCESS);
+
+    void* mapped = nullptr;
+    ASSERT_EQ(gfxBufferMap(readback, 0, readbackDesc.size, &mapped), GFX_RESULT_SUCCESS);
+    EXPECT_EQ(std::memcmp(mapped, pixels.data(), kRowBytes), 0);
+    ASSERT_EQ(gfxBufferUnmap(readback), GFX_RESULT_SUCCESS);
+
+    gfxFenceDestroy(fence);
+    gfxCommandEncoderDestroy(encoder);
+    gfxBufferDestroy(readback);
+    gfxTextureDestroy(texture);
+}
+
 // Test: Queue write buffer with NULL queue
 TEST_P(GfxQueueTest, WriteBufferWithNullQueue)
 {
