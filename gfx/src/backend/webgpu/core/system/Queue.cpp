@@ -104,31 +104,10 @@ void Queue::writeTexture(Texture* texture, uint32_t mipLevel, uint32_t arrayLaye
 bool Queue::waitIdle()
 {
 #ifdef __EMSCRIPTEN__
-    // The browser main thread must not block on GPU completion; queue ordering covers the callers.
+    // The web cannot block on the GPU; queue ordering covers the callers
     return true;
 #else
-    // Submit empty command to ensure all previous work is queued
-    static auto queueWorkDoneCallback = [](WGPUQueueWorkDoneStatus status, WGPUStringView, void* userdata1, void*) {
-        bool* done = static_cast<bool*>(userdata1);
-        if (status == WGPUQueueWorkDoneStatus_Success) {
-            *done = true;
-        }
-    };
-
-    bool workDone = false;
-    WGPUQueueWorkDoneCallbackInfo callbackInfo = WGPU_QUEUE_WORK_DONE_CALLBACK_INFO_INIT;
-    callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-    callbackInfo.callback = queueWorkDoneCallback;
-    callbackInfo.userdata1 = &workDone;
-
-    WGPUFuture future = wgpuQueueOnSubmittedWorkDone(m_queue, callbackInfo);
-
-    // Properly wait for the queue work to complete
-    WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
-    waitInfo.future = future;
-    wgpuInstanceWaitAny(m_device->getAdapter()->getInstance()->handle(), 1, &waitInfo, UINT64_MAX);
-
-    return workDone;
+    return waitForFuture(m_device->getAdapter()->getInstance()->handle(), queueWorkDoneFuture(m_queue), UINT64_MAX);
 #endif // __EMSCRIPTEN__
 }
 

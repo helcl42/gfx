@@ -46,7 +46,6 @@ private:
 
     struct AsyncMapCallbackData {
         WGPUMapAsyncStatus status = WGPUMapAsyncStatus_Error;
-        bool completed = false;
         uint64_t offset = 0;
         uint64_t size = 0;
     };

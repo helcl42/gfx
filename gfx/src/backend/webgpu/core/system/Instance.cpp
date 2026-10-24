@@ -2,6 +2,8 @@
 
 #include "Adapter.h"
 
+#include "../util/Utils.h"
+
 #include "common/Logger.h"
 
 #include <algorithm>
@@ -38,29 +40,19 @@ namespace {
 #endif
 
                 WGPUAdapter adapter = nullptr;
-                bool completed = false;
 
                 WGPURequestAdapterCallbackInfo callbackInfo = WGPU_REQUEST_ADAPTER_CALLBACK_INFO_INIT;
                 callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-                callbackInfo.callback = [](WGPURequestAdapterStatus status, WGPUAdapter adapterResult, WGPUStringView message, void* userdata1, void* userdata2) {
+                callbackInfo.callback = [](WGPURequestAdapterStatus status, WGPUAdapter adapterResult, WGPUStringView, void* userdata1, void*) {
                     auto* adapterPtr = static_cast<WGPUAdapter*>(userdata1);
-                    auto* completedPtr = static_cast<bool*>(userdata2);
-
                     if (status == WGPURequestAdapterStatus_Success && adapterResult) {
                         *adapterPtr = adapterResult;
                     }
-                    *completedPtr = true;
-                    (void)message;
                 };
                 callbackInfo.userdata1 = &adapter;
-                callbackInfo.userdata2 = &completed;
 
                 WGPUFuture future = wgpuInstanceRequestAdapter(instance, &options, callbackInfo);
-                WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
-                waitInfo.future = future;
-                wgpuInstanceWaitAny(instance, 1, &waitInfo, UINT64_MAX);
-
-                if (completed && adapter) {
+                if (waitForFuture(instance, future, UINT64_MAX) && adapter) {
                     // Check if we already have this adapter (deduplicate)
                     auto isDuplicate = std::any_of(adapters.begin(), adapters.end(),
                         [adapter](WGPUAdapter existing) { return existing == adapter; });

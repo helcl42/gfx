@@ -3,6 +3,7 @@
 #include "../system/Adapter.h"
 #include "../system/Device.h"
 #include "../system/Instance.h"
+#include "../util/Utils.h"
 
 #include <stdexcept>
 
@@ -103,7 +104,6 @@ Buffer::MapStatus Buffer::map(uint64_t offset, uint64_t size, void** outPointer,
         callbackInfo.callback = [](WGPUMapAsyncStatus status, WGPUStringView, void* userdata1, void*) {
             auto* data = static_cast<AsyncMapCallbackData*>(userdata1);
             data->status = status;
-            data->completed = true;
         };
         callbackInfo.userdata1 = &m_asyncCallbackData;
 
@@ -111,10 +111,7 @@ Buffer::MapStatus Buffer::map(uint64_t offset, uint64_t size, void** outPointer,
         m_asyncMapPending = true;
     }
 
-    WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
-    waitInfo.future = m_asyncMapFuture;
-    wgpuInstanceWaitAny(m_device->getAdapter()->getInstance()->handle(), 1, &waitInfo, timeoutNs);
-    if (!m_asyncCallbackData.completed) {
+    if (!waitForFuture(m_device->getAdapter()->getInstance()->handle(), m_asyncMapFuture, timeoutNs)) {
         return MapStatus::Pending;
     }
     m_asyncMapPending = false;

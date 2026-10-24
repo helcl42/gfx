@@ -5,6 +5,7 @@
 #include "Queue.h"
 
 #include "../util/Blit.h"
+#include "../util/Utils.h"
 
 #include "common/Logger.h"
 
@@ -66,45 +67,26 @@ namespace {
     // Issues wgpuAdapterRequestDevice and synchronously waits for the result, throwing on failure
     WGPUDevice requestDeviceSync(Adapter* adapter, const WGPUDeviceDescriptor& wgpuDesc)
     {
-        struct DeviceRequestContext {
-            WGPUDevice device;
-            bool completed;
-            WGPURequestDeviceStatus status;
-        } context = { nullptr, false, WGPURequestDeviceStatus_Error };
+        WGPUDevice device = nullptr;
 
         WGPURequestDeviceCallbackInfo callbackInfo = WGPU_REQUEST_DEVICE_CALLBACK_INFO_INIT;
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPURequestDeviceStatus status, WGPUDevice device, WGPUStringView message, void* userdata1, void* userdata2) {
-            auto* ctx = static_cast<DeviceRequestContext*>(userdata1);
-            ctx->status = status;
-            ctx->completed = true;
-
-            if (status == WGPURequestDeviceStatus_Success && device) {
-                ctx->device = device;
+        callbackInfo.callback = [](WGPURequestDeviceStatus status, WGPUDevice deviceResult, WGPUStringView message, void* userdata1, void*) {
+            auto* devicePtr = static_cast<WGPUDevice*>(userdata1);
+            if (status == WGPURequestDeviceStatus_Success && deviceResult) {
+                *devicePtr = deviceResult;
             } else if (message.data) {
                 gfx::common::Logger::instance().logError("Error: Failed to request device: {}",
                     std::string_view(message.data, message.length));
             }
-            (void)userdata2; // Unused
         };
-        callbackInfo.userdata1 = &context;
+        callbackInfo.userdata1 = &device;
 
         WGPUFuture future = wgpuAdapterRequestDevice(adapter->handle(), &wgpuDesc, callbackInfo);
-
-        // Use WaitAny to properly wait for the callback
-        if (adapter->getInstance()) {
-            WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
-            waitInfo.future = future;
-            wgpuInstanceWaitAny(adapter->getInstance()->handle(), 1, &waitInfo, UINT64_MAX);
-        }
-
-        if (!context.completed) {
-            throw std::runtime_error("Device request timed out");
-        }
-        if (!context.device) {
+        if (!waitForFuture(adapter->getInstance()->handle(), future, UINT64_MAX) || !device) {
             throw std::runtime_error("Failed to request device");
         }
-        return context.device;
+        return device;
     }
 } // anonymous namespace
 
@@ -213,26 +195,7 @@ WGPULimits Device::getLimits() const
 
 void Device::waitIdle() const
 {
-#ifdef __EMSCRIPTEN__
-    // The browser main thread must not block on GPU completion; queue ordering covers the callers.
-    return;
-#else
-    WGPUQueueWorkDoneCallbackInfo callbackInfo = WGPU_QUEUE_WORK_DONE_CALLBACK_INFO_INIT;
-    callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-    callbackInfo.callback = [](WGPUQueueWorkDoneStatus status, WGPUStringView message, void* userdata1, void* userdata2) {
-        (void)status;
-        (void)message;
-        (void)userdata1;
-        (void)userdata2;
-    };
-    WGPUFuture future = wgpuQueueOnSubmittedWorkDone(m_queue->handle(), callbackInfo);
-
-    // Wait for the work to complete
-    WGPUInstance instance = m_adapter->getInstance()->handle();
-    WGPUFutureWaitInfo waitInfo = WGPU_FUTURE_WAIT_INFO_INIT;
-    waitInfo.future = future;
-    wgpuInstanceWaitAny(instance, 1, &waitInfo, UINT64_MAX);
-#endif // __EMSCRIPTEN__
+    m_queue->waitIdle();
 }
 
 Blit* Device::getBlit()
