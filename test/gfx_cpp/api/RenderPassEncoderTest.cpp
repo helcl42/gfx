@@ -305,7 +305,7 @@ TEST_P(GfxCppRenderPassEncoderTest, ExecuteBundlesWithEmptyVector)
     auto view = texture->createView({ .viewType = gfx::TextureViewType::View2D, .format = gfx::Format::R8G8B8A8Unorm });
     auto framebuffer = device->createFramebuffer({ .renderPass = renderPass, .colorAttachments = { gfx::FramebufferColorAttachment{ .view = view } }, .extent = { 256, 256 } });
 
-    auto renderPassEncoder = encoder->beginRenderPass({ .framebuffer = framebuffer, .bundleExecution = true });
+    auto renderPassEncoder = encoder->beginRenderPass({ .framebuffer = framebuffer });
     ASSERT_NE(renderPassEncoder, nullptr);
 
     // Empty bundle list should throw
@@ -331,7 +331,7 @@ TEST_P(GfxCppRenderPassEncoderTest, ExecuteBundlesWithNullEncoder)
     auto view = texture->createView({ .viewType = gfx::TextureViewType::View2D, .format = gfx::Format::R8G8B8A8Unorm });
     auto framebuffer = device->createFramebuffer({ .renderPass = renderPass, .colorAttachments = { gfx::FramebufferColorAttachment{ .view = view } }, .extent = { 256, 256 } });
 
-    auto renderPassEncoder = encoder->beginRenderPass({ .framebuffer = framebuffer, .bundleExecution = true });
+    auto renderPassEncoder = encoder->beginRenderPass({ .framebuffer = framebuffer });
     ASSERT_NE(renderPassEncoder, nullptr);
 
     // Null encoder in the list should throw

@@ -2497,8 +2497,7 @@ static void render(CubeApp* app)
         .colorClearValues = &clearColor,
         .colorClearValueCount = 1,
         .depthClearValue = 1.0f,
-        .stencilClearValue = 0,
-        .bundleExecution = app->settings.prerecord
+        .stencilClearValue = 0
     };
 
     GfxRenderPassEncoder renderPass;

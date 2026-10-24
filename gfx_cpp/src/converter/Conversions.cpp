@@ -1268,8 +1268,6 @@ void convertRenderPassBeginDescriptor(const RenderPassBeginDescriptor& descripto
         }
         outDesc.occlusionQuerySet = querySetImpl->getHandle();
     }
-
-    outDesc.bundleExecution = descriptor.bundleExecution;
 }
 
 void convertComputePassBeginDescriptor(const ComputePassBeginDescriptor& descriptor, GfxComputePassBeginDescriptor& outDesc)

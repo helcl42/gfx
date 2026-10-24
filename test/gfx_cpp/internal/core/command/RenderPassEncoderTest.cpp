@@ -195,7 +195,7 @@ TEST_P(RenderPassEncoderImplTest, ExecuteBundles)
     // End bundle recording (finishes the render bundle)
     bundleEncoder->end();
 
-    // Create command encoder and begin render pass with bundle execution
+    // Create command encoder and begin the render pass that executes the bundle
     auto encoder = deviceWrapper.createCommandEncoder({});
     ASSERT_NE(encoder, nullptr);
     encoder->begin();
@@ -203,8 +203,7 @@ TEST_P(RenderPassEncoderImplTest, ExecuteBundles)
     {
         RenderPassBeginDescriptor rpBeginDesc{
             .framebuffer = framebuffer,
-            .colorClearValues = { Color{ 0.0f, 0.0f, 0.0f, 1.0f } },
-            .bundleExecution = true
+            .colorClearValues = { Color{ 0.0f, 0.0f, 0.0f, 1.0f } }
         };
 
         auto renderPassEncoder = encoder->beginRenderPass(rpBeginDesc);

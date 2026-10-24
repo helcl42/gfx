@@ -1565,7 +1565,6 @@ struct RenderPassBeginDescriptor {
     float depthClearValue = 1.0f;
     uint32_t stencilClearValue = 0;
     std::shared_ptr<QuerySet> occlusionQuerySet;
-    bool bundleExecution = false;
 };
 
 struct ComputePassBeginDescriptor {

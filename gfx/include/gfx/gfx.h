@@ -1269,9 +1269,6 @@ typedef struct {
     // Timestamps are written at begin (index 0) and end (index 1) of the pass.
     // On WebGPU this uses WGPURenderPassTimestampWrites; on Vulkan vkCmdWriteTimestamp.
     GfxQuerySet timestampQuerySet;
-
-    // If true, the render pass will only contain executeBundles calls (no inline draw commands).
-    bool bundleExecution;
 } GfxRenderPassBeginDescriptor;
 
 typedef struct {
@@ -2137,7 +2134,6 @@ GFX_API GfxResult gfxFramebufferDestroy(GfxFramebuffer framebuffer);
 // - The begin descriptor's framebuffer and clear values are ignored for bundles
 // - Record draw commands via the returned GfxRenderPassEncoder, then End it and End the
 //   encoder; execute the bundle in another render pass via gfxRenderPassEncoderExecuteBundles
-//   (the enclosing pass must use bundleExecution = true)
 // - Dynamic state (viewport, scissor, blend constant, stencil reference) cannot be set
 //   inside a bundle - it is inherited from the enclosing render pass
 GFX_API GfxResult gfxDeviceCreateCommandEncoder(GfxDevice device, const GfxCommandEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder);
