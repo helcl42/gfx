@@ -1953,12 +1953,6 @@ core::FramebufferCreateInfo gfxFramebufferDescriptorToFramebufferCreateInfo(cons
     if (descriptor->depthStencilAttachment.view) {
         auto* view = toNative<TextureView>(descriptor->depthStencilAttachment.view);
         createInfo.depthStencilAttachmentView = view; // Store pointer
-
-        // Convert depth/stencil resolve target if present
-        if (descriptor->depthStencilAttachment.resolveTarget) {
-            auto* resolveView = toNative<TextureView>(descriptor->depthStencilAttachment.resolveTarget);
-            createInfo.depthStencilResolveTargetView = resolveView; // Store pointer
-        }
     }
 
     createInfo.width = descriptor->extent.width;

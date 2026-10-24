@@ -75,7 +75,6 @@ protected:
             fbInfo.width = 800;
             fbInfo.height = 600;
             fbInfo.colorAttachmentCount = 1;
-            fbInfo.hasDepthResolve = false;
             framebuffer = std::make_unique<gfx::backend::vulkan::core::Framebuffer>(device.get(), fbInfo);
 
         } catch (const std::exception& e) {

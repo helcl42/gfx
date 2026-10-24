@@ -434,7 +434,6 @@ struct FramebufferCreateInfo {
     std::vector<TextureView*> colorAttachmentViews; // Pointers to TextureView objects
     std::vector<TextureView*> colorResolveTargetViews; // Optional resolve targets for MSAA
     TextureView* depthStencilAttachmentView = nullptr;
-    TextureView* depthStencilResolveTargetView = nullptr;
     uint32_t width = 0;
     uint32_t height = 0;
 };

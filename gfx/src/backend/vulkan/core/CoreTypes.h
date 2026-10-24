@@ -442,10 +442,9 @@ struct RenderPassDepthStencilAttachmentTarget {
     VkImageLayout finalLayout;
 };
 
-// Depth/stencil attachment with optional resolve target
+// Depth/stencil attachment (resolve is not supported)
 struct RenderPassDepthStencilAttachment {
     RenderPassDepthStencilAttachmentTarget target;
-    std::optional<RenderPassDepthStencilAttachmentTarget> resolveTarget;
 };
 
 struct RenderPassCreateInfo {
@@ -459,11 +458,10 @@ struct RenderPassCreateInfo {
 
 struct FramebufferCreateInfo {
     VkRenderPass renderPass = VK_NULL_HANDLE;
-    std::vector<TextureView*> attachments; // Interleaved: [color0, resolve0, color1, resolve1, ..., depth, depthResolve]
+    std::vector<TextureView*> attachments; // Interleaved: [color0, resolve0, color1, resolve1, ..., depth]
     uint32_t width = 0;
     uint32_t height = 0;
     uint32_t colorAttachmentCount = 0; // Number of color attachments (not including resolves)
-    bool hasDepthResolve = false;
 };
 
 struct RenderPassEncoderBeginInfo {

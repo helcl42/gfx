@@ -11,7 +11,6 @@
 #include "../resource/TextureView.h"
 #include "../system/Device.h"
 
-#include <algorithm>
 #include <stdexcept>
 #include <vector>
 
@@ -70,7 +69,7 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
     // Nothing can transition the attachments inside the pass, so their next layout is the pass's final one
     const auto& finalLayouts = renderPass->attachmentFinalLayouts();
     const auto& attachments = framebuffer->attachments();
-    for (size_t i = 0; i < std::min(finalLayouts.size(), attachments.size()); ++i) {
+    for (size_t i = 0; i < attachments.size(); ++i) {
         attachments[i]->getTexture()->setLayout(finalLayouts[i]);
     }
 

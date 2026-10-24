@@ -509,6 +509,11 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
+        // Depth/stencil resolve is not supported
+        if (descriptor->depthStencilAttachment && descriptor->depthStencilAttachment->resolveTarget) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+
         return GFX_RESULT_SUCCESS;
     }
 
@@ -530,6 +535,11 @@ namespace {
 
         // Validate color attachments if provided
         if (descriptor->colorAttachmentCount > 0 && !descriptor->colorAttachments) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+
+        // Depth/stencil resolve is not supported
+        if (descriptor->depthStencilAttachment.resolveTarget) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 

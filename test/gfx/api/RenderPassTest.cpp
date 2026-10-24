@@ -231,6 +231,28 @@ TEST_P(GfxRenderPassTest, CreateRenderPassWithDepthAttachment)
     gfxRenderPassDestroy(renderPass);
 }
 
+// Test: Depth/stencil resolve is not supported, so a depth resolve target is rejected
+TEST_P(GfxRenderPassTest, CreateRenderPassWithDepthResolveTarget)
+{
+    GfxRenderPassDepthStencilAttachmentTarget depthTarget = {};
+    depthTarget.format = GFX_FORMAT_DEPTH32_FLOAT;
+    depthTarget.sampleCount = GFX_SAMPLE_COUNT_1;
+    depthTarget.depthOps.loadOp = GFX_LOAD_OP_CLEAR;
+    depthTarget.depthOps.storeOp = GFX_STORE_OP_STORE;
+    depthTarget.finalLayout = GFX_TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT;
+
+    GfxRenderPassDepthStencilAttachment depthAttachment = {};
+    depthAttachment.target = depthTarget;
+    depthAttachment.resolveTarget = &depthTarget;
+
+    GfxRenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.depthStencilAttachment = &depthAttachment;
+
+    GfxRenderPass renderPass = nullptr;
+    EXPECT_EQ(gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(renderPass, nullptr);
+}
+
 // Test: Create RenderPass with depth-stencil attachment
 TEST_P(GfxRenderPassTest, CreateRenderPassWithDepthStencilAttachment)
 {

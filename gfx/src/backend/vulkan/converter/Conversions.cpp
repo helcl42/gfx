@@ -2216,15 +2216,10 @@ core::RenderPassCreateInfo gfxRenderPassDescriptorToRenderPassCreateInfo(const G
         createInfo.colorAttachments.push_back(attachment);
     }
 
-    // Convert depth/stencil attachment (with an optional resolve target)
+    // Convert depth/stencil attachment
     if (descriptor->depthStencilAttachment) {
-        const GfxRenderPassDepthStencilAttachment& depthAtt = *descriptor->depthStencilAttachment;
-
         core::RenderPassDepthStencilAttachment depthStencilAttachment{};
-        depthStencilAttachment.target = convertDepthStencilAttachmentTarget(depthAtt.target);
-        if (depthAtt.resolveTarget) {
-            depthStencilAttachment.resolveTarget = convertDepthStencilAttachmentTarget(*depthAtt.resolveTarget);
-        }
+        depthStencilAttachment.target = convertDepthStencilAttachmentTarget(descriptor->depthStencilAttachment->target);
         createInfo.depthStencilAttachment = depthStencilAttachment;
     }
 
@@ -2257,7 +2252,7 @@ core::FramebufferCreateInfo gfxFramebufferDescriptorToFramebufferCreateInfo(cons
 
     createInfo.colorAttachmentCount = descriptor->colorAttachmentCount;
 
-    // In Vulkan, attachments are ordered: [color0, resolve0, color1, resolve1, ..., depth, depthResolve]
+    // In Vulkan, attachments are ordered: [color0, resolve0, color1, resolve1, ..., depth]
     // But only if resolve targets exist
     for (uint32_t i = 0; i < descriptor->colorAttachmentCount; ++i) {
         const GfxFramebufferAttachment& colorAtt = descriptor->colorAttachments[i];
@@ -2273,12 +2268,6 @@ core::FramebufferCreateInfo gfxFramebufferDescriptorToFramebufferCreateInfo(cons
     // Convert depth/stencil attachment view
     if (descriptor->depthStencilAttachment.view) {
         createInfo.attachments.push_back(toNative<core::TextureView>(descriptor->depthStencilAttachment.view));
-
-        // Add depth resolve target if provided
-        if (descriptor->depthStencilAttachment.resolveTarget) {
-            createInfo.attachments.push_back(toNative<core::TextureView>(descriptor->depthStencilAttachment.resolveTarget));
-            createInfo.hasDepthResolve = true;
-        }
     }
 
     createInfo.width = descriptor->extent.width;

@@ -87,7 +87,6 @@ TEST_F(VulkanFramebufferTest, CreateSingleColorAttachment_CreatesSuccessfully)
     fbInfo.width = 800;
     fbInfo.height = 600;
     fbInfo.colorAttachmentCount = 1;
-    fbInfo.hasDepthResolve = false;
 
     gfx::backend::vulkan::core::Framebuffer framebuffer(device.get(), fbInfo);
 
@@ -146,7 +145,6 @@ TEST_F(VulkanFramebufferTest, CreateMultipleColorAttachments_CreatesSuccessfully
     fbInfo.width = 1024;
     fbInfo.height = 768;
     fbInfo.colorAttachmentCount = 2;
-    fbInfo.hasDepthResolve = false;
 
     gfx::backend::vulkan::core::Framebuffer framebuffer(device.get(), fbInfo);
 
@@ -230,7 +228,6 @@ TEST_F(VulkanFramebufferTest, CreateWithDepthAttachment_CreatesSuccessfully)
     fbInfo.width = 640;
     fbInfo.height = 480;
     fbInfo.colorAttachmentCount = 1;
-    fbInfo.hasDepthResolve = false;
 
     gfx::backend::vulkan::core::Framebuffer framebuffer(device.get(), fbInfo);
 
@@ -292,7 +289,6 @@ TEST_F(VulkanFramebufferTest, DifferentSizes_CreateSuccessfully)
         fbInfo.width = size[0];
         fbInfo.height = size[1];
         fbInfo.colorAttachmentCount = 1;
-        fbInfo.hasDepthResolve = false;
 
         gfx::backend::vulkan::core::Framebuffer framebuffer(device.get(), fbInfo);
 
@@ -347,7 +343,6 @@ TEST_F(VulkanFramebufferTest, GetHandle_ReturnsValidHandle)
     fbInfo.width = 512;
     fbInfo.height = 512;
     fbInfo.colorAttachmentCount = 1;
-    fbInfo.hasDepthResolve = false;
 
     gfx::backend::vulkan::core::Framebuffer framebuffer(device.get(), fbInfo);
 
@@ -396,7 +391,6 @@ TEST_F(VulkanFramebufferTest, MultipleFramebuffers_HaveUniqueHandles)
     fbInfo1.width = 256;
     fbInfo1.height = 256;
     fbInfo1.colorAttachmentCount = 1;
-    fbInfo1.hasDepthResolve = false;
     gfx::backend::vulkan::core::Framebuffer framebuffer1(device.get(), fbInfo1);
 
     // Create second texture and framebuffer
@@ -426,7 +420,6 @@ TEST_F(VulkanFramebufferTest, MultipleFramebuffers_HaveUniqueHandles)
     fbInfo2.width = 256;
     fbInfo2.height = 256;
     fbInfo2.colorAttachmentCount = 1;
-    fbInfo2.hasDepthResolve = false;
     gfx::backend::vulkan::core::Framebuffer framebuffer2(device.get(), fbInfo2);
 
     EXPECT_NE(framebuffer1.handle(), framebuffer2.handle());
@@ -477,7 +470,6 @@ TEST_F(VulkanFramebufferTest, WidthAndHeight_ReturnCorrectValues)
     fbInfo.width = 1280;
     fbInfo.height = 720;
     fbInfo.colorAttachmentCount = 1;
-    fbInfo.hasDepthResolve = false;
 
     gfx::backend::vulkan::core::Framebuffer framebuffer(device.get(), fbInfo);
 
@@ -530,7 +522,6 @@ TEST_F(VulkanFramebufferTest, CreateAndDestroy_WorksCorrectly)
         fbInfo.width = 400;
         fbInfo.height = 300;
         fbInfo.colorAttachmentCount = 1;
-        fbInfo.hasDepthResolve = false;
 
         gfx::backend::vulkan::core::Framebuffer framebuffer(device.get(), fbInfo);
 
