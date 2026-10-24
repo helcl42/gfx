@@ -1,6 +1,8 @@
 #include "CommonTest.h"
 
+#include <algorithm>
 #include <cstring>
+#include <vector>
 
 // C API tests compiled with C++ for GoogleTest compatibility
 
@@ -418,6 +420,143 @@ static const uint32_t spirvConstantsComputeShader[] = {
     0x0003003e,
     0x0000001e,
     0x00000028,
+    0x000100fd,
+    0x00010038,
+};
+
+// Writes a marker to the first element of its binding; with a dynamic offset the
+// marker lands at that offset instead of at the start of the buffer.
+static const char* wgslDynamicOffsetComputeShader = R"(
+@group(0) @binding(0) var<storage, read_write> data: array<u32>;
+
+@compute @workgroup_size(1)
+fn main() {
+    data[0] = 42u;
+}
+)";
+
+// glslc-compiled from the equivalent GLSL compute shader.
+static const uint32_t spirvDynamicOffsetComputeShader[] = {
+    0x07230203,
+    0x00010300,
+    0x000d000b,
+    0x00000013,
+    0x00000000,
+    0x00020011,
+    0x00000001,
+    0x0006000b,
+    0x00000001,
+    0x4c534c47,
+    0x6474732e,
+    0x3035342e,
+    0x00000000,
+    0x0003000e,
+    0x00000000,
+    0x00000001,
+    0x0005000f,
+    0x00000005,
+    0x00000004,
+    0x6e69616d,
+    0x00000000,
+    0x00060010,
+    0x00000004,
+    0x00000011,
+    0x00000001,
+    0x00000001,
+    0x00000001,
+    0x00040047,
+    0x00000007,
+    0x00000006,
+    0x00000004,
+    0x00030047,
+    0x00000008,
+    0x00000002,
+    0x00050048,
+    0x00000008,
+    0x00000000,
+    0x00000023,
+    0x00000000,
+    0x00040047,
+    0x0000000a,
+    0x00000021,
+    0x00000000,
+    0x00040047,
+    0x0000000a,
+    0x00000022,
+    0x00000000,
+    0x00040047,
+    0x00000012,
+    0x0000000b,
+    0x00000019,
+    0x00020013,
+    0x00000002,
+    0x00030021,
+    0x00000003,
+    0x00000002,
+    0x00040015,
+    0x00000006,
+    0x00000020,
+    0x00000000,
+    0x0003001d,
+    0x00000007,
+    0x00000006,
+    0x0003001e,
+    0x00000008,
+    0x00000007,
+    0x00040020,
+    0x00000009,
+    0x0000000c,
+    0x00000008,
+    0x0004003b,
+    0x00000009,
+    0x0000000a,
+    0x0000000c,
+    0x00040015,
+    0x0000000b,
+    0x00000020,
+    0x00000001,
+    0x0004002b,
+    0x0000000b,
+    0x0000000c,
+    0x00000000,
+    0x0004002b,
+    0x00000006,
+    0x0000000d,
+    0x0000002a,
+    0x00040020,
+    0x0000000e,
+    0x0000000c,
+    0x00000006,
+    0x00040017,
+    0x00000010,
+    0x00000006,
+    0x00000003,
+    0x0004002b,
+    0x00000006,
+    0x00000011,
+    0x00000001,
+    0x0006002c,
+    0x00000010,
+    0x00000012,
+    0x00000011,
+    0x00000011,
+    0x00000011,
+    0x00050036,
+    0x00000002,
+    0x00000004,
+    0x00000000,
+    0x00000003,
+    0x000200f8,
+    0x00000005,
+    0x00060041,
+    0x0000000e,
+    0x0000000f,
+    0x0000000a,
+    0x0000000c,
+    0x0000000c,
+    0x0003003e,
+    0x0000000f,
+    0x0000000d,
     0x000100fd,
     0x00010038,
 };
@@ -995,6 +1134,148 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithoutConstants)
     EXPECT_NE(pipeline, nullptr);
 
     gfxComputePipelineDestroy(pipeline);
+    gfxBindGroupLayoutDestroy(layout);
+    gfxShaderDestroy(computeShader);
+}
+
+// ===========================================================================
+// Dynamic Offset Tests
+// ===========================================================================
+
+// The shader writes to element 0 of its binding, so the marker must land at the dynamic offset.
+TEST_P(GfxComputePipelineTest, BindGroupDynamicOffsetReachesShader)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    GfxDeviceLimits limits = {};
+    ASSERT_EQ(gfxDeviceGetLimits(device, &limits), GFX_RESULT_SUCCESS);
+    const uint32_t dynamicOffset = std::max<uint32_t>(limits.minStorageBufferOffsetAlignment, 4);
+    const uint64_t bindingSize = dynamicOffset;
+    const uint64_t bufferSize = 2 * bindingSize;
+
+    GfxShaderDescriptor shaderDesc = {};
+    shaderDesc.label = "Dynamic Offset Compute Shader";
+    if (backend == GFX_BACKEND_VULKAN) {
+        shaderDesc.sourceType = GFX_SHADER_SOURCE_SPIRV;
+        shaderDesc.code = spirvDynamicOffsetComputeShader;
+        shaderDesc.codeSize = sizeof(spirvDynamicOffsetComputeShader);
+    } else {
+        shaderDesc.sourceType = GFX_SHADER_SOURCE_WGSL;
+        shaderDesc.code = wgslDynamicOffsetComputeShader;
+        shaderDesc.codeSize = strlen(wgslDynamicOffsetComputeShader) + 1;
+    }
+    shaderDesc.entryPoint = "main";
+
+    GfxShader computeShader = nullptr;
+    ASSERT_EQ(gfxDeviceCreateShader(device, &shaderDesc, &computeShader), GFX_RESULT_SUCCESS);
+
+    GfxBindGroupLayoutEntry layoutEntry = {};
+    layoutEntry.binding = 0;
+    layoutEntry.visibility = GFX_SHADER_STAGE_COMPUTE;
+    layoutEntry.type = GFX_BINDING_TYPE_STORAGE_BUFFER;
+    layoutEntry.storageBuffer.hasDynamicOffset = true;
+    layoutEntry.storageBuffer.access = GFX_STORAGE_BUFFER_ACCESS_READ_WRITE;
+
+    GfxBindGroupLayoutDescriptor layoutDesc = {};
+    layoutDesc.entries = &layoutEntry;
+    layoutDesc.entryCount = 1;
+
+    GfxBindGroupLayout layout = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBindGroupLayout(device, &layoutDesc, &layout), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor storageDesc = {};
+    storageDesc.size = bufferSize;
+    storageDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_STORAGE | GFX_BUFFER_USAGE_COPY_SRC | GFX_BUFFER_USAGE_COPY_DST);
+    storageDesc.memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL;
+    GfxBuffer storage = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &storageDesc, &storage), GFX_RESULT_SUCCESS);
+
+    // Device-local memory starts undefined; zero it so the unbound region is checkable
+    const std::vector<uint32_t> zeros(bufferSize / sizeof(uint32_t), 0);
+    ASSERT_EQ(gfxQueueWriteBuffer(queue, storage, 0, zeros.data(), bufferSize), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor readbackDesc = {};
+    readbackDesc.size = bufferSize;
+    readbackDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_READ | GFX_BUFFER_USAGE_COPY_DST);
+    readbackDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+    GfxBuffer readback = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &readbackDesc, &readback), GFX_RESULT_SUCCESS);
+
+    // Explicit size: with a dynamic offset, a whole-size binding would run past the buffer end
+    GfxBindGroupEntry bindEntry = {};
+    bindEntry.binding = 0;
+    bindEntry.type = GFX_BIND_GROUP_ENTRY_TYPE_BUFFER;
+    bindEntry.resource.buffer.buffer = storage;
+    bindEntry.resource.buffer.offset = 0;
+    bindEntry.resource.buffer.size = bindingSize;
+
+    GfxBindGroupDescriptor bindGroupDesc = {};
+    bindGroupDesc.layout = layout;
+    bindGroupDesc.entries = &bindEntry;
+    bindGroupDesc.entryCount = 1;
+
+    GfxBindGroup bindGroup = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBindGroup(device, &bindGroupDesc, &bindGroup), GFX_RESULT_SUCCESS);
+
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = "main";
+
+    GfxComputePipelineDescriptor pipelineDesc = {};
+    pipelineDesc.label = "Dynamic Offset Compute Pipeline";
+    pipelineDesc.bindGroupLayouts = &layout;
+    pipelineDesc.bindGroupLayoutCount = 1;
+    pipelineDesc.compute = &computeState;
+
+    GfxComputePipeline pipeline = nullptr;
+    ASSERT_EQ(gfxDeviceCreateComputePipeline(device, &pipelineDesc, &pipeline), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoder encoder = nullptr;
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxComputePassEncoder pass = nullptr;
+    GfxComputePassBeginDescriptor passDesc = {};
+    ASSERT_EQ(gfxCommandEncoderBeginComputePass(encoder, &passDesc, &pass), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderSetPipeline(pass, pipeline), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderSetBindGroup(pass, 0, bindGroup, &dynamicOffset, 1), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderDispatch(pass, 1, 1, 1), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderEnd(pass), GFX_RESULT_SUCCESS);
+
+    GfxCopyBufferToBufferDescriptor copyDesc = {};
+    copyDesc.source = storage;
+    copyDesc.sourceOffset = 0;
+    copyDesc.destination = readback;
+    copyDesc.destinationOffset = 0;
+    copyDesc.size = bufferSize;
+    ASSERT_EQ(gfxCommandEncoderCopyBufferToBuffer(encoder, &copyDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+    GfxFenceDescriptor fenceDesc = {};
+    GfxFence fence = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFence(device, &fenceDesc, &fence), GFX_RESULT_SUCCESS);
+
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    submitDesc.signalFence = fence;
+    ASSERT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxFenceWait(fence, GFX_TIMEOUT_INFINITE), GFX_RESULT_SUCCESS);
+
+    void* mapped = nullptr;
+    ASSERT_EQ(gfxBufferMap(readback, 0, bufferSize, &mapped), GFX_RESULT_SUCCESS);
+    const auto* values = static_cast<const uint32_t*>(mapped);
+    EXPECT_EQ(values[0], 0u); // marker here means the offset was dropped
+    EXPECT_EQ(values[dynamicOffset / sizeof(uint32_t)], 42u);
+    ASSERT_EQ(gfxBufferUnmap(readback), GFX_RESULT_SUCCESS);
+
+    gfxFenceDestroy(fence);
+    gfxCommandEncoderDestroy(encoder);
+    gfxComputePipelineDestroy(pipeline);
+    gfxBindGroupDestroy(bindGroup);
+    gfxBufferDestroy(readback);
+    gfxBufferDestroy(storage);
     gfxBindGroupLayoutDestroy(layout);
     gfxShaderDestroy(computeShader);
 }

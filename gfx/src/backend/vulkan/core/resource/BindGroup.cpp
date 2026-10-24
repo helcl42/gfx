@@ -83,6 +83,8 @@ BindGroup::BindGroup(Device* device, const BindGroupCreateInfo& createInfo)
         switch (entry.descriptorType) {
         case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
         case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+        case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+        case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
             bufferInfos.push_back({ entry.buffer, entry.bufferOffset, entry.bufferSize });
             write.pBufferInfo = &bufferInfos.back();
             break;

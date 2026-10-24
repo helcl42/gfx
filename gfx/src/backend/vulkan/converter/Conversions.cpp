@@ -1790,13 +1790,13 @@ core::SwapchainCreateInfo gfxDescriptorToSwapchainCreateInfo(const GfxSwapchainD
 }
 
 namespace {
-    VkDescriptorType gfxBindingTypeToVkDescriptorType(GfxBindingType type)
+    VkDescriptorType gfxBindingTypeToVkDescriptorType(GfxBindingType type, bool hasDynamicOffset)
     {
         switch (type) {
         case GFX_BINDING_TYPE_UNIFORM_BUFFER:
-            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            return hasDynamicOffset ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         case GFX_BINDING_TYPE_STORAGE_BUFFER:
-            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            return hasDynamicOffset ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         case GFX_BINDING_TYPE_SAMPLER:
             return VK_DESCRIPTOR_TYPE_SAMPLER;
         case GFX_BINDING_TYPE_TEXTURE:
@@ -1823,12 +1823,24 @@ namespace {
         return flags;
     }
 
+    bool hasDynamicOffset(const GfxBindGroupLayoutEntry& entry)
+    {
+        switch (entry.type) {
+        case GFX_BINDING_TYPE_UNIFORM_BUFFER:
+            return entry.uniformBuffer.hasDynamicOffset;
+        case GFX_BINDING_TYPE_STORAGE_BUFFER:
+            return entry.storageBuffer.hasDynamicOffset;
+        default:
+            return false;
+        }
+    }
+
     core::BindGroupLayoutEntry convertBindGroupLayoutEntry(const GfxBindGroupLayoutEntry& entry)
     {
         core::BindGroupLayoutEntry layoutEntry{};
         layoutEntry.binding = entry.binding;
         layoutEntry.descriptorCount = entry.count > 0 ? entry.count : 1;
-        layoutEntry.descriptorType = gfxBindingTypeToVkDescriptorType(entry.type);
+        layoutEntry.descriptorType = gfxBindingTypeToVkDescriptorType(entry.type, hasDynamicOffset(entry));
         layoutEntry.stageFlags = gfxShaderStageToVkStageFlags(entry.visibility);
         return layoutEntry;
     }
