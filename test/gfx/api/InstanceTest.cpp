@@ -210,6 +210,36 @@ TEST_P(GfxInstanceTest, RequestAdapterByIndex)
     }
 }
 
+TEST_P(GfxInstanceTest, RequestAdapterByIndexOutOfRange)
+{
+    const char* extensions[] = { GFX_INSTANCE_EXTENSION_DEBUG };
+    GfxInstanceDescriptor desc = {};
+    desc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
+    desc.pNext = nullptr;
+    desc.backend = backend;
+    desc.enabledExtensions = extensions;
+    desc.enabledExtensionCount = 1;
+
+    GfxResult result = gfxCreateInstance(&desc, &instance);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+
+    uint32_t adapterCount = 0;
+    result = gfxInstanceEnumerateAdapters(instance, &adapterCount, NULL);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+
+    GfxAdapterDescriptor adapterDesc = {};
+    adapterDesc.sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR;
+    adapterDesc.pNext = nullptr;
+    adapterDesc.preference = GFX_ADAPTER_PREFERENCE_UNDEFINED;
+    adapterDesc.adapterIndex = adapterCount;
+
+    GfxAdapter adapter = NULL;
+    result = gfxInstanceRequestAdapter(instance, &adapterDesc, &adapter);
+
+    EXPECT_EQ(result, GFX_RESULT_ERROR_NOT_FOUND);
+    EXPECT_EQ(adapter, nullptr);
+}
+
 TEST_P(GfxInstanceTest, EnumerateAdaptersInvalidArguments)
 {
     const char* extensions[] = { GFX_INSTANCE_EXTENSION_DEBUG };

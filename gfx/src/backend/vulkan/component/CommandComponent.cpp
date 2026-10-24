@@ -50,10 +50,15 @@ GfxResult CommandComponent::deviceCreateRenderBundleCommandEncoder(GfxDevice dev
         return validationResult;
     }
 
-    auto* dev = converter::toNative<core::Device>(device);
-    auto* encoder = new core::CommandEncoder(dev, true);
-    *outEncoder = converter::toGfx<GfxCommandEncoder>(encoder);
-    return GFX_RESULT_SUCCESS;
+    try {
+        auto* dev = converter::toNative<core::Device>(device);
+        auto* encoder = new core::CommandEncoder(dev, true);
+        *outEncoder = converter::toGfx<GfxCommandEncoder>(encoder);
+        return GFX_RESULT_SUCCESS;
+    } catch (const std::exception& e) {
+        gfx::common::Logger::instance().logError("Failed to create render bundle encoder: {}", e.what());
+        return GFX_RESULT_ERROR_UNKNOWN;
+    }
 }
 
 GfxResult CommandComponent::commandEncoderDestroy(GfxCommandEncoder commandEncoder) const

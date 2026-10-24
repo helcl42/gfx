@@ -71,12 +71,17 @@ GfxResult SystemComponent::instanceRequestAdapter(GfxInstance instance, const Gf
         return validationResult;
     }
 
-    auto* inst = converter::toNative<core::Instance>(instance);
-    auto createInfo = converter::gfxDescriptorToWebGPUAdapterCreateInfo(descriptor);
-    auto* adapter = inst->requestAdapter(createInfo);
+    try {
+        auto* inst = converter::toNative<core::Instance>(instance);
+        auto createInfo = converter::gfxDescriptorToWebGPUAdapterCreateInfo(descriptor);
+        auto* adapter = inst->requestAdapter(createInfo);
 
-    *outAdapter = converter::toGfx<GfxAdapter>(adapter);
-    return GFX_RESULT_SUCCESS;
+        *outAdapter = converter::toGfx<GfxAdapter>(adapter);
+        return GFX_RESULT_SUCCESS;
+    } catch (const std::exception& e) {
+        gfx::common::Logger::instance().logError("Failed to request adapter: {}", e.what());
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
 }
 
 GfxResult SystemComponent::instanceEnumerateAdapters(GfxInstance instance, uint32_t* adapterCount, GfxAdapter* adapters) const
@@ -178,9 +183,14 @@ GfxResult SystemComponent::adapterGetLimits(GfxAdapter adapter, GfxDeviceLimits*
         return validationResult;
     }
 
-    auto* adapterPtr = converter::toNative<core::Adapter>(adapter);
-    *outLimits = converter::wgpuLimitsToGfxDeviceLimits(adapterPtr->getLimits());
-    return GFX_RESULT_SUCCESS;
+    try {
+        auto* adapterPtr = converter::toNative<core::Adapter>(adapter);
+        *outLimits = converter::wgpuLimitsToGfxDeviceLimits(adapterPtr->getLimits());
+        return GFX_RESULT_SUCCESS;
+    } catch (const std::exception& e) {
+        gfx::common::Logger::instance().logError("Failed to get adapter limits: {}", e.what());
+        return GFX_RESULT_ERROR_UNKNOWN;
+    }
 }
 
 GfxResult SystemComponent::adapterEnumerateQueueFamilies(GfxAdapter adapter, uint32_t* queueFamilyCount, GfxQueueFamilyProperties* queueFamilies) const
@@ -316,9 +326,14 @@ GfxResult SystemComponent::deviceGetLimits(GfxDevice device, GfxDeviceLimits* ou
         return validationResult;
     }
 
-    auto* devicePtr = converter::toNative<core::Device>(device);
-    *outLimits = converter::wgpuLimitsToGfxDeviceLimits(devicePtr->getLimits());
-    return GFX_RESULT_SUCCESS;
+    try {
+        auto* devicePtr = converter::toNative<core::Device>(device);
+        *outLimits = converter::wgpuLimitsToGfxDeviceLimits(devicePtr->getLimits());
+        return GFX_RESULT_SUCCESS;
+    } catch (const std::exception& e) {
+        gfx::common::Logger::instance().logError("Failed to get device limits: {}", e.what());
+        return GFX_RESULT_ERROR_UNKNOWN;
+    }
 }
 
 GfxResult SystemComponent::deviceSupportsShaderFormat(GfxDevice device, GfxShaderSourceType format, bool* outSupported) const

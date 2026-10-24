@@ -68,11 +68,16 @@ GfxResult SystemComponent::instanceRequestAdapter(GfxInstance instance, const Gf
         return validationResult;
     }
 
-    auto* inst = converter::toNative<core::Instance>(instance);
-    auto createInfo = converter::gfxDescriptorToAdapterCreateInfo(descriptor);
-    auto* adapter = inst->requestAdapter(createInfo);
-    *outAdapter = converter::toGfx<GfxAdapter>(adapter);
-    return GFX_RESULT_SUCCESS;
+    try {
+        auto* inst = converter::toNative<core::Instance>(instance);
+        auto createInfo = converter::gfxDescriptorToAdapterCreateInfo(descriptor);
+        auto* adapter = inst->requestAdapter(createInfo);
+        *outAdapter = converter::toGfx<GfxAdapter>(adapter);
+        return GFX_RESULT_SUCCESS;
+    } catch (const std::exception& e) {
+        gfx::common::Logger::instance().logError("Failed to request adapter: {}", e.what());
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
 }
 
 GfxResult SystemComponent::instanceEnumerateAdapters(GfxInstance instance, uint32_t* adapterCount, GfxAdapter* adapters) const
@@ -378,10 +383,15 @@ GfxResult SystemComponent::queueWriteBuffer(GfxQueue queue, GfxBuffer buffer, ui
         return validationResult;
     }
 
-    auto* q = converter::toNative<core::Queue>(queue);
-    auto* buf = converter::toNative<core::Buffer>(buffer);
-    q->writeBuffer(buf, offset, data, size);
-    return GFX_RESULT_SUCCESS;
+    try {
+        auto* q = converter::toNative<core::Queue>(queue);
+        auto* buf = converter::toNative<core::Buffer>(buffer);
+        q->writeBuffer(buf, offset, data, size);
+        return GFX_RESULT_SUCCESS;
+    } catch (const std::exception& e) {
+        gfx::common::Logger::instance().logError("Failed to write buffer: {}", e.what());
+        return GFX_RESULT_ERROR_UNKNOWN;
+    }
 }
 
 GfxResult SystemComponent::queueWriteTexture(GfxQueue queue, const GfxWriteTextureDescriptor* descriptor, const void* data, uint64_t dataSize) const
@@ -391,17 +401,22 @@ GfxResult SystemComponent::queueWriteTexture(GfxQueue queue, const GfxWriteTextu
         return validationResult;
     }
 
-    auto* q = converter::toNative<core::Queue>(queue);
-    auto* tex = converter::toNative<core::Texture>(descriptor->texture);
+    try {
+        auto* q = converter::toNative<core::Queue>(queue);
+        auto* tex = converter::toNative<core::Texture>(descriptor->texture);
 
-    VkOffset3D vkOrigin = converter::gfxOrigin3DToVkOffset3D(&descriptor->origin);
-    VkExtent3D vkExtent = converter::gfxExtent3DToVkExtent3D(&descriptor->extent);
-    VkImageLayout vkLayout = converter::gfxLayoutToVkImageLayout(descriptor->finalLayout);
-    VkImageAspectFlags aspectMask = converter::gfxTextureAspectToVkAspectMask(descriptor->aspect, tex->getFormat());
+        VkOffset3D vkOrigin = converter::gfxOrigin3DToVkOffset3D(&descriptor->origin);
+        VkExtent3D vkExtent = converter::gfxExtent3DToVkExtent3D(&descriptor->extent);
+        VkImageLayout vkLayout = converter::gfxLayoutToVkImageLayout(descriptor->finalLayout);
+        VkImageAspectFlags aspectMask = converter::gfxTextureAspectToVkAspectMask(descriptor->aspect, tex->getFormat());
 
-    q->writeTexture(tex, vkOrigin, descriptor->mipLevel, descriptor->arrayLayer, data, dataSize, vkExtent, descriptor->bytesPerRow, descriptor->rowsPerImage, aspectMask, vkLayout);
+        q->writeTexture(tex, vkOrigin, descriptor->mipLevel, descriptor->arrayLayer, data, dataSize, vkExtent, descriptor->bytesPerRow, descriptor->rowsPerImage, aspectMask, vkLayout);
 
-    return GFX_RESULT_SUCCESS;
+        return GFX_RESULT_SUCCESS;
+    } catch (const std::exception& e) {
+        gfx::common::Logger::instance().logError("Failed to write texture: {}", e.what());
+        return GFX_RESULT_ERROR_UNKNOWN;
+    }
 }
 
 GfxResult SystemComponent::queueWaitIdle(GfxQueue queue) const

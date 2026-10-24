@@ -49,10 +49,15 @@ GfxResult CommandComponent::deviceCreateRenderBundleCommandEncoder(GfxDevice dev
         return validationResult;
     }
 
-    auto* dev = converter::toNative<core::Device>(device);
-    auto* encoder = new core::CommandEncoder(dev);
-    *outEncoder = converter::toGfx<GfxCommandEncoder>(encoder);
-    return GFX_RESULT_SUCCESS;
+    try {
+        auto* dev = converter::toNative<core::Device>(device);
+        auto* encoder = new core::CommandEncoder(dev);
+        *outEncoder = converter::toGfx<GfxCommandEncoder>(encoder);
+        return GFX_RESULT_SUCCESS;
+    } catch (const std::exception& e) {
+        gfx::common::Logger::instance().logError("Failed to create render bundle encoder: {}", e.what());
+        return GFX_RESULT_ERROR_UNKNOWN;
+    }
 }
 
 GfxResult CommandComponent::commandEncoderDestroy(GfxCommandEncoder commandEncoder) const
@@ -73,20 +78,25 @@ GfxResult CommandComponent::commandEncoderBeginRenderPass(GfxCommandEncoder comm
         return validationResult;
     }
 
-    auto* encoderPtr = converter::toNative<core::CommandEncoder>(commandEncoder);
-    auto* renderPass = converter::toNative<core::RenderPass>(beginDescriptor->renderPass);
+    try {
+        auto* encoderPtr = converter::toNative<core::CommandEncoder>(commandEncoder);
+        auto* renderPass = converter::toNative<core::RenderPass>(beginDescriptor->renderPass);
 
-    if (encoderPtr->isBundleEncoder()) {
-        encoderPtr->beginBundle(renderPass);
-        auto* renderPassEncoder = new core::RenderPassEncoder(encoderPtr);
-        *outRenderPass = converter::toGfx<GfxRenderPassEncoder>(renderPassEncoder);
-    } else {
-        auto* framebuffer = converter::toNative<core::Framebuffer>(beginDescriptor->framebuffer);
-        auto beginInfo = converter::gfxRenderPassBeginDescriptorToBeginInfo(beginDescriptor);
-        auto* renderPassEncoder = new core::RenderPassEncoder(encoderPtr, renderPass, framebuffer, beginInfo);
-        *outRenderPass = converter::toGfx<GfxRenderPassEncoder>(renderPassEncoder);
+        if (encoderPtr->isBundleEncoder()) {
+            encoderPtr->beginBundle(renderPass);
+            auto* renderPassEncoder = new core::RenderPassEncoder(encoderPtr);
+            *outRenderPass = converter::toGfx<GfxRenderPassEncoder>(renderPassEncoder);
+        } else {
+            auto* framebuffer = converter::toNative<core::Framebuffer>(beginDescriptor->framebuffer);
+            auto beginInfo = converter::gfxRenderPassBeginDescriptorToBeginInfo(beginDescriptor);
+            auto* renderPassEncoder = new core::RenderPassEncoder(encoderPtr, renderPass, framebuffer, beginInfo);
+            *outRenderPass = converter::toGfx<GfxRenderPassEncoder>(renderPassEncoder);
+        }
+        return GFX_RESULT_SUCCESS;
+    } catch (const std::exception& e) {
+        gfx::common::Logger::instance().logError("Failed to begin render pass: {}", e.what());
+        return GFX_RESULT_ERROR_UNKNOWN;
     }
-    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult CommandComponent::commandEncoderBeginComputePass(GfxCommandEncoder commandEncoder, const GfxComputePassBeginDescriptor* beginDescriptor, GfxComputePassEncoder* outComputePass) const
@@ -96,11 +106,16 @@ GfxResult CommandComponent::commandEncoderBeginComputePass(GfxCommandEncoder com
         return validationResult;
     }
 
-    auto* encoderPtr = converter::toNative<core::CommandEncoder>(commandEncoder);
-    auto createInfo = converter::gfxComputePassBeginDescriptorToCreateInfo(beginDescriptor);
-    auto* computePassEncoder = new core::ComputePassEncoder(encoderPtr, createInfo);
-    *outComputePass = converter::toGfx<GfxComputePassEncoder>(computePassEncoder);
-    return GFX_RESULT_SUCCESS;
+    try {
+        auto* encoderPtr = converter::toNative<core::CommandEncoder>(commandEncoder);
+        auto createInfo = converter::gfxComputePassBeginDescriptorToCreateInfo(beginDescriptor);
+        auto* computePassEncoder = new core::ComputePassEncoder(encoderPtr, createInfo);
+        *outComputePass = converter::toGfx<GfxComputePassEncoder>(computePassEncoder);
+        return GFX_RESULT_SUCCESS;
+    } catch (const std::exception& e) {
+        gfx::common::Logger::instance().logError("Failed to begin compute pass: {}", e.what());
+        return GFX_RESULT_ERROR_UNKNOWN;
+    }
 }
 
 GfxResult CommandComponent::commandEncoderCopyBufferToBuffer(GfxCommandEncoder commandEncoder, const GfxCopyBufferToBufferDescriptor* descriptor) const
@@ -304,9 +319,14 @@ GfxResult CommandComponent::commandEncoderBegin(GfxCommandEncoder commandEncoder
         return validationResult;
     }
 
-    auto* encoderPtr = converter::toNative<core::CommandEncoder>(commandEncoder);
-    encoderPtr->reset();
-    return GFX_RESULT_SUCCESS;
+    try {
+        auto* encoderPtr = converter::toNative<core::CommandEncoder>(commandEncoder);
+        encoderPtr->reset();
+        return GFX_RESULT_SUCCESS;
+    } catch (const std::exception& e) {
+        gfx::common::Logger::instance().logError("Failed to begin command encoder: {}", e.what());
+        return GFX_RESULT_ERROR_UNKNOWN;
+    }
 }
 
 // RenderPassEncoder functions
