@@ -29,9 +29,13 @@ public:
     void dispatchIndirect(Buffer* buffer, uint64_t offset);
 
 private:
+    void applyBindGroup(uint32_t index);
+
     VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
     Device* m_device = nullptr;
     CommandEncoder* m_commandEncoder = nullptr;
+    ComputePipeline* m_pipeline = nullptr;
+    std::vector<BindGroupBinding> m_bindGroups;
 };
 
 } // namespace gfx::backend::vulkan::core

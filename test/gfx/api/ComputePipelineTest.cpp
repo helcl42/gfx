@@ -1281,6 +1281,134 @@ TEST_P(GfxComputePipelineTest, BindGroupDynamicOffsetReachesShader)
 }
 
 // ===========================================================================
+// Bind Group Order Tests
+// ===========================================================================
+
+// As in WebGPU, a bind group set before the pipeline applies once the pipeline is set
+TEST_P(GfxComputePipelineTest, BindGroupSetBeforePipelineReachesShader)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    constexpr uint64_t kSize = 256;
+
+    GfxShaderDescriptor shaderDesc = {};
+    if (backend == GFX_BACKEND_VULKAN) {
+        shaderDesc.sourceType = GFX_SHADER_SOURCE_SPIRV;
+        shaderDesc.code = spirvDynamicOffsetComputeShader;
+        shaderDesc.codeSize = sizeof(spirvDynamicOffsetComputeShader);
+    } else {
+        shaderDesc.sourceType = GFX_SHADER_SOURCE_WGSL;
+        shaderDesc.code = wgslDynamicOffsetComputeShader;
+        shaderDesc.codeSize = strlen(wgslDynamicOffsetComputeShader) + 1;
+    }
+    shaderDesc.entryPoint = "main";
+    GfxShader computeShader = nullptr;
+    ASSERT_EQ(gfxDeviceCreateShader(device, &shaderDesc, &computeShader), GFX_RESULT_SUCCESS);
+
+    GfxBindGroupLayoutEntry layoutEntry = {};
+    layoutEntry.binding = 0;
+    layoutEntry.visibility = GFX_SHADER_STAGE_COMPUTE;
+    layoutEntry.type = GFX_BINDING_TYPE_STORAGE_BUFFER;
+    layoutEntry.storageBuffer.access = GFX_STORAGE_BUFFER_ACCESS_READ_WRITE;
+    GfxBindGroupLayoutDescriptor layoutDesc = {};
+    layoutDesc.entries = &layoutEntry;
+    layoutDesc.entryCount = 1;
+    GfxBindGroupLayout layout = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBindGroupLayout(device, &layoutDesc, &layout), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor storageDesc = {};
+    storageDesc.size = kSize;
+    storageDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_STORAGE | GFX_BUFFER_USAGE_COPY_SRC);
+    storageDesc.memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL;
+    GfxBuffer storage = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &storageDesc, &storage), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor readbackDesc = {};
+    readbackDesc.size = kSize;
+    readbackDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_READ | GFX_BUFFER_USAGE_COPY_DST);
+    readbackDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+    GfxBuffer readback = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &readbackDesc, &readback), GFX_RESULT_SUCCESS);
+
+    GfxBindGroupEntry bindEntry = {};
+    bindEntry.binding = 0;
+    bindEntry.type = GFX_BIND_GROUP_ENTRY_TYPE_BUFFER;
+    bindEntry.resource.buffer.buffer = storage;
+    bindEntry.resource.buffer.size = GFX_WHOLE_SIZE;
+    GfxBindGroupDescriptor bindGroupDesc = {};
+    bindGroupDesc.layout = layout;
+    bindGroupDesc.entries = &bindEntry;
+    bindGroupDesc.entryCount = 1;
+    GfxBindGroup bindGroup = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBindGroup(device, &bindGroupDesc, &bindGroup), GFX_RESULT_SUCCESS);
+
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = "main";
+    GfxComputePipelineDescriptor pipelineDesc = {};
+    pipelineDesc.bindGroupLayouts = &layout;
+    pipelineDesc.bindGroupLayoutCount = 1;
+    pipelineDesc.compute = &computeState;
+    GfxComputePipeline pipeline = nullptr;
+    ASSERT_EQ(gfxDeviceCreateComputePipeline(device, &pipelineDesc, &pipeline), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoder encoder = nullptr;
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxComputePassEncoder pass = nullptr;
+    GfxComputePassBeginDescriptor passDesc = {};
+    ASSERT_EQ(gfxCommandEncoderBeginComputePass(encoder, &passDesc, &pass), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderSetBindGroup(pass, 0, bindGroup, nullptr, 0), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderSetPipeline(pass, pipeline), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderDispatch(pass, 1, 1, 1), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderEnd(pass), GFX_RESULT_SUCCESS);
+
+    GfxMemoryBarrier barrier = {};
+    barrier.srcStageMask = GFX_PIPELINE_STAGE_COMPUTE_SHADER;
+    barrier.srcAccessMask = GFX_ACCESS_SHADER_WRITE;
+    barrier.dstStageMask = GFX_PIPELINE_STAGE_TRANSFER;
+    barrier.dstAccessMask = GFX_ACCESS_TRANSFER_READ;
+    GfxPipelineBarrierDescriptor barrierDesc = {};
+    barrierDesc.memoryBarriers = &barrier;
+    barrierDesc.memoryBarrierCount = 1;
+    ASSERT_EQ(gfxCommandEncoderPipelineBarrier(encoder, &barrierDesc), GFX_RESULT_SUCCESS);
+
+    GfxCopyBufferToBufferDescriptor copyDesc = {};
+    copyDesc.source = storage;
+    copyDesc.destination = readback;
+    copyDesc.size = kSize;
+    ASSERT_EQ(gfxCommandEncoderCopyBufferToBuffer(encoder, &copyDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+    GfxFenceDescriptor fenceDesc = {};
+    GfxFence fence = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFence(device, &fenceDesc, &fence), GFX_RESULT_SUCCESS);
+
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    submitDesc.signalFence = fence;
+    ASSERT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxFenceWait(fence, GFX_TIMEOUT_INFINITE), GFX_RESULT_SUCCESS);
+
+    void* mapped = nullptr;
+    ASSERT_EQ(gfxBufferMap(readback, 0, kSize, &mapped), GFX_RESULT_SUCCESS);
+    EXPECT_EQ(static_cast<const uint32_t*>(mapped)[0], 42u);
+    ASSERT_EQ(gfxBufferUnmap(readback), GFX_RESULT_SUCCESS);
+
+    gfxFenceDestroy(fence);
+    gfxCommandEncoderDestroy(encoder);
+    gfxComputePipelineDestroy(pipeline);
+    gfxBindGroupDestroy(bindGroup);
+    gfxBufferDestroy(readback);
+    gfxBufferDestroy(storage);
+    gfxBindGroupLayoutDestroy(layout);
+    gfxShaderDestroy(computeShader);
+}
+
+// ===========================================================================
 // Test Instantiation
 // ===========================================================================
 

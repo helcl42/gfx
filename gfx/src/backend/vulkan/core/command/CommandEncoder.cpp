@@ -85,16 +85,6 @@ Device* CommandEncoder::getDevice() const
     return m_device;
 }
 
-VkPipelineLayout CommandEncoder::currentPipelineLayout() const
-{
-    return m_currentPipelineLayout;
-}
-
-void CommandEncoder::setCurrentPipelineLayout(VkPipelineLayout layout)
-{
-    m_currentPipelineLayout = layout;
-}
-
 bool CommandEncoder::isBundleEncoder() const
 {
     return m_isBundleEncoder;
@@ -114,7 +104,6 @@ void CommandEncoder::begin()
 
 void CommandEncoder::beginBundle()
 {
-    m_currentPipelineLayout = VK_NULL_HANDLE;
     m_bundleCommands.clear();
 }
 
@@ -132,8 +121,6 @@ void CommandEncoder::reset()
         beginBundle();
         return;
     }
-
-    m_currentPipelineLayout = VK_NULL_HANDLE;
 
     // Reset the command pool (this implicitly resets all command buffers)
     vkResetCommandPool(m_device->handle(), m_commandPool, 0);

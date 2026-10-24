@@ -21,8 +21,6 @@ public:
     VkCommandBuffer handle() const;
     VkDevice device() const;
     Device* getDevice() const;
-    VkPipelineLayout currentPipelineLayout() const;
-    void setCurrentPipelineLayout(VkPipelineLayout layout);
 
     bool isBundleEncoder() const;
 
@@ -54,7 +52,6 @@ private:
     VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
     bool m_isBundleEncoder = false;
     bool m_isRecording = false;
-    VkPipelineLayout m_currentPipelineLayout = VK_NULL_HANDLE;
     std::vector<std::function<void(VkCommandBuffer)>> m_bundleCommands;
 };
 

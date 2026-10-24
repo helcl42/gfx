@@ -120,34 +120,6 @@ TEST_F(VulkanCommandEncoderTest, MultipleRecordCycles_WorkCorrectly)
 }
 
 // ============================================================================
-// Pipeline Layout Tests
-// ============================================================================
-
-TEST_F(VulkanCommandEncoderTest, CurrentPipelineLayout_InitiallyNull)
-{
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
-
-    EXPECT_EQ(encoder->currentPipelineLayout(), VK_NULL_HANDLE);
-}
-
-TEST_F(VulkanCommandEncoderTest, SetCurrentPipelineLayout_UpdatesLayout)
-{
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
-
-    VkPipelineLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-
-    VkPipelineLayout layout;
-    VkResult result = vkCreatePipelineLayout(device->handle(), &layoutInfo, nullptr, &layout);
-    ASSERT_EQ(result, VK_SUCCESS);
-
-    encoder->setCurrentPipelineLayout(layout);
-    EXPECT_EQ(encoder->currentPipelineLayout(), layout);
-
-    vkDestroyPipelineLayout(device->handle(), layout, nullptr);
-}
-
-// ============================================================================
 // Buffer Copy Tests
 // ============================================================================
 

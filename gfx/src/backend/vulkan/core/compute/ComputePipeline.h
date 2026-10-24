@@ -17,11 +17,13 @@ public:
 
     VkPipeline handle() const;
     VkPipelineLayout layout() const;
+    uint32_t bindGroupLayoutCount() const;
 
 private:
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     Device* m_device = nullptr;
+    uint32_t m_bindGroupLayoutCount = 0;
 };
 
 } // namespace gfx::backend::vulkan::core

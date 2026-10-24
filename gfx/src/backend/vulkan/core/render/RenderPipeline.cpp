@@ -126,6 +126,7 @@ namespace {
 
 RenderPipeline::RenderPipeline(Device* device, const RenderPipelineCreateInfo& createInfo)
     : m_device(device)
+    , m_bindGroupLayoutCount(static_cast<uint32_t>(createInfo.bindGroupLayouts.size()))
 {
     // Create pipeline layout
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -229,6 +230,11 @@ VkPipeline RenderPipeline::handle() const
 VkPipelineLayout RenderPipeline::layout() const
 {
     return m_pipelineLayout;
+}
+
+uint32_t RenderPipeline::bindGroupLayoutCount() const
+{
+    return m_bindGroupLayoutCount;
 }
 
 } // namespace gfx::backend::vulkan::core

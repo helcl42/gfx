@@ -134,23 +134,36 @@ void RenderPassEncoder::setPipeline(RenderPipeline* pipeline)
     } else {
         vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline);
     }
-    m_commandEncoder->setCurrentPipelineLayout(pipeline->layout());
+    m_pipeline = pipeline;
+
+    // As in WebGPU, bind groups set earlier (even before any pipeline) apply to the new pipeline
+    for (uint32_t index = 0; index < m_bindGroups.size(); ++index) {
+        applyBindGroup(index);
+    }
 }
 
 void RenderPassEncoder::setBindGroup(uint32_t index, BindGroup* bindGroup, const uint32_t* dynamicOffsets, uint32_t dynamicOffsetCount)
 {
-    VkPipelineLayout layout = m_commandEncoder->currentPipelineLayout();
-    if (layout != VK_NULL_HANDLE) {
-        VkDescriptorSet set = bindGroup->handle();
-        if (m_isBundleMode) {
-            // Copied: the caller's offsets array is gone by the time the bundle is replayed
-            std::vector<uint32_t> offsets(dynamicOffsets, dynamicOffsets + dynamicOffsetCount);
-            m_commandEncoder->recordBundleCommand([=](VkCommandBuffer cmd) {
-                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, index, 1, &set, static_cast<uint32_t>(offsets.size()), offsets.data());
-            });
-        } else {
-            vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, index, 1, &set, dynamicOffsetCount, dynamicOffsets);
-        }
+    if (index >= m_bindGroups.size()) {
+        m_bindGroups.resize(index + 1);
+    }
+    m_bindGroups[index] = { bindGroup->handle(), std::vector<uint32_t>(dynamicOffsets, dynamicOffsets + dynamicOffsetCount) };
+    applyBindGroup(index);
+}
+
+void RenderPassEncoder::applyBindGroup(uint32_t index)
+{
+    const BindGroupBinding& binding = m_bindGroups[index];
+    if (!m_pipeline || binding.set == VK_NULL_HANDLE || index >= m_pipeline->bindGroupLayoutCount()) {
+        return;
+    }
+    VkPipelineLayout layout = m_pipeline->layout();
+    if (m_isBundleMode) {
+        m_commandEncoder->recordBundleCommand([layout, index, binding](VkCommandBuffer cmd) {
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, index, 1, &binding.set, static_cast<uint32_t>(binding.dynamicOffsets.size()), binding.dynamicOffsets.data());
+        });
+    } else {
+        vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, index, 1, &binding.set, static_cast<uint32_t>(binding.dynamicOffsets.size()), binding.dynamicOffsets.data());
     }
 }
 
@@ -293,6 +306,10 @@ void RenderPassEncoder::executeBundles(const CommandEncoder* const* bundles, uin
     for (uint32_t i = 0; i < count; ++i) {
         bundles[i]->replayBundle(m_commandBuffer);
     }
+
+    // As in WebGPU, executing bundles leaves the pass without a pipeline or bind groups
+    m_pipeline = nullptr;
+    m_bindGroups.clear();
 }
 
 } // namespace gfx::backend::vulkan::core

@@ -472,6 +472,11 @@ struct RenderPassEncoderBeginInfo {
     VkQueryPool timestampQueryPool = VK_NULL_HANDLE;
 };
 
+struct BindGroupBinding {
+    VkDescriptorSet set = VK_NULL_HANDLE;
+    std::vector<uint32_t> dynamicOffsets;
+};
+
 struct ComputePassEncoderCreateInfo {
     const char* label;
 };

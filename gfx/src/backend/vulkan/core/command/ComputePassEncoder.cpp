@@ -35,16 +35,30 @@ CommandEncoder* ComputePassEncoder::commandEncoder() const
 void ComputePassEncoder::setPipeline(ComputePipeline* pipeline)
 {
     vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->handle());
-    m_commandEncoder->setCurrentPipelineLayout(pipeline->layout());
+    m_pipeline = pipeline;
+
+    // As in WebGPU, bind groups set earlier (even before any pipeline) apply to the new pipeline
+    for (uint32_t index = 0; index < m_bindGroups.size(); ++index) {
+        applyBindGroup(index);
+    }
 }
 
 void ComputePassEncoder::setBindGroup(uint32_t index, BindGroup* bindGroup, const uint32_t* dynamicOffsets, uint32_t dynamicOffsetCount)
 {
-    VkPipelineLayout layout = m_commandEncoder->currentPipelineLayout();
-    if (layout != VK_NULL_HANDLE) {
-        VkDescriptorSet set = bindGroup->handle();
-        vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, layout, index, 1, &set, dynamicOffsetCount, dynamicOffsets);
+    if (index >= m_bindGroups.size()) {
+        m_bindGroups.resize(index + 1);
     }
+    m_bindGroups[index] = { bindGroup->handle(), std::vector<uint32_t>(dynamicOffsets, dynamicOffsets + dynamicOffsetCount) };
+    applyBindGroup(index);
+}
+
+void ComputePassEncoder::applyBindGroup(uint32_t index)
+{
+    const BindGroupBinding& binding = m_bindGroups[index];
+    if (!m_pipeline || binding.set == VK_NULL_HANDLE || index >= m_pipeline->bindGroupLayoutCount()) {
+        return;
+    }
+    vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline->layout(), index, 1, &binding.set, static_cast<uint32_t>(binding.dynamicOffsets.size()), binding.dynamicOffsets.data());
 }
 
 void ComputePassEncoder::dispatchWorkgroups(uint32_t workgroupCountX, uint32_t workgroupCountY, uint32_t workgroupCountZ)
