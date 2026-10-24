@@ -71,7 +71,7 @@ protected:
             // Create framebuffer
             gfx::backend::vulkan::core::FramebufferCreateInfo fbInfo{};
             fbInfo.renderPass = renderPass->handle();
-            fbInfo.attachments.push_back(textureView->handle());
+            fbInfo.attachments.push_back(textureView.get());
             fbInfo.width = 800;
             fbInfo.height = 600;
             fbInfo.colorAttachmentCount = 1;

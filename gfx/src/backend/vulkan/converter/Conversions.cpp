@@ -2262,25 +2262,21 @@ core::FramebufferCreateInfo gfxFramebufferDescriptorToFramebufferCreateInfo(cons
     for (uint32_t i = 0; i < descriptor->colorAttachmentCount; ++i) {
         const GfxFramebufferAttachment& colorAtt = descriptor->colorAttachments[i];
 
-        auto* view = toNative<core::TextureView>(colorAtt.view);
-        createInfo.attachments.push_back(view->handle());
+        createInfo.attachments.push_back(toNative<core::TextureView>(colorAtt.view));
 
         // Add resolve target if provided
         if (colorAtt.resolveTarget) {
-            auto* resolveView = toNative<core::TextureView>(colorAtt.resolveTarget);
-            createInfo.attachments.push_back(resolveView->handle());
+            createInfo.attachments.push_back(toNative<core::TextureView>(colorAtt.resolveTarget));
         }
     }
 
     // Convert depth/stencil attachment view
     if (descriptor->depthStencilAttachment.view) {
-        auto* view = toNative<core::TextureView>(descriptor->depthStencilAttachment.view);
-        createInfo.attachments.push_back(view->handle());
+        createInfo.attachments.push_back(toNative<core::TextureView>(descriptor->depthStencilAttachment.view));
 
         // Add depth resolve target if provided
         if (descriptor->depthStencilAttachment.resolveTarget) {
-            auto* resolveView = toNative<core::TextureView>(descriptor->depthStencilAttachment.resolveTarget);
-            createInfo.attachments.push_back(resolveView->handle());
+            createInfo.attachments.push_back(toNative<core::TextureView>(descriptor->depthStencilAttachment.resolveTarget));
             createInfo.hasDepthResolve = true;
         }
     }

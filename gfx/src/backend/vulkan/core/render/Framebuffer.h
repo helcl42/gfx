@@ -18,10 +18,12 @@ public:
     VkFramebuffer handle() const;
     uint32_t width() const;
     uint32_t height() const;
+    const std::vector<TextureView*>& attachments() const;
 
 private:
     VkFramebuffer m_framebuffer = VK_NULL_HANDLE;
     Device* m_device = nullptr;
+    std::vector<TextureView*> m_attachments;
     uint32_t m_width = 0;
     uint32_t m_height = 0;
 };

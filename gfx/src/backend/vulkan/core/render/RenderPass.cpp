@@ -120,6 +120,9 @@ RenderPass::RenderPass(Device* device, const RenderPassCreateInfo& createInfo)
 
     AttachmentLayout layout = buildAttachmentLayout(createInfo);
     m_colorHasResolve = std::move(layout.colorHasResolve);
+    for (const auto& attachment : layout.attachments) {
+        m_attachmentFinalLayouts.push_back(attachment.finalLayout);
+    }
 
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -182,6 +185,11 @@ bool RenderPass::hasDepthStencil() const
 const std::vector<bool>& RenderPass::colorHasResolve() const
 {
     return m_colorHasResolve;
+}
+
+const std::vector<VkImageLayout>& RenderPass::attachmentFinalLayouts() const
+{
+    return m_attachmentFinalLayouts;
 }
 
 } // namespace gfx::backend::vulkan::core

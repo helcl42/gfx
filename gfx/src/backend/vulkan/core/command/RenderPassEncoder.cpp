@@ -7,8 +7,11 @@
 #include "../render/RenderPipeline.h"
 #include "../resource/BindGroup.h"
 #include "../resource/Buffer.h"
+#include "../resource/Texture.h"
+#include "../resource/TextureView.h"
 #include "../system/Device.h"
 
+#include <algorithm>
 #include <stdexcept>
 #include <vector>
 
@@ -63,6 +66,13 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
 
     // Always inline: executed bundles are replayed into this pass rather than run as secondary command buffers
     vkCmdBeginRenderPass(m_commandBuffer, &vkBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    // Nothing can transition the attachments inside the pass, so their next layout is the pass's final one
+    const auto& finalLayouts = renderPass->attachmentFinalLayouts();
+    const auto& attachments = framebuffer->attachments();
+    for (size_t i = 0; i < std::min(finalLayouts.size(), attachments.size()); ++i) {
+        attachments[i]->getTexture()->setLayout(finalLayouts[i]);
+    }
 
     // Match WebGPU defaults: blend constant (0,0,0,0) and stencil reference 0 at pass begin
     const float defaultBlendConstants[4] = { 0.0f, 0.0f, 0.0f, 0.0f };

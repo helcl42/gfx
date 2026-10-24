@@ -20,6 +20,7 @@ struct RenderPassEncoderCreateInfo;
 // Forward declarations for barriers
 class Buffer;
 class Texture;
+class TextureView;
 
 // ============================================================================
 // Internal Extension Names
@@ -458,7 +459,7 @@ struct RenderPassCreateInfo {
 
 struct FramebufferCreateInfo {
     VkRenderPass renderPass = VK_NULL_HANDLE;
-    std::vector<VkImageView> attachments; // Interleaved: [color0, resolve0, color1, resolve1, ..., depth, depthResolve]
+    std::vector<TextureView*> attachments; // Interleaved: [color0, resolve0, color1, resolve1, ..., depth, depthResolve]
     uint32_t width = 0;
     uint32_t height = 0;
     uint32_t colorAttachmentCount = 0; // Number of color attachments (not including resolves)

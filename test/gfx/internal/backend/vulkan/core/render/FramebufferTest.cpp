@@ -83,7 +83,7 @@ TEST_F(VulkanFramebufferTest, CreateSingleColorAttachment_CreatesSuccessfully)
     // Create framebuffer
     gfx::backend::vulkan::core::FramebufferCreateInfo fbInfo{};
     fbInfo.renderPass = renderPass.handle();
-    fbInfo.attachments.push_back(textureView.handle());
+    fbInfo.attachments.push_back(&textureView);
     fbInfo.width = 800;
     fbInfo.height = 600;
     fbInfo.colorAttachmentCount = 1;
@@ -114,7 +114,7 @@ TEST_F(VulkanFramebufferTest, CreateMultipleColorAttachments_CreatesSuccessfully
     // Create textures and views
     std::vector<std::unique_ptr<gfx::backend::vulkan::core::Texture>> textures;
     std::vector<std::unique_ptr<gfx::backend::vulkan::core::TextureView>> views;
-    std::vector<VkImageView> imageViews;
+    std::vector<gfx::backend::vulkan::core::TextureView*> attachmentViews;
 
     for (int i = 0; i < 2; ++i) {
         gfx::backend::vulkan::core::TextureCreateInfo texInfo{};
@@ -136,13 +136,13 @@ TEST_F(VulkanFramebufferTest, CreateMultipleColorAttachments_CreatesSuccessfully
         viewInfo.baseArrayLayer = 0;
         viewInfo.arrayLayerCount = 1;
         views.push_back(std::make_unique<gfx::backend::vulkan::core::TextureView>(textures[i].get(), viewInfo));
-        imageViews.push_back(views[i]->handle());
+        attachmentViews.push_back(views[i].get());
     }
 
     // Create framebuffer
     gfx::backend::vulkan::core::FramebufferCreateInfo fbInfo{};
     fbInfo.renderPass = renderPass.handle();
-    fbInfo.attachments = imageViews;
+    fbInfo.attachments = attachmentViews;
     fbInfo.width = 1024;
     fbInfo.height = 768;
     fbInfo.colorAttachmentCount = 2;
@@ -225,8 +225,8 @@ TEST_F(VulkanFramebufferTest, CreateWithDepthAttachment_CreatesSuccessfully)
     // Create framebuffer
     gfx::backend::vulkan::core::FramebufferCreateInfo fbInfo{};
     fbInfo.renderPass = renderPass.handle();
-    fbInfo.attachments.push_back(colorView.handle());
-    fbInfo.attachments.push_back(depthView.handle());
+    fbInfo.attachments.push_back(&colorView);
+    fbInfo.attachments.push_back(&depthView);
     fbInfo.width = 640;
     fbInfo.height = 480;
     fbInfo.colorAttachmentCount = 1;
@@ -288,7 +288,7 @@ TEST_F(VulkanFramebufferTest, DifferentSizes_CreateSuccessfully)
         // Create framebuffer
         gfx::backend::vulkan::core::FramebufferCreateInfo fbInfo{};
         fbInfo.renderPass = renderPass.handle();
-        fbInfo.attachments.push_back(textureView.handle());
+        fbInfo.attachments.push_back(&textureView);
         fbInfo.width = size[0];
         fbInfo.height = size[1];
         fbInfo.colorAttachmentCount = 1;
@@ -343,7 +343,7 @@ TEST_F(VulkanFramebufferTest, GetHandle_ReturnsValidHandle)
     // Create framebuffer
     gfx::backend::vulkan::core::FramebufferCreateInfo fbInfo{};
     fbInfo.renderPass = renderPass.handle();
-    fbInfo.attachments.push_back(textureView.handle());
+    fbInfo.attachments.push_back(&textureView);
     fbInfo.width = 512;
     fbInfo.height = 512;
     fbInfo.colorAttachmentCount = 1;
@@ -392,7 +392,7 @@ TEST_F(VulkanFramebufferTest, MultipleFramebuffers_HaveUniqueHandles)
 
     gfx::backend::vulkan::core::FramebufferCreateInfo fbInfo1{};
     fbInfo1.renderPass = renderPass.handle();
-    fbInfo1.attachments.push_back(textureView1.handle());
+    fbInfo1.attachments.push_back(&textureView1);
     fbInfo1.width = 256;
     fbInfo1.height = 256;
     fbInfo1.colorAttachmentCount = 1;
@@ -422,7 +422,7 @@ TEST_F(VulkanFramebufferTest, MultipleFramebuffers_HaveUniqueHandles)
 
     gfx::backend::vulkan::core::FramebufferCreateInfo fbInfo2{};
     fbInfo2.renderPass = renderPass.handle();
-    fbInfo2.attachments.push_back(textureView2.handle());
+    fbInfo2.attachments.push_back(&textureView2);
     fbInfo2.width = 256;
     fbInfo2.height = 256;
     fbInfo2.colorAttachmentCount = 1;
@@ -473,7 +473,7 @@ TEST_F(VulkanFramebufferTest, WidthAndHeight_ReturnCorrectValues)
     // Create framebuffer
     gfx::backend::vulkan::core::FramebufferCreateInfo fbInfo{};
     fbInfo.renderPass = renderPass.handle();
-    fbInfo.attachments.push_back(textureView.handle());
+    fbInfo.attachments.push_back(&textureView);
     fbInfo.width = 1280;
     fbInfo.height = 720;
     fbInfo.colorAttachmentCount = 1;
@@ -526,7 +526,7 @@ TEST_F(VulkanFramebufferTest, CreateAndDestroy_WorksCorrectly)
     {
         gfx::backend::vulkan::core::FramebufferCreateInfo fbInfo{};
         fbInfo.renderPass = renderPass.handle();
-        fbInfo.attachments.push_back(textureView.handle());
+        fbInfo.attachments.push_back(&textureView);
         fbInfo.width = 400;
         fbInfo.height = 300;
         fbInfo.colorAttachmentCount = 1;

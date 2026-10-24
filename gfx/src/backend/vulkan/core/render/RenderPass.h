@@ -19,6 +19,7 @@ public:
     uint32_t colorAttachmentCount() const;
     bool hasDepthStencil() const;
     const std::vector<bool>& colorHasResolve() const;
+    const std::vector<VkImageLayout>& attachmentFinalLayouts() const;
 
 private:
     VkRenderPass m_renderPass = VK_NULL_HANDLE;
@@ -26,6 +27,7 @@ private:
     uint32_t m_colorAttachmentCount = 0;
     bool m_hasDepthStencil = false;
     std::vector<bool> m_colorHasResolve; // Track which color attachments have resolve targets
+    std::vector<VkImageLayout> m_attachmentFinalLayouts; // In framebuffer attachment order
 };
 
 } // namespace gfx::backend::vulkan::core
