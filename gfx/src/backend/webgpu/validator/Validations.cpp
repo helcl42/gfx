@@ -80,7 +80,7 @@ namespace {
         }
 
         // Validate present mode
-        if (descriptor->presentMode < GFX_PRESENT_MODE_IMMEDIATE || descriptor->presentMode > GFX_PRESENT_MODE_FIFO_RELAXED) {
+        if (descriptor->presentMode < GFX_PRESENT_MODE_IMMEDIATE || descriptor->presentMode > GFX_PRESENT_MODE_MAILBOX) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
