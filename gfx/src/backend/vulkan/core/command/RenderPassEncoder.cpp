@@ -48,6 +48,16 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
         clearValues.push_back(depthStencilClear);
     }
 
+    // A loaded attachment must start the pass in the layout the pass expects; layouts are tracked per texture
+    const auto& initialLayouts = renderPass->attachmentInitialLayouts();
+    const auto& attachments = framebuffer->attachments();
+    for (size_t i = 0; i < attachments.size(); ++i) {
+        Texture* texture = attachments[i]->getTexture();
+        if (initialLayouts[i] != VK_IMAGE_LAYOUT_UNDEFINED && texture->getLayout() != initialLayouts[i]) {
+            texture->transitionLayout(commandEncoder, initialLayouts[i], 0, texture->getMipLevelCount(), 0, texture->getArrayLayers());
+        }
+    }
+
     // Begin render pass
     VkRenderPassBeginInfo vkBeginInfo{};
     vkBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -64,7 +74,6 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
 
     // Nothing can transition the attachments inside the pass, so their next layout is the pass's final one
     const auto& finalLayouts = renderPass->attachmentFinalLayouts();
-    const auto& attachments = framebuffer->attachments();
     for (size_t i = 0; i < attachments.size(); ++i) {
         attachments[i]->getTexture()->setLayout(finalLayouts[i]);
     }

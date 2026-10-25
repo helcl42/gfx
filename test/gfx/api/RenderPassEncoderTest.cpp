@@ -1,6 +1,7 @@
 #include "CommonTest.h"
 
 #include <cstring>
+#include <vector>
 
 // C API tests compiled with C++ for GoogleTest compatibility
 
@@ -295,6 +296,126 @@ TEST_P(GfxRenderPassEncoderTest, CopyAfterRenderPassKeepsContents)
     const uint8_t green[4] = { 0x00, 0xFF, 0x00, 0xFF };
     EXPECT_EQ(std::memcmp(bytes, green, sizeof(green)), 0);
     EXPECT_EQ(std::memcmp(bytes + (kSize - 1) * kBytesPerRow + (kSize - 1) * 4, green, sizeof(green)), 0);
+    ASSERT_EQ(gfxBufferUnmap(readback), GFX_RESULT_SUCCESS);
+
+    gfxFenceDestroy(fence);
+    gfxCommandEncoderDestroy(encoder);
+    gfxBufferDestroy(readback);
+    gfxFramebufferDestroy(framebuffer);
+    gfxRenderPassDestroy(renderPass);
+    gfxTextureViewDestroy(view);
+    gfxTextureDestroy(texture);
+}
+
+// A loaded attachment keeps its contents whatever the texture was last used for
+TEST_P(GfxRenderPassEncoderTest, LoadKeepsContentsAfterOtherUse)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    constexpr uint32_t kSize = 64;
+    constexpr uint32_t kBytesPerRow = kSize * 4;
+
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { kSize, kSize, 1 };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.usage = GFX_FLAGS(GFX_TEXTURE_USAGE_RENDER_ATTACHMENT | GFX_TEXTURE_USAGE_COPY_SRC | GFX_TEXTURE_USAGE_COPY_DST | GFX_TEXTURE_USAGE_TEXTURE_BINDING);
+    GfxTexture texture = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &texture), GFX_RESULT_SUCCESS);
+
+    // Fill with green and leave the texture ready for sampling, not for rendering
+    const std::vector<uint8_t> green = [&] {
+        std::vector<uint8_t> pixels(kSize * kSize * 4);
+        for (size_t i = 0; i < pixels.size(); i += 4) {
+            pixels[i + 1] = 0xFF;
+            pixels[i + 3] = 0xFF;
+        }
+        return pixels;
+    }();
+    GfxWriteTextureDescriptor writeDesc = {};
+    writeDesc.texture = texture;
+    writeDesc.extent = { kSize, kSize, 1 };
+    writeDesc.finalLayout = GFX_TEXTURE_LAYOUT_SHADER_READ_ONLY;
+    ASSERT_EQ(gfxQueueWriteTexture(queue, &writeDesc, green.data(), green.size()), GFX_RESULT_SUCCESS);
+
+    GfxTextureViewDescriptor viewDesc = {};
+    viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
+    viewDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    viewDesc.mipLevelCount = 1;
+    viewDesc.arrayLayerCount = 1;
+    GfxTextureView view = nullptr;
+    ASSERT_EQ(gfxTextureCreateView(texture, &viewDesc, &view), GFX_RESULT_SUCCESS);
+
+    GfxRenderPassColorAttachment colorAttachment = {};
+    colorAttachment.target.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    colorAttachment.target.sampleCount = GFX_SAMPLE_COUNT_1;
+    colorAttachment.target.ops.loadOp = GFX_LOAD_OP_LOAD;
+    colorAttachment.target.ops.storeOp = GFX_STORE_OP_STORE;
+    colorAttachment.target.finalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_SRC;
+
+    GfxRenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.colorAttachments = &colorAttachment;
+    renderPassDesc.colorAttachmentCount = 1;
+    GfxRenderPass renderPass = nullptr;
+    ASSERT_EQ(gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass), GFX_RESULT_SUCCESS);
+
+    GfxFramebufferAttachment framebufferAttachment = {};
+    framebufferAttachment.view = view;
+    GfxFramebufferDescriptor framebufferDesc = {};
+    framebufferDesc.renderPass = renderPass;
+    framebufferDesc.colorAttachments = &framebufferAttachment;
+    framebufferDesc.colorAttachmentCount = 1;
+    framebufferDesc.extent = { kSize, kSize };
+    GfxFramebuffer framebuffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFramebuffer(device, &framebufferDesc, &framebuffer), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor readbackDesc = {};
+    readbackDesc.size = kBytesPerRow * kSize;
+    readbackDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_READ | GFX_BUFFER_USAGE_COPY_DST);
+    readbackDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+    GfxBuffer readback = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &readbackDesc, &readback), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoder encoder = nullptr;
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxRenderPassBeginDescriptor beginDesc = {};
+    beginDesc.renderPass = renderPass;
+    beginDesc.framebuffer = framebuffer;
+    GfxRenderPassEncoder pass = nullptr;
+    ASSERT_EQ(gfxCommandEncoderBeginRenderPass(encoder, &beginDesc, &pass), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxRenderPassEncoderEnd(pass), GFX_RESULT_SUCCESS);
+
+    GfxCopyTextureToBufferDescriptor copyDesc = {};
+    copyDesc.source = texture;
+    copyDesc.destination = readback;
+    copyDesc.bytesPerRow = kBytesPerRow;
+    copyDesc.extent = { kSize, kSize, 1 };
+    copyDesc.finalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_SRC;
+    ASSERT_EQ(gfxCommandEncoderCopyTextureToBuffer(encoder, &copyDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+    GfxFenceDescriptor fenceDesc = {};
+    GfxFence fence = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFence(device, &fenceDesc, &fence), GFX_RESULT_SUCCESS);
+
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    submitDesc.signalFence = fence;
+    ASSERT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxFenceWait(fence, GFX_TIMEOUT_INFINITE), GFX_RESULT_SUCCESS);
+
+    void* mapped = nullptr;
+    ASSERT_EQ(gfxBufferMap(readback, 0, readbackDesc.size, &mapped), GFX_RESULT_SUCCESS);
+    const auto* bytes = static_cast<const uint8_t*>(mapped);
+    EXPECT_EQ(std::memcmp(bytes, green.data(), 4), 0);
+    EXPECT_EQ(std::memcmp(bytes + (kSize - 1) * kBytesPerRow + (kSize - 1) * 4, green.data(), 4), 0);
     ASSERT_EQ(gfxBufferUnmap(readback), GFX_RESULT_SUCCESS);
 
     gfxFenceDestroy(fence);

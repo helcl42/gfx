@@ -148,6 +148,7 @@ RenderPass::RenderPass(Device* device, const RenderPassCreateInfo& createInfo)
     AttachmentLayout layout = buildAttachmentLayout(createInfo);
     m_colorHasResolve = std::move(layout.colorHasResolve);
     for (const auto& attachment : layout.attachments) {
+        m_attachmentInitialLayouts.push_back(attachment.initialLayout);
         m_attachmentFinalLayouts.push_back(attachment.finalLayout);
     }
 
@@ -213,6 +214,11 @@ bool RenderPass::hasDepthStencil() const
 const std::vector<bool>& RenderPass::colorHasResolve() const
 {
     return m_colorHasResolve;
+}
+
+const std::vector<VkImageLayout>& RenderPass::attachmentInitialLayouts() const
+{
+    return m_attachmentInitialLayouts;
 }
 
 const std::vector<VkImageLayout>& RenderPass::attachmentFinalLayouts() const
