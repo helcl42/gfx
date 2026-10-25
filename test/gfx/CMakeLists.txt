@@ -123,6 +123,7 @@ if(BUILD_VULKAN_BACKEND AND NOT BUILD_FOR_WEB)
         internal/backend/vulkan/core/command/CommandEncoderTest.cpp
         internal/backend/vulkan/core/command/ComputePassEncoderTest.cpp
         internal/backend/vulkan/core/command/RenderPassEncoderTest.cpp
+        internal/backend/ValidationEnforcement.cpp
     )
 
     # Link to object library for internal tests (if shared library) or directly to gfx (if static)
@@ -148,6 +149,7 @@ if(BUILD_VULKAN_BACKEND AND NOT BUILD_FOR_WEB)
 
     gtest_discover_tests(gfx_internal_vulkan_test
         DISCOVERY_MODE PRE_TEST
+        PROPERTIES ENVIRONMENT "VK_LAYER_VALIDATE_SYNC=1"
     )
 
     message(STATUS "Building Vulkan backend tests: gfx_internal_vulkan_test")
@@ -184,6 +186,7 @@ if(BUILD_WEBGPU_BACKEND)
         internal/backend/webgpu/core/util/BlitTest.cpp
         internal/backend/webgpu/core/util/UtilsTest.cpp
         internal/backend/webgpu/converter/ConversionsTest.cpp
+        internal/backend/ValidationEnforcement.cpp
     )
 
     # Link to object library for internal tests (if shared library) or directly to gfx (if static)

@@ -95,6 +95,7 @@ protected:
     {
         try {
             gfx::backend::vulkan::core::InstanceCreateInfo instInfo{};
+            instInfo.enabledExtensions = { "gfx_debug" };
             instance = std::make_unique<gfx::backend::vulkan::core::Instance>(instInfo);
 
             gfx::backend::vulkan::core::AdapterCreateInfo adapterInfo{};
