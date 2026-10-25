@@ -3,6 +3,8 @@
 
 #include "../CoreTypes.h"
 
+#include <mutex>
+
 namespace gfx::backend::vulkan::core {
 
 class Device;
@@ -42,6 +44,7 @@ private:
     Device* m_device = nullptr;
     uint32_t m_queueFamily = 0;
     uint32_t m_queueIndex = 0;
+    std::mutex m_writeTextureMutex; // A write records against the tracked layout, so it completes before the next records
 };
 
 } // namespace gfx::backend::vulkan::core

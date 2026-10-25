@@ -208,6 +208,8 @@ void Queue::writeTexture(Texture* texture, const VkOffset3D& origin, uint32_t mi
     const VkExtent3D& extent, uint32_t bytesPerRow, uint32_t rowsPerImage,
     VkImageAspectFlags aspectMask, VkImageLayout finalLayout)
 {
+    std::lock_guard<std::mutex> lock(m_writeTextureMutex);
+
     // Executor is created first: its constructor can throw, which would leak the staging buffer
     CommandExecutor executor(this);
     Allocator* allocator = m_device->getAllocator();
