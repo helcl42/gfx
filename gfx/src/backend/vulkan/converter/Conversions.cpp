@@ -1813,6 +1813,7 @@ core::SwapchainCreateInfo gfxDescriptorToSwapchainCreateInfo(const GfxSwapchainD
     createInfo.width = descriptor->extent.width;
     createInfo.height = descriptor->extent.height;
     createInfo.format = gfxFormatToVkFormat(descriptor->format);
+    createInfo.usage = gfxTextureUsageToVkImageUsage(descriptor->usage, createInfo.format);
     createInfo.presentMode = gfxPresentModeToVkPresentMode(descriptor->presentMode);
     createInfo.imageCount = descriptor->imageCount;
     return createInfo;

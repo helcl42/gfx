@@ -136,6 +136,7 @@ struct SwapchainInfo {
     uint32_t width;
     uint32_t height;
     VkFormat format;
+    VkImageUsageFlags usage;
     uint32_t imageCount;
     VkPresentModeKHR presentMode;
 };
@@ -345,6 +346,7 @@ struct SwapchainCreateInfo {
     uint32_t height;
     VkFormat format;
     VkColorSpaceKHR colorSpace;
+    VkImageUsageFlags usage;
     VkPresentModeKHR presentMode;
     uint32_t imageCount;
 };

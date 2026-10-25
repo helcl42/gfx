@@ -46,8 +46,8 @@ namespace {
 
     uint32_t chooseImageCount(const VkSurfaceCapabilitiesKHR& capabilities, uint32_t requested)
     {
-        uint32_t imageCount = std::min(requested, capabilities.minImageCount + 1);
-        if (capabilities.maxImageCount > 0) {
+        uint32_t imageCount = std::max(requested, capabilities.minImageCount);
+        if (capabilities.maxImageCount > 0) { // 0 means no limit
             imageCount = std::min(imageCount, capabilities.maxImageCount);
         }
         return imageCount;
@@ -78,12 +78,13 @@ namespace {
         return preferredAlphaModes[0]; // Should never happen, but return opaque as a fallback
     }
 
-    SwapchainInfo makeSwapchainInfo(const VkExtent2D& extent, const VkSurfaceFormatKHR& format, const VkPresentModeKHR presentMode, const uint32_t imageCount)
+    SwapchainInfo makeSwapchainInfo(const VkExtent2D& extent, const VkSurfaceFormatKHR& format, const VkImageUsageFlags usage, const VkPresentModeKHR presentMode, const uint32_t imageCount)
     {
         SwapchainInfo info{};
         info.width = extent.width;
         info.height = extent.height;
         info.format = format.format;
+        info.usage = usage;
         info.presentMode = presentMode;
         info.imageCount = imageCount;
         return info;
@@ -111,6 +112,9 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
     }
 
     VkSurfaceCapabilitiesKHR capabilities = m_surface->getCapabilities(adapter);
+    if ((createInfo.usage & ~capabilities.supportedUsageFlags) != 0) {
+        throw std::runtime_error("Requested swapchain usage is not supported by the surface");
+    }
     VkSurfaceFormatKHR selectedFormat = chooseSurfaceFormat(formats, createInfo.format);
     VkExtent2D extent = chooseExtent(capabilities, createInfo.width, createInfo.height);
     VkPresentModeKHR presentMode = choosePresentMode(presentModes, createInfo.presentMode);
@@ -123,7 +127,7 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
     vkCreateInfo.imageColorSpace = selectedFormat.colorSpace;
     vkCreateInfo.imageExtent = extent;
     vkCreateInfo.imageArrayLayers = 1;
-    vkCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    vkCreateInfo.imageUsage = createInfo.usage;
     vkCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     vkCreateInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     vkCreateInfo.compositeAlpha = chooseCompositeAlpha(capabilities);
@@ -143,7 +147,7 @@ Swapchain::Swapchain(Device* device, Surface* surface, const SwapchainCreateInfo
     }
 
     m_images = fetchSwapchainImages(m_device->handle(), m_swapchain);
-    m_info = makeSwapchainInfo(extent, selectedFormat, presentMode, static_cast<uint32_t>(m_images.size()));
+    m_info = makeSwapchainInfo(extent, selectedFormat, createInfo.usage, presentMode, static_cast<uint32_t>(m_images.size()));
 
     // Don't pre-acquire an image - let explicit acquire handle it
     m_currentImageIndex = 0;
@@ -160,7 +164,7 @@ void Swapchain::createImageWrappers()
         TextureCreateInfo textureCreateInfo{};
         textureCreateInfo.format = m_info.format;
         textureCreateInfo.size = { m_info.width, m_info.height, 1 };
-        textureCreateInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        textureCreateInfo.usage = m_info.usage;
         textureCreateInfo.sampleCount = VK_SAMPLE_COUNT_1_BIT;
         textureCreateInfo.mipLevelCount = 1;
         textureCreateInfo.imageType = VK_IMAGE_TYPE_2D;
