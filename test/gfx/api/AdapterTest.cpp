@@ -217,6 +217,18 @@ TEST_P(GfxAdapterTest, CreateDeviceInvalidArguments)
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
+TEST_P(GfxAdapterTest, CreateDeviceWithUnsupportedExtensionFails)
+{
+    const char* extensions[] = { "gfx_unsupported_extension" };
+    GfxDeviceDescriptor desc = {};
+    desc.enabledExtensions = extensions;
+    desc.enabledExtensionCount = 1;
+
+    GfxDevice device = NULL;
+    EXPECT_EQ(gfxAdapterCreateDevice(adapter, &desc, &device), GFX_RESULT_ERROR_UNKNOWN);
+    EXPECT_EQ(device, nullptr);
+}
+
 TEST_P(GfxAdapterTest, InfoConsistency)
 {
     // Get info multiple times and verify consistency

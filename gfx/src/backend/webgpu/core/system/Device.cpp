@@ -18,52 +18,40 @@
 namespace gfx::backend::webgpu::core {
 
 namespace {
-#ifndef __EMSCRIPTEN__
     bool isExtensionRequested(const std::vector<std::string>& enabledExtensions, const char* name)
     {
         return std::find(enabledExtensions.begin(), enabledExtensions.end(), std::string(name)) != enabledExtensions.end();
     }
 
-    // Maps the requested GFX extensions to required WGPU features, throwing when the
-    // adapter cannot deliver a requested feature (matches the Vulkan backend behavior)
-    std::vector<WGPUFeatureName> collectRequiredFeatures(WGPUAdapter adapter, const DeviceCreateInfo& createInfo)
+    // A device can only enable the extensions its adapter supports
+    void requireSupportedExtensions(const Adapter* adapter, const std::vector<std::string>& enabledExtensions)
+    {
+        for (const std::string& extension : enabledExtensions) {
+            if (!adapter->supportsExtension(extension.c_str())) {
+                throw std::runtime_error("Device extension not supported by this adapter: " + extension);
+            }
+        }
+    }
+
+    // Maps the requested GFX extensions to the WGPU features they need
+    std::vector<WGPUFeatureName> collectRequiredFeatures(const DeviceCreateInfo& createInfo)
     {
         std::vector<WGPUFeatureName> requiredFeatures;
 
-        // Request timestamp query feature only when the extension is enabled and the adapter supports it
-        if (isExtensionRequested(createInfo.enabledExtensions, extensions::TIMESTAMP_QUERY)
-            && wgpuAdapterHasFeature(adapter, WGPUFeatureName_TimestampQuery)) {
-            requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
-        }
-
-        const std::pair<const char*, WGPUFeatureName> formatFeatures[] = {
+        const std::pair<const char*, WGPUFeatureName> extensionFeatures[] = {
+            { extensions::TIMESTAMP_QUERY, WGPUFeatureName_TimestampQuery },
             { extensions::TEXTURE_COMPRESSION_BC, WGPUFeatureName_TextureCompressionBC },
             { extensions::TEXTURE_COMPRESSION_ETC2, WGPUFeatureName_TextureCompressionETC2 },
             { extensions::TEXTURE_COMPRESSION_ASTC, WGPUFeatureName_TextureCompressionASTC },
             { extensions::DEPTH32_FLOAT_STENCIL8, WGPUFeatureName_Depth32FloatStencil8 },
         };
-        for (const auto& [extName, feature] : formatFeatures) {
+        for (const auto& [extName, feature] : extensionFeatures) {
             if (isExtensionRequested(createInfo.enabledExtensions, extName)) {
-                if (!wgpuAdapterHasFeature(adapter, feature)) {
-                    throw std::runtime_error(std::string("Texture format extension not supported by this adapter: ") + extName);
-                }
                 requiredFeatures.push_back(feature);
             }
         }
-
-        // Dawn native is NOT thread-safe by default; enable implicit device synchronization
-        // so queue operations are internally synchronized as the API threading contract promises
-        if (wgpuAdapterHasFeature(adapter, WGPUFeatureName_ImplicitDeviceSynchronization)) {
-            requiredFeatures.push_back(WGPUFeatureName_ImplicitDeviceSynchronization);
-        } else {
-            gfx::common::Logger::instance().logWarning(
-                "WebGPU adapter does not support implicit device synchronization - "
-                "concurrent queue operations from multiple threads are NOT safe on this device");
-        }
-
         return requiredFeatures;
     }
-#endif // __EMSCRIPTEN__
 
     // Issues wgpuAdapterRequestDevice and synchronously waits for the result, throwing on failure
     WGPUDevice requestDeviceSync(Adapter* adapter, const WGPUDeviceDescriptor& wgpuDesc)
@@ -99,6 +87,7 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     if (!adapter) {
         throw std::runtime_error("Invalid adapter for device creation");
     }
+    requireSupportedExtensions(adapter, createInfo.enabledExtensions);
 
     WGPUUncapturedErrorCallbackInfo errorCallbackInfo = WGPU_UNCAPTURED_ERROR_CALLBACK_INFO_INIT;
     errorCallbackInfo.callback = [](WGPUDevice const*, WGPUErrorType type, WGPUStringView message, void*, void*) {
@@ -121,6 +110,8 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     WGPULimits adapterLimits = adapter->getLimits();
     wgpuDesc.requiredLimits = &adapterLimits;
 
+    std::vector<WGPUFeatureName> requiredFeatures = collectRequiredFeatures(createInfo);
+
 #ifndef __EMSCRIPTEN__
     // Enable Dawn toggles to allow SPIR-V at device level (Dawn-specific)
     static const char* enabledToggles[] = { "allow_unsafe_apis" };
@@ -136,14 +127,21 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
 
     wgpuDesc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&deviceTogglesDesc);
 
-    std::vector<WGPUFeatureName> requiredFeatures = collectRequiredFeatures(adapter->handle(), createInfo);
+    // Dawn native is NOT thread-safe by default; enable implicit device synchronization
+    // so queue operations are internally synchronized as the API threading contract promises
+    if (wgpuAdapterHasFeature(adapter->handle(), WGPUFeatureName_ImplicitDeviceSynchronization)) {
+        requiredFeatures.push_back(WGPUFeatureName_ImplicitDeviceSynchronization);
+    } else {
+        gfx::common::Logger::instance().logWarning(
+            "WebGPU adapter does not support implicit device synchronization - "
+            "concurrent queue operations from multiple threads are NOT safe on this device");
+    }
+#endif
+
     if (!requiredFeatures.empty()) {
         wgpuDesc.requiredFeatures = requiredFeatures.data();
         wgpuDesc.requiredFeatureCount = requiredFeatures.size();
     }
-#else
-    (void)createInfo; // Extensions map to Dawn-only features; nothing to request on Emscripten
-#endif
 
     m_device = requestDeviceSync(adapter, wgpuDesc);
 
@@ -217,11 +215,7 @@ bool Device::supportsShaderFormat(ShaderSourceType format) const
 
 bool Device::isTimestampQueryEnabled() const
 {
-#ifdef __EMSCRIPTEN__
-    return false;
-#else
     return wgpuDeviceHasFeature(m_device, WGPUFeatureName_TimestampQuery);
-#endif
 }
 
 } // namespace gfx::backend::webgpu::core

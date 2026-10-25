@@ -2,6 +2,7 @@
 
 #include "Instance.h"
 
+#include <cstring>
 #include <stdexcept>
 
 namespace gfx::backend::webgpu::core {
@@ -96,6 +97,7 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
         extensions::ANISOTROPIC_FILTERING
     };
 #ifndef __EMSCRIPTEN__
+    // Browsers have no command encoder writeTimestamp, which gfxCommandEncoderWriteTimestamp records
     if (wgpuAdapterHasFeature(m_adapter, WGPUFeatureName_TimestampQuery)) {
         supportedExtensions.push_back(extensions::TIMESTAMP_QUERY);
     }
@@ -113,6 +115,16 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
         supportedExtensions.push_back(extensions::DEPTH32_FLOAT_STENCIL8);
     }
     return supportedExtensions;
+}
+
+bool Adapter::supportsExtension(const char* name) const
+{
+    for (const char* extension : enumerateSupportedExtensions()) {
+        if (strcmp(extension, name) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace gfx::backend::webgpu::core

@@ -164,4 +164,14 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
     return supportedExtensions;
 }
 
+bool Adapter::supportsExtension(const char* name) const
+{
+    for (const char* extension : enumerateSupportedExtensions()) {
+        if (strcmp(extension, name) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace gfx::backend::vulkan::core

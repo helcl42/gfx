@@ -1,9 +1,11 @@
 #include <backend/webgpu/core/query/QuerySet.h>
+#include <backend/webgpu/core/system/Adapter.h>
 #include <backend/webgpu/core/system/Device.h>
 #include <backend/webgpu/core/system/Instance.h>
 
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <memory>
 
 namespace {
@@ -21,7 +23,11 @@ protected:
             adapter = instance->requestAdapter(adapterInfo);
 
             gfx::backend::webgpu::core::DeviceCreateInfo deviceInfo{};
-            deviceInfo.enabledExtensions = { "gfx_timestamp_query" };
+            for (const char* extension : adapter->enumerateSupportedExtensions()) {
+                if (std::strcmp(extension, "gfx_timestamp_query") == 0) {
+                    deviceInfo.enabledExtensions.push_back(extension);
+                }
+            }
             device = std::make_unique<gfx::backend::webgpu::core::Device>(adapter, deviceInfo);
         } catch (const std::exception& e) {
             GTEST_SKIP() << "WebGPU not available: " << e.what();

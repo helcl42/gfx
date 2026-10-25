@@ -71,50 +71,34 @@ namespace {
         return (enabledExtensions & static_cast<uint64_t>(extension)) != 0;
     }
 
-    // Translates the enabled GFX extensions into VkPhysicalDeviceFeatures,
-    // throwing if the hardware lacks a requested feature
+    // A device can only enable the extensions its adapter supports
+    void requireSupportedExtensions(const Adapter* adapter, const std::vector<std::string>& enabledExtensions)
+    {
+        for (const std::string& extension : enabledExtensions) {
+            if (!adapter->supportsExtension(extension.c_str())) {
+                throw std::runtime_error("Device extension not supported by this adapter: " + extension);
+            }
+        }
+    }
+
+    // Translates the enabled GFX extensions into VkPhysicalDeviceFeatures
     VkPhysicalDeviceFeatures buildEnabledFeatures(uint64_t enabledExtensions, const VkPhysicalDeviceFeatures& availableFeatures)
     {
         VkPhysicalDeviceFeatures deviceFeatures{};
 
-        if (hasExtension(enabledExtensions, DeviceExtension::AnisotropicFiltering) && !availableFeatures.samplerAnisotropy) {
-            throw std::runtime_error("Anisotropic filtering is not supported by this device");
-        }
-
         if (hasExtension(enabledExtensions, DeviceExtension::OcclusionQueryPrecise)) {
-            if (!availableFeatures.occlusionQueryPrecise) {
-                throw std::runtime_error("Precise occlusion queries are not supported by this device");
-            }
             deviceFeatures.occlusionQueryPrecise = VK_TRUE;
         }
-
-        // Note: TIMESTAMP_QUERY needs no feature bit or device extension - it is available
-        // when timestampValidBits > 0 on the graphics queue, which the Adapter already
-        // verified before reporting the extension as supported.
-
         if (hasExtension(enabledExtensions, DeviceExtension::NonSolidFill)) {
-            if (!availableFeatures.fillModeNonSolid) {
-                throw std::runtime_error("Non-solid fill mode is not supported by this device");
-            }
             deviceFeatures.fillModeNonSolid = VK_TRUE;
         }
-
         if (hasExtension(enabledExtensions, DeviceExtension::TextureCompressionBC)) {
-            if (!availableFeatures.textureCompressionBC) {
-                throw std::runtime_error("BC texture compression is not supported by this device");
-            }
             deviceFeatures.textureCompressionBC = VK_TRUE;
         }
         if (hasExtension(enabledExtensions, DeviceExtension::TextureCompressionETC2)) {
-            if (!availableFeatures.textureCompressionETC2) {
-                throw std::runtime_error("ETC2 texture compression is not supported by this device");
-            }
             deviceFeatures.textureCompressionETC2 = VK_TRUE;
         }
         if (hasExtension(enabledExtensions, DeviceExtension::TextureCompressionASTC)) {
-            if (!availableFeatures.textureCompressionASTC_LDR) {
-                throw std::runtime_error("ASTC texture compression is not supported by this device");
-            }
             deviceFeatures.textureCompressionASTC_LDR = VK_TRUE;
         }
 
@@ -127,8 +111,7 @@ namespace {
     }
 
     // Collects the Vulkan device extension names to request: extension-mapped GFX
-    // extensions, native pNext passthrough extensions, and the portability subset.
-    // Throws if any required extension is unavailable on the adapter.
+    // extensions, native pNext passthrough extensions, and the portability subset
     std::vector<const char*> collectRequestedExtensions(uint64_t enabledExtensions, const DeviceCreateInfo& createInfo, const std::vector<VkExtensionProperties>& availableExtensions)
     {
         std::vector<const char*> requestedExtensions;
@@ -163,14 +146,6 @@ namespace {
         constexpr const char* portabilitySubsetExtension = "VK_KHR_portability_subset";
         if (isExtensionAvailable(availableExtensions, portabilitySubsetExtension)) {
             requestedExtensions.push_back(portabilitySubsetExtension);
-        }
-
-        for (const char* requestedExt : requestedExtensions) {
-            if (!isExtensionAvailable(availableExtensions, requestedExt)) {
-                std::string errorMsg = "Required Vulkan device extension not available: ";
-                errorMsg += requestedExt;
-                throw std::runtime_error(errorMsg);
-            }
         }
 
         return requestedExtensions;
@@ -228,14 +203,12 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     : m_adapter(adapter)
     , m_enabledExtensions(parseEnabledExtensions(createInfo.enabledExtensions))
 {
-    // Invariant: m_enabledExtensions records REQUESTED extensions; if one cannot
-    // actually be enabled (missing device feature), this constructor throws - so
-    // on any live Device a set bit means the feature IS enabled on the VkDevice.
+    // Invariant: m_enabledExtensions records REQUESTED extensions; if the adapter does
+    // not support one, this constructor throws - so on any live Device a set bit means
+    // the extension IS enabled on the VkDevice.
+    requireSupportedExtensions(m_adapter, createInfo.enabledExtensions);
 
     VkPhysicalDeviceFeatures deviceFeatures = buildEnabledFeatures(m_enabledExtensions, m_adapter->getFeatures());
-    if (isExtensionEnabled(DeviceExtension::Depth32FloatStencil8) && !m_adapter->supportsDepthStencilAttachment(VK_FORMAT_D32_SFLOAT_S8_UINT)) {
-        throw std::runtime_error("Depth32FloatStencil8 is not supported by this device");
-    }
     std::vector<const char*> requestedExtensions = collectRequestedExtensions(m_enabledExtensions, createInfo, m_adapter->enumerateExtensionProperties());
 
     bool timelineSemaphoreEnabled = isExtensionEnabled(DeviceExtension::TimelineSemaphore);
