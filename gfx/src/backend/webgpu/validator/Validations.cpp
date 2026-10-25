@@ -347,6 +347,11 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
+        // WebGPU rule: anisotropic filtering requires linear filtering
+        if (descriptor->maxAnisotropy > 1 && (descriptor->magFilter != GFX_FILTER_MODE_LINEAR || descriptor->minFilter != GFX_FILTER_MODE_LINEAR || descriptor->mipmapFilter != GFX_FILTER_MODE_LINEAR)) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+
         return GFX_RESULT_SUCCESS;
     }
 
