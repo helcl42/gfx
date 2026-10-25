@@ -1021,7 +1021,7 @@ GfxResult validateDeviceCreateTexture(GfxDevice device, const GfxTextureDescript
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
 
-    // Compressed format families require their device extension to be enabled
+    // Optional formats require their device extension to be enabled
     const auto* dev = converter::toNative<core::Device>(device);
     switch (gfx::util::getFormatCompressionFamily(descriptor->format)) {
     case gfx::util::FormatCompressionFamily::BC:
@@ -1041,6 +1041,9 @@ GfxResult validateDeviceCreateTexture(GfxDevice device, const GfxTextureDescript
         break;
     case gfx::util::FormatCompressionFamily::None:
         break;
+    }
+    if (descriptor->format == GFX_FORMAT_DEPTH32_FLOAT_STENCIL8 && !dev->isExtensionEnabled(core::DeviceExtension::Depth32FloatStencil8)) {
+        return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
     }
 
     return validateTextureDescriptor(descriptor);

@@ -39,6 +39,7 @@ namespace extensions {
     constexpr const char* TEXTURE_COMPRESSION_BC = "gfx_texture_compression_bc";
     constexpr const char* TEXTURE_COMPRESSION_ETC2 = "gfx_texture_compression_etc2";
     constexpr const char* TEXTURE_COMPRESSION_ASTC = "gfx_texture_compression_astc";
+    constexpr const char* DEPTH32_FLOAT_STENCIL8 = "gfx_depth32_float_stencil8";
 } // namespace extensions
 
 // Bitmask of the known GFX device extensions, parsed once at device creation
@@ -54,6 +55,7 @@ enum class DeviceExtension : uint64_t {
     TextureCompressionBC = 1ull << 7,
     TextureCompressionETC2 = 1ull << 8,
     TextureCompressionASTC = 1ull << 9,
+    Depth32FloatStencil8 = 1ull << 10,
 };
 
 // ============================================================================

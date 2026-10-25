@@ -36,15 +36,16 @@ namespace {
             requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
         }
 
-        const std::pair<const char*, WGPUFeatureName> compressionFeatures[] = {
+        const std::pair<const char*, WGPUFeatureName> formatFeatures[] = {
             { extensions::TEXTURE_COMPRESSION_BC, WGPUFeatureName_TextureCompressionBC },
             { extensions::TEXTURE_COMPRESSION_ETC2, WGPUFeatureName_TextureCompressionETC2 },
             { extensions::TEXTURE_COMPRESSION_ASTC, WGPUFeatureName_TextureCompressionASTC },
+            { extensions::DEPTH32_FLOAT_STENCIL8, WGPUFeatureName_Depth32FloatStencil8 },
         };
-        for (const auto& [extName, feature] : compressionFeatures) {
+        for (const auto& [extName, feature] : formatFeatures) {
             if (isExtensionRequested(createInfo.enabledExtensions, extName)) {
                 if (!wgpuAdapterHasFeature(adapter, feature)) {
-                    throw std::runtime_error(std::string("Texture compression extension not supported by this adapter: ") + extName);
+                    throw std::runtime_error(std::string("Texture format extension not supported by this adapter: ") + extName);
                 }
                 requiredFeatures.push_back(feature);
             }

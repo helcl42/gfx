@@ -44,6 +44,7 @@ namespace {
             { extensions::TEXTURE_COMPRESSION_BC, DeviceExtension::TextureCompressionBC },
             { extensions::TEXTURE_COMPRESSION_ETC2, DeviceExtension::TextureCompressionETC2 },
             { extensions::TEXTURE_COMPRESSION_ASTC, DeviceExtension::TextureCompressionASTC },
+            { extensions::DEPTH32_FLOAT_STENCIL8, DeviceExtension::Depth32FloatStencil8 },
         };
 
         uint64_t mask = 0;
@@ -232,6 +233,9 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     // on any live Device a set bit means the feature IS enabled on the VkDevice.
 
     VkPhysicalDeviceFeatures deviceFeatures = buildEnabledFeatures(m_enabledExtensions, m_adapter->getFeatures());
+    if (isExtensionEnabled(DeviceExtension::Depth32FloatStencil8) && !m_adapter->supportsDepthStencilAttachment(VK_FORMAT_D32_SFLOAT_S8_UINT)) {
+        throw std::runtime_error("Depth32FloatStencil8 is not supported by this device");
+    }
     std::vector<const char*> requestedExtensions = collectRequestedExtensions(m_enabledExtensions, createInfo, m_adapter->enumerateExtensionProperties());
 
     bool timelineSemaphoreEnabled = isExtensionEnabled(DeviceExtension::TimelineSemaphore);

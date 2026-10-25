@@ -92,6 +92,13 @@ bool Adapter::supportsPresentation(uint32_t queueFamilyIndex, VkSurfaceKHR surfa
     return (result == VK_SUCCESS && supported == VK_TRUE);
 }
 
+bool Adapter::supportsDepthStencilAttachment(VkFormat format) const
+{
+    VkFormatProperties properties{};
+    vkGetPhysicalDeviceFormatProperties(m_physicalDevice, format, &properties);
+    return (properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
+}
+
 std::vector<const char*> Adapter::enumerateSupportedExtensions() const
 {
     // Map our internal extension names to actual Vulkan extension names
@@ -144,6 +151,9 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
     }
     if (availableFeatures.textureCompressionASTC_LDR) {
         supportedExtensions.push_back(extensions::TEXTURE_COMPRESSION_ASTC);
+    }
+    if (supportsDepthStencilAttachment(VK_FORMAT_D32_SFLOAT_S8_UINT)) {
+        supportedExtensions.push_back(extensions::DEPTH32_FLOAT_STENCIL8);
     }
     // Timestamps are supported when the graphics queue has non-zero timestampValidBits
     auto queueFamilies = getQueueFamilyProperties();

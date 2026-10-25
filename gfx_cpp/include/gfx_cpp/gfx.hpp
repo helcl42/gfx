@@ -310,7 +310,7 @@ enum class Format : int32_t {
     Depth32Float = 15,
     Stencil8 = 16,
     Depth24PlusStencil8 = 17,
-    Depth32FloatStencil8 = 18,
+    Depth32FloatStencil8 = 18, // Requires DEVICE_EXTENSION_DEPTH32_FLOAT_STENCIL8
     R8Sint = 19,
     R8Uint = 20,
     R8G8Sint = 21,
@@ -561,6 +561,7 @@ constexpr const char* DEVICE_EXTENSION_TIMESTAMP_QUERY = "gfx_timestamp_query";
 constexpr const char* DEVICE_EXTENSION_TEXTURE_COMPRESSION_BC = "gfx_texture_compression_bc";
 constexpr const char* DEVICE_EXTENSION_TEXTURE_COMPRESSION_ETC2 = "gfx_texture_compression_etc2";
 constexpr const char* DEVICE_EXTENSION_TEXTURE_COMPRESSION_ASTC = "gfx_texture_compression_astc";
+constexpr const char* DEVICE_EXTENSION_DEPTH32_FLOAT_STENCIL8 = "gfx_depth32_float_stencil8";
 
 enum class QueueFlags : uint32_t {
     None = 0,

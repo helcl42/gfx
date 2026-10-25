@@ -1036,7 +1036,7 @@ GfxResult validateDeviceCreateTexture(GfxDevice device, const GfxTextureDescript
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
 
-    // Compressed format families require their device extension (WGPU feature) to be enabled
+    // Optional formats require their device extension (WGPU feature) to be enabled
     WGPUDevice devHandle = converter::toNative<core::Device>(device)->handle();
     switch (gfx::util::getFormatCompressionFamily(descriptor->format)) {
     case gfx::util::FormatCompressionFamily::BC:
@@ -1056,6 +1056,9 @@ GfxResult validateDeviceCreateTexture(GfxDevice device, const GfxTextureDescript
         break;
     case gfx::util::FormatCompressionFamily::None:
         break;
+    }
+    if (descriptor->format == GFX_FORMAT_DEPTH32_FLOAT_STENCIL8 && !wgpuDeviceHasFeature(devHandle, WGPUFeatureName_Depth32FloatStencil8)) {
+        return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
     }
 
     return validateTextureDescriptor(descriptor);

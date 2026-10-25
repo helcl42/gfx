@@ -157,6 +157,85 @@ TEST_P(GfxTextureTest, CreateAndUploadCompressedTexture)
     gfxDeviceDestroy(bcDevice);
 }
 
+TEST_P(GfxTextureTest, Depth32FloatStencil8TextureRequiresExtension)
+{
+    GfxTextureDescriptor desc = {};
+    desc.type = GFX_TEXTURE_TYPE_2D;
+    desc.size = { 64, 64, 1 };
+    desc.arrayLayerCount = 1;
+    desc.mipLevelCount = 1;
+    desc.sampleCount = GFX_SAMPLE_COUNT_1;
+    desc.format = GFX_FORMAT_DEPTH32_FLOAT_STENCIL8;
+    desc.usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
+
+    GfxTexture texture = nullptr;
+    EXPECT_EQ(gfxDeviceCreateTexture(device, &desc, &texture), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+    EXPECT_EQ(texture, nullptr);
+}
+
+TEST_P(GfxTextureTest, CreateDepth32FloatStencil8TextureWithExtension)
+{
+    uint32_t extCount = 0;
+    ASSERT_EQ(gfxAdapterEnumerateExtensions(adapter, &extCount, nullptr), GFX_RESULT_SUCCESS);
+    std::vector<const char*> extNames(extCount);
+    ASSERT_EQ(gfxAdapterEnumerateExtensions(adapter, &extCount, extNames.data()), GFX_RESULT_SUCCESS);
+    bool supported = false;
+    for (uint32_t i = 0; i < extCount; ++i) {
+        if (strcmp(extNames[i], GFX_DEVICE_EXTENSION_DEPTH32_FLOAT_STENCIL8) == 0) {
+            supported = true;
+        }
+    }
+    if (!supported) {
+        GTEST_SKIP() << "Depth32FloatStencil8 not supported by this adapter";
+    }
+
+    // Adapters are consumed by device creation (and the WebGPU instance caches them),
+    // so tear down the fixture and build a fresh instance -> adapter -> device chain
+    gfxDeviceDestroy(device);
+    gfxInstanceDestroy(instance);
+    device = nullptr;
+    instance = nullptr;
+    adapter = nullptr;
+
+    const char* instanceExtensions[] = { GFX_INSTANCE_EXTENSION_DEBUG };
+    GfxInstanceDescriptor instanceDesc = {};
+    instanceDesc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
+    instanceDesc.backend = GetParam();
+    instanceDesc.enabledExtensions = instanceExtensions;
+    instanceDesc.enabledExtensionCount = 1;
+    ASSERT_EQ(gfxCreateInstance(&instanceDesc, &instance), GFX_RESULT_SUCCESS);
+
+    GfxAdapterDescriptor adapterDesc = {};
+    adapterDesc.sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR;
+    GfxAdapter depthStencilAdapter = nullptr;
+    ASSERT_EQ(gfxInstanceRequestAdapter(instance, &adapterDesc, &depthStencilAdapter), GFX_RESULT_SUCCESS);
+
+    const char* deviceExtensions[] = { GFX_DEVICE_EXTENSION_DEPTH32_FLOAT_STENCIL8 };
+    GfxDeviceDescriptor deviceDesc = {};
+    deviceDesc.sType = GFX_STRUCTURE_TYPE_DEVICE_DESCRIPTOR;
+    deviceDesc.enabledExtensions = deviceExtensions;
+    deviceDesc.enabledExtensionCount = 1;
+
+    GfxDevice depthStencilDevice = nullptr;
+    ASSERT_EQ(gfxAdapterCreateDevice(depthStencilAdapter, &deviceDesc, &depthStencilDevice), GFX_RESULT_SUCCESS);
+
+    GfxTextureDescriptor desc = {};
+    desc.type = GFX_TEXTURE_TYPE_2D;
+    desc.size = { 64, 64, 1 };
+    desc.arrayLayerCount = 1;
+    desc.mipLevelCount = 1;
+    desc.sampleCount = GFX_SAMPLE_COUNT_1;
+    desc.format = GFX_FORMAT_DEPTH32_FLOAT_STENCIL8;
+    desc.usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
+
+    GfxTexture texture = nullptr;
+    EXPECT_EQ(gfxDeviceCreateTexture(depthStencilDevice, &desc, &texture), GFX_RESULT_SUCCESS);
+    EXPECT_NE(texture, nullptr);
+
+    gfxTextureDestroy(texture);
+    gfxDeviceDestroy(depthStencilDevice);
+}
+
 TEST_P(GfxTextureTest, CreateDestroyTexture)
 {
     GfxTextureDescriptor desc = {};

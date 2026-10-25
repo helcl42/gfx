@@ -109,6 +109,9 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
     if (wgpuAdapterHasFeature(m_adapter, WGPUFeatureName_TextureCompressionASTC)) {
         supportedExtensions.push_back(extensions::TEXTURE_COMPRESSION_ASTC);
     }
+    if (wgpuAdapterHasFeature(m_adapter, WGPUFeatureName_Depth32FloatStencil8)) {
+        supportedExtensions.push_back(extensions::DEPTH32_FLOAT_STENCIL8);
+    }
     return supportedExtensions;
 }
 
