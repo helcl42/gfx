@@ -4,6 +4,7 @@
 #include <backend/vulkan/core/resource/Texture.h>
 #include <backend/vulkan/core/system/Device.h>
 #include <backend/vulkan/core/system/Instance.h>
+#include <backend/vulkan/core/system/Queue.h>
 
 #include <gtest/gtest.h>
 
@@ -46,7 +47,7 @@ protected:
 
 TEST_F(VulkanCommandEncoderTest, CreateCommandEncoder_CreatesSuccessfully)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     EXPECT_NE(encoder->handle(), VK_NULL_HANDLE);
     EXPECT_EQ(encoder->device(), device->handle());
@@ -55,7 +56,7 @@ TEST_F(VulkanCommandEncoderTest, CreateCommandEncoder_CreatesSuccessfully)
 
 TEST_F(VulkanCommandEncoderTest, Handle_ReturnsValidVkCommandBuffer)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     VkCommandBuffer handle = encoder->handle();
     EXPECT_NE(handle, VK_NULL_HANDLE);
@@ -63,8 +64,8 @@ TEST_F(VulkanCommandEncoderTest, Handle_ReturnsValidVkCommandBuffer)
 
 TEST_F(VulkanCommandEncoderTest, Handle_IsUnique)
 {
-    auto encoder1 = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
-    auto encoder2 = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder1 = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
+    auto encoder2 = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     EXPECT_NE(encoder1->handle(), encoder2->handle());
 }
@@ -75,14 +76,14 @@ TEST_F(VulkanCommandEncoderTest, Handle_IsUnique)
 
 TEST_F(VulkanCommandEncoderTest, Device_ReturnsCorrectDevice)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     EXPECT_EQ(encoder->device(), device->handle());
 }
 
 TEST_F(VulkanCommandEncoderTest, GetDevice_ReturnsCorrectDevicePointer)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     EXPECT_EQ(encoder->getDevice(), device.get());
 }
@@ -93,7 +94,7 @@ TEST_F(VulkanCommandEncoderTest, GetDevice_ReturnsCorrectDevicePointer)
 
 TEST_F(VulkanCommandEncoderTest, BeginEnd_WorksCorrectly)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     EXPECT_NO_THROW(encoder->begin());
     EXPECT_NO_THROW(encoder->end());
@@ -101,7 +102,7 @@ TEST_F(VulkanCommandEncoderTest, BeginEnd_WorksCorrectly)
 
 TEST_F(VulkanCommandEncoderTest, Reset_WorksAfterRecording)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     encoder->begin();
     encoder->end();
@@ -110,7 +111,7 @@ TEST_F(VulkanCommandEncoderTest, Reset_WorksAfterRecording)
 
 TEST_F(VulkanCommandEncoderTest, MultipleRecordCycles_WorkCorrectly)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     for (int i = 0; i < 3; ++i) {
         EXPECT_NO_THROW(encoder->begin());
@@ -135,7 +136,7 @@ TEST_F(VulkanCommandEncoderTest, CopyBufferToBuffer_WorksCorrectly)
     dstInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     auto dstBuffer = std::make_unique<gfx::backend::vulkan::core::Buffer>(device.get(), dstInfo);
 
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     encoder->begin();
     EXPECT_NO_THROW(encoder->copyBufferToBuffer(srcBuffer.get(), 0, dstBuffer.get(), 0, 512));
@@ -164,7 +165,7 @@ TEST_F(VulkanCommandEncoderTest, CopyBufferToTexture_WorksCorrectly)
     textureInfo.flags = 0;
     auto texture = std::make_unique<gfx::backend::vulkan::core::Texture>(device.get(), textureInfo);
 
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     encoder->begin();
     VkOffset3D origin = { 0, 0, 0 };
@@ -191,7 +192,7 @@ TEST_F(VulkanCommandEncoderTest, CopyTextureToBuffer_WorksCorrectly)
     bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     auto buffer = std::make_unique<gfx::backend::vulkan::core::Buffer>(device.get(), bufferInfo);
 
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     encoder->begin();
     VkOffset3D origin = { 0, 0, 0 };
@@ -224,7 +225,7 @@ TEST_F(VulkanCommandEncoderTest, CopyTextureToTexture_WorksCorrectly)
     dstInfo.flags = 0;
     auto dstTexture = std::make_unique<gfx::backend::vulkan::core::Texture>(device.get(), dstInfo);
 
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     encoder->begin();
     VkOffset3D origin = { 0, 0, 0 };
@@ -257,7 +258,7 @@ TEST_F(VulkanCommandEncoderTest, BlitTextureToTexture_WorksCorrectly)
     dstInfo.flags = 0;
     auto dstTexture = std::make_unique<gfx::backend::vulkan::core::Texture>(device.get(), dstInfo);
 
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     encoder->begin();
     VkOffset3D origin = { 0, 0, 0 };
@@ -273,7 +274,7 @@ TEST_F(VulkanCommandEncoderTest, BlitTextureToTexture_WorksCorrectly)
 
 TEST_F(VulkanCommandEncoderTest, PipelineBarrier_WithNoBarriers)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     encoder->begin();
     EXPECT_NO_THROW(encoder->pipelineBarrier(nullptr, 0, nullptr, 0, nullptr, 0));
@@ -291,7 +292,7 @@ TEST_F(VulkanCommandEncoderTest, WriteTimestamp_WorksCorrectly)
     queryInfo.count = 2;
     auto querySet = std::make_unique<gfx::backend::vulkan::core::QuerySet>(device.get(), queryInfo);
 
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     encoder->begin();
     EXPECT_NO_THROW(encoder->writeTimestamp(querySet->handle(), 0));
@@ -305,7 +306,7 @@ TEST_F(VulkanCommandEncoderTest, ResetQuerySet_WorksCorrectly)
     queryInfo.count = 2;
     auto querySet = std::make_unique<gfx::backend::vulkan::core::QuerySet>(device.get(), queryInfo);
 
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     encoder->begin();
     EXPECT_NO_THROW(encoder->resetQuerySet(querySet->handle(), 0, 2));
@@ -324,7 +325,7 @@ TEST_F(VulkanCommandEncoderTest, ResolveQuerySet_WorksCorrectly)
     bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     auto buffer = std::make_unique<gfx::backend::vulkan::core::Buffer>(device.get(), bufferInfo);
 
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     encoder->begin();
     EXPECT_NO_THROW(encoder->resolveQuerySet(querySet->handle(), 0, 2, buffer->handle(), 0));
@@ -338,7 +339,7 @@ TEST_F(VulkanCommandEncoderTest, ResolveQuerySet_WorksCorrectly)
 TEST_F(VulkanCommandEncoderTest, Destructor_CleansUpResources)
 {
     {
-        auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+        auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
         EXPECT_NE(encoder->handle(), VK_NULL_HANDLE);
     }
 
@@ -348,9 +349,9 @@ TEST_F(VulkanCommandEncoderTest, Destructor_CleansUpResources)
 
 TEST_F(VulkanCommandEncoderTest, MultipleCommandEncoders_CanCoexist)
 {
-    auto encoder1 = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
-    auto encoder2 = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
-    auto encoder3 = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder1 = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
+    auto encoder2 = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
+    auto encoder3 = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     EXPECT_NE(encoder1->handle(), VK_NULL_HANDLE);
     EXPECT_NE(encoder2->handle(), VK_NULL_HANDLE);
@@ -367,28 +368,28 @@ TEST_F(VulkanCommandEncoderTest, MultipleCommandEncoders_CanCoexist)
 
 TEST_F(VulkanCommandEncoderTest, CreateBundleEncoder_CreatesSuccessfully)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), true);
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
 
     EXPECT_TRUE(encoder->isBundleEncoder());
 }
 
 TEST_F(VulkanCommandEncoderTest, BundleEncoder_IsBundleEncoder_ReturnsTrue)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), true);
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
 
     EXPECT_TRUE(encoder->isBundleEncoder());
 }
 
 TEST_F(VulkanCommandEncoderTest, RegularEncoder_IsBundleEncoder_ReturnsFalse)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     EXPECT_FALSE(encoder->isBundleEncoder());
 }
 
 TEST_F(VulkanCommandEncoderTest, BundleEncoder_Handle_ReturnsNullCommandBuffer)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), true);
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
 
     // Bundles record commands for replay instead of owning a Vulkan command buffer
     EXPECT_EQ(encoder->handle(), VK_NULL_HANDLE);
@@ -396,7 +397,7 @@ TEST_F(VulkanCommandEncoderTest, BundleEncoder_Handle_ReturnsNullCommandBuffer)
 
 TEST_F(VulkanCommandEncoderTest, BundleEncoder_GetDevice_ReturnsCorrectDevice)
 {
-    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), true);
+    auto encoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
 
     EXPECT_EQ(encoder->getDevice(), device.get());
 }

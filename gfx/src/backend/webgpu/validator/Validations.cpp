@@ -8,6 +8,7 @@
 #include "backend/webgpu/core/resource/Texture.h"
 #include "backend/webgpu/core/system/Adapter.h"
 #include "backend/webgpu/core/system/Device.h"
+#include "backend/webgpu/core/system/Queue.h"
 #include "backend/webgpu/core/util/Utils.h"
 #include "util/Utils.h"
 
@@ -1073,6 +1074,9 @@ GfxResult validateDeviceCreateFramebuffer(GfxDevice device, const GfxFramebuffer
 GfxResult validateDeviceCreateCommandEncoder(GfxDevice device, const GfxCommandEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder)
 {
     if (!device || !descriptor || !outEncoder) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    if (descriptor->queue && converter::toNative<core::Queue>(descriptor->queue)->getDevice() != converter::toNative<core::Device>(device)) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     return GFX_RESULT_SUCCESS;

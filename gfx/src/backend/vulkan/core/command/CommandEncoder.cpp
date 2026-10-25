@@ -54,15 +54,19 @@ namespace {
 
 } // anonymous namespace
 
-CommandEncoder::CommandEncoder(Device* device, bool bundle)
+CommandEncoder::CommandEncoder(Device* device, uint32_t queueFamily)
     : m_device(device)
-    , m_isBundleEncoder(bundle)
+    , m_queueFamily(queueFamily)
+    , m_commandPool(createCommandPool(device->handle(), queueFamily))
+    , m_commandBuffer(allocateCommandBuffer(device->handle(), m_commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY))
 {
-    // A bundle only records commands for replay, so it needs no Vulkan command buffer
-    if (!bundle) {
-        m_commandPool = createCommandPool(device->handle(), device->getQueue()->family());
-        m_commandBuffer = allocateCommandBuffer(device->handle(), m_commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    }
+}
+
+// A bundle only records commands for replay, so it needs no Vulkan command buffer
+CommandEncoder::CommandEncoder(Device* device)
+    : m_device(device)
+    , m_isBundleEncoder(true)
+{
 }
 
 CommandEncoder::~CommandEncoder()
@@ -83,6 +87,11 @@ VkDevice CommandEncoder::device() const
 Device* CommandEncoder::getDevice() const
 {
     return m_device;
+}
+
+uint32_t CommandEncoder::queueFamily() const
+{
+    return m_queueFamily;
 }
 
 bool CommandEncoder::isBundleEncoder() const

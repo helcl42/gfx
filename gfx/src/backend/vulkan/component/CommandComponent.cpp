@@ -18,6 +18,7 @@
 #include "backend/vulkan/core/resource/Buffer.h"
 #include "backend/vulkan/core/resource/Texture.h"
 #include "backend/vulkan/core/system/Device.h"
+#include "backend/vulkan/core/system/Queue.h"
 
 #include <stdexcept>
 
@@ -33,7 +34,8 @@ GfxResult CommandComponent::deviceCreateCommandEncoder(GfxDevice device, const G
 
     try {
         auto* dev = converter::toNative<core::Device>(device);
-        auto* encoder = new core::CommandEncoder(dev);
+        auto* queue = descriptor->queue ? converter::toNative<core::Queue>(descriptor->queue) : dev->getQueue();
+        auto* encoder = new core::CommandEncoder(dev, queue->family());
         encoder->begin();
         *outEncoder = converter::toGfx<GfxCommandEncoder>(encoder);
         return GFX_RESULT_SUCCESS;
@@ -52,7 +54,7 @@ GfxResult CommandComponent::deviceCreateRenderBundleCommandEncoder(GfxDevice dev
 
     try {
         auto* dev = converter::toNative<core::Device>(device);
-        auto* encoder = new core::CommandEncoder(dev, true);
+        auto* encoder = new core::CommandEncoder(dev);
         *outEncoder = converter::toGfx<GfxCommandEncoder>(encoder);
         return GFX_RESULT_SUCCESS;
     } catch (const std::exception& e) {

@@ -1851,6 +1851,7 @@ typedef struct {
     GfxStructureType sType;
     const void* pNext;
     const char* label;
+    GfxQueue queue; // NULL for the device's default queue
 } GfxCommandEncoderDescriptor;
 
 typedef struct {

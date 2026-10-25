@@ -862,10 +862,12 @@ TEST(ConversionsTest, ConvertCommandEncoderDescriptor)
         .label = "TestEncoder"
     };
 
+    GfxQueue cQueue = reinterpret_cast<GfxQueue>(0x1);
     GfxCommandEncoderDescriptor cDesc;
-    convertCommandEncoderDescriptor(cppDesc, cDesc);
+    convertCommandEncoderDescriptor(cppDesc, cDesc, cQueue);
 
     EXPECT_STREQ(cDesc.label, "TestEncoder");
+    EXPECT_EQ(cDesc.queue, cQueue);
 }
 
 TEST(ConversionsTest, ConvertFenceDescriptor)

@@ -211,7 +211,7 @@ void convertTextureImportDescriptor(const TextureImportDescriptor& descriptor, G
 void convertTextureViewDescriptor(const TextureViewDescriptor& descriptor, GfxTextureViewDescriptor& outDesc);
 void convertSamplerDescriptor(const SamplerDescriptor& descriptor, GfxSamplerDescriptor& outDesc);
 void convertShaderDescriptor(const ShaderDescriptor& descriptor, GfxShaderDescriptor& outDesc);
-void convertCommandEncoderDescriptor(const CommandEncoderDescriptor& descriptor, GfxCommandEncoderDescriptor& outDesc);
+void convertCommandEncoderDescriptor(const CommandEncoderDescriptor& descriptor, GfxCommandEncoderDescriptor& outDesc, GfxQueue cQueue);
 void convertRenderBundleCommandEncoderDescriptor(const RenderBundleCommandEncoderDescriptor& descriptor, GfxRenderPass renderPassHandle, GfxRenderBundleEncoderDescriptor& outDesc);
 void convertFenceDescriptor(const FenceDescriptor& descriptor, GfxFenceDescriptor& outDesc);
 void convertSemaphoreDescriptor(const SemaphoreDescriptor& descriptor, GfxSemaphoreDescriptor& outDesc);

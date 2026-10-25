@@ -56,6 +56,22 @@ TEST_P(GfxCppCommandEncoderTest, CreateCommandEncoder)
     EXPECT_NE(encoder, nullptr);
 }
 
+TEST_P(GfxCppCommandEncoderTest, CreateCommandEncoderForQueue)
+{
+    ASSERT_NE(device, nullptr);
+
+    auto queue = device->getQueue();
+    gfx::CommandEncoderDescriptor desc{
+        .queue = queue
+    };
+    auto encoder = device->createCommandEncoder(desc);
+    ASSERT_NE(encoder, nullptr);
+    encoder->end();
+
+    EXPECT_EQ(queue->submit({ .commandEncoders = { encoder } }), gfx::Result::Success);
+    queue->waitIdle();
+}
+
 TEST_P(GfxCppCommandEncoderTest, CreateCommandEncoderWithoutLabel)
 {
     ASSERT_NE(device, nullptr);

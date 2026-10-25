@@ -1378,6 +1378,7 @@ struct QuerySetDescriptor {
 struct CommandEncoderDescriptor {
     const ChainedStruct* next = nullptr;
     std::string label;
+    std::shared_ptr<Queue> queue; // nullptr for the device's default queue
 };
 
 struct RenderBundleCommandEncoderDescriptor {

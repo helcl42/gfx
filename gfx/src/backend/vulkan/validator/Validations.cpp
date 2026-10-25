@@ -8,6 +8,7 @@
 #include "backend/vulkan/core/resource/Texture.h"
 #include "backend/vulkan/core/system/Adapter.h"
 #include "backend/vulkan/core/system/Device.h"
+#include "backend/vulkan/core/system/Queue.h"
 #include "backend/vulkan/core/util/Utils.h"
 #include "util/Utils.h"
 
@@ -1082,6 +1083,9 @@ GfxResult validateDeviceCreateCommandEncoder(GfxDevice device, const GfxCommandE
     if (!device || !descriptor || !outEncoder) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
+    if (descriptor->queue && converter::toNative<core::Queue>(descriptor->queue)->device() != converter::toNative<core::Device>(device)->handle()) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
     return GFX_RESULT_SUCCESS;
 }
 
@@ -1281,6 +1285,13 @@ GfxResult validateQueueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitD
     }
     if (submitDescriptor->waitSemaphoreCount > 0 && (!submitDescriptor->waitSemaphores || !submitDescriptor->waitStages)) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    const uint32_t queueFamily = converter::toNative<core::Queue>(queue)->family();
+    for (uint32_t i = 0; i < submitDescriptor->commandEncoderCount; ++i) {
+        GfxCommandEncoder encoder = submitDescriptor->commandEncoders[i];
+        if (encoder && converter::toNative<core::CommandEncoder>(encoder)->queueFamily() != queueFamily) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
     }
     return GFX_RESULT_SUCCESS;
 }

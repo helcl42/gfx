@@ -338,8 +338,17 @@ std::shared_ptr<Framebuffer> DeviceImpl::createFramebuffer(const FramebufferDesc
 
 std::shared_ptr<CommandEncoder> DeviceImpl::createCommandEncoder(const CommandEncoderDescriptor& descriptor)
 {
+    GfxQueue cQueue = nullptr;
+    if (descriptor.queue) {
+        auto queueImpl = std::dynamic_pointer_cast<QueueImpl>(descriptor.queue);
+        if (!queueImpl) {
+            throw std::runtime_error("Invalid queue type");
+        }
+        cQueue = queueImpl->getHandle();
+    }
+
     GfxCommandEncoderDescriptor cDesc;
-    convertCommandEncoderDescriptor(descriptor, cDesc);
+    convertCommandEncoderDescriptor(descriptor, cDesc, cQueue);
 
     GfxCommandEncoder encoder = nullptr;
     GfxResult result = gfxDeviceCreateCommandEncoder(m_handle, &cDesc, &encoder);

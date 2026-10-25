@@ -178,9 +178,10 @@ TEST_P(GfxDeviceTest, MultiFamilyQueueFamilyOwnershipTransfer)
     release.srcQueueFamilyIndex = otherFamily;
     release.dstQueueFamilyIndex = graphicsFamily;
 
-    GfxCommandEncoderDescriptor encDesc = {};
+    GfxCommandEncoderDescriptor releaseDesc = {};
+    releaseDesc.queue = otherQueue;
     GfxCommandEncoder releaseEnc = nullptr;
-    ASSERT_EQ(gfxDeviceCreateCommandEncoder(dev, &encDesc, &releaseEnc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(dev, &releaseDesc, &releaseEnc), GFX_RESULT_SUCCESS);
     ASSERT_EQ(gfxCommandEncoderBegin(releaseEnc), GFX_RESULT_SUCCESS);
     GfxPipelineBarrierDescriptor releaseBarrier = {};
     releaseBarrier.bufferBarriers = &release;
@@ -195,8 +196,10 @@ TEST_P(GfxDeviceTest, MultiFamilyQueueFamilyOwnershipTransfer)
     acquire.srcAccessMask = GFX_ACCESS_NONE;
     acquire.dstAccessMask = GFX_ACCESS_SHADER_READ;
 
+    GfxCommandEncoderDescriptor acquireDesc = {};
+    acquireDesc.queue = graphicsQueue;
     GfxCommandEncoder acquireEnc = nullptr;
-    ASSERT_EQ(gfxDeviceCreateCommandEncoder(dev, &encDesc, &acquireEnc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(dev, &acquireDesc, &acquireEnc), GFX_RESULT_SUCCESS);
     ASSERT_EQ(gfxCommandEncoderBegin(acquireEnc), GFX_RESULT_SUCCESS);
     GfxPipelineBarrierDescriptor acquireBarrier = {};
     acquireBarrier.bufferBarriers = &acquire;
@@ -216,6 +219,7 @@ TEST_P(GfxDeviceTest, MultiFamilyQueueFamilyOwnershipTransfer)
     releaseSubmit.commandEncoderCount = 1;
     releaseSubmit.signalSemaphores = &handoff;
     releaseSubmit.signalSemaphoreCount = 1;
+    EXPECT_EQ(gfxQueueSubmit(graphicsQueue, &releaseSubmit), GFX_RESULT_ERROR_INVALID_ARGUMENT);
     EXPECT_EQ(gfxQueueSubmit(otherQueue, &releaseSubmit), GFX_RESULT_SUCCESS);
 
     const GfxPipelineStageFlags waitStage = GFX_PIPELINE_STAGE_FRAGMENT_SHADER;

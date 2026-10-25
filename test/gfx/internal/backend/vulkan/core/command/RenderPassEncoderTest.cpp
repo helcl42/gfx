@@ -8,6 +8,7 @@
 #include <backend/vulkan/core/resource/TextureView.h>
 #include <backend/vulkan/core/system/Device.h>
 #include <backend/vulkan/core/system/Instance.h>
+#include <backend/vulkan/core/system/Queue.h>
 
 #include <gtest/gtest.h>
 
@@ -97,7 +98,7 @@ protected:
 
 TEST_F(VulkanRenderPassEncoderTest, CreateRenderPassEncoder_CreatesSuccessfully)
 {
-    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     commandEncoder->begin();
 
@@ -120,7 +121,7 @@ TEST_F(VulkanRenderPassEncoderTest, CreateRenderPassEncoder_CreatesSuccessfully)
 
 TEST_F(VulkanRenderPassEncoderTest, Handle_ReturnsValidVkCommandBuffer)
 {
-    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     commandEncoder->begin();
 
@@ -148,7 +149,7 @@ TEST_F(VulkanRenderPassEncoderTest, SetVertexBuffer_WorksCorrectly)
     bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     auto buffer = std::make_unique<gfx::backend::vulkan::core::Buffer>(device.get(), bufferInfo);
 
-    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     commandEncoder->begin();
 
@@ -170,7 +171,7 @@ TEST_F(VulkanRenderPassEncoderTest, SetIndexBuffer_WorksCorrectly)
     bufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
     auto buffer = std::make_unique<gfx::backend::vulkan::core::Buffer>(device.get(), bufferInfo);
 
-    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     commandEncoder->begin();
 
@@ -191,7 +192,7 @@ TEST_F(VulkanRenderPassEncoderTest, SetIndexBuffer_WorksCorrectly)
 
 TEST_F(VulkanRenderPassEncoderTest, SetViewport_WorksCorrectly)
 {
-    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     commandEncoder->begin();
 
@@ -216,7 +217,7 @@ TEST_F(VulkanRenderPassEncoderTest, SetViewport_WorksCorrectly)
 
 TEST_F(VulkanRenderPassEncoderTest, SetScissorRect_WorksCorrectly)
 {
-    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     commandEncoder->begin();
 
@@ -239,7 +240,7 @@ TEST_F(VulkanRenderPassEncoderTest, SetScissorRect_WorksCorrectly)
 
 TEST_F(VulkanRenderPassEncoderTest, SetBlendConstant_WorksCorrectly)
 {
-    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     commandEncoder->begin();
 
@@ -257,7 +258,7 @@ TEST_F(VulkanRenderPassEncoderTest, SetBlendConstant_WorksCorrectly)
 
 TEST_F(VulkanRenderPassEncoderTest, SetStencilReference_WorksCorrectly)
 {
-    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     commandEncoder->begin();
 
@@ -283,7 +284,7 @@ TEST_F(VulkanRenderPassEncoderTest, OcclusionQuery_WorksCorrectly)
     queryInfo.count = 2;
     auto querySet = std::make_unique<gfx::backend::vulkan::core::QuerySet>(device.get(), queryInfo);
 
-    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     commandEncoder->begin();
 
@@ -306,7 +307,7 @@ TEST_F(VulkanRenderPassEncoderTest, OcclusionQuery_WorksCorrectly)
 
 TEST_F(VulkanRenderPassEncoderTest, Destructor_CleansUpResources)
 {
-    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     commandEncoder->begin();
 
@@ -331,7 +332,7 @@ TEST_F(VulkanRenderPassEncoderTest, Destructor_CleansUpResources)
 
 TEST_F(VulkanRenderPassEncoderTest, TimestampQuery_NullTimestampQueryPool_CreatesSuccessfully)
 {
-    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     commandEncoder->begin();
 
@@ -355,7 +356,7 @@ TEST_F(VulkanRenderPassEncoderTest, TimestampQuery_WithTimestampQueryPool_Writes
     queryInfo.count = 2;
     auto querySet = std::make_unique<gfx::backend::vulkan::core::QuerySet>(device.get(), queryInfo);
 
-    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto commandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
 
     commandEncoder->begin();
 
@@ -380,7 +381,7 @@ TEST_F(VulkanRenderPassEncoderTest, TimestampQuery_WithTimestampQueryPool_Writes
 
 TEST_F(VulkanRenderPassEncoderTest, BundleMode_CreateFromBundleEncoder)
 {
-    auto bundleCommandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), true);
+    auto bundleCommandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
 
     bundleCommandEncoder->beginBundle();
 
@@ -393,7 +394,7 @@ TEST_F(VulkanRenderPassEncoderTest, BundleMode_CreateFromBundleEncoder)
 TEST_F(VulkanRenderPassEncoderTest, BundleMode_ExecuteBundles_WorksCorrectly)
 {
     // Create a bundle command encoder and record into it
-    auto bundleCommandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), true);
+    auto bundleCommandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
 
     bundleCommandEncoder->beginBundle();
 
@@ -404,7 +405,7 @@ TEST_F(VulkanRenderPassEncoderTest, BundleMode_ExecuteBundles_WorksCorrectly)
     const gfx::backend::vulkan::core::CommandEncoder* bundle = bundleCommandEncoder.get();
 
     // Create main command encoder and render pass that replays the bundle
-    auto mainCommandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get());
+    auto mainCommandEncoder = std::make_unique<gfx::backend::vulkan::core::CommandEncoder>(device.get(), device->getQueue()->family());
     mainCommandEncoder->begin();
 
     gfx::backend::vulkan::core::RenderPassEncoderBeginInfo beginInfo{};

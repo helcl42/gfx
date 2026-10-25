@@ -1012,12 +1012,13 @@ void convertShaderDescriptor(const ShaderDescriptor& descriptor, GfxShaderDescri
     outDesc.entryPoint = descriptor.entryPoint.c_str();
 }
 
-void convertCommandEncoderDescriptor(const CommandEncoderDescriptor& descriptor, GfxCommandEncoderDescriptor& outDesc)
+void convertCommandEncoderDescriptor(const CommandEncoderDescriptor& descriptor, GfxCommandEncoderDescriptor& outDesc, GfxQueue cQueue)
 {
     outDesc = {};
     outDesc.sType = GFX_STRUCTURE_TYPE_COMMAND_ENCODER_DESCRIPTOR;
     outDesc.pNext = NULL;
     outDesc.label = descriptor.label.c_str();
+    outDesc.queue = cQueue;
 }
 
 void convertRenderBundleCommandEncoderDescriptor(const RenderBundleCommandEncoderDescriptor& descriptor, GfxRenderPass renderPassHandle, GfxRenderBundleEncoderDescriptor& outDesc)

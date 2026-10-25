@@ -15,13 +15,16 @@ public:
     CommandEncoder(const CommandEncoder&) = delete;
     CommandEncoder& operator=(const CommandEncoder&) = delete;
 
-    CommandEncoder(Device* device, bool bundle = false);
+    CommandEncoder(Device* device, uint32_t queueFamily);
+    // Render bundle encoder
+    explicit CommandEncoder(Device* device);
     ~CommandEncoder();
 
     VkCommandBuffer handle() const;
     VkDevice device() const;
     Device* getDevice() const;
 
+    uint32_t queueFamily() const;
     bool isBundleEncoder() const;
 
     void begin();
@@ -48,6 +51,7 @@ public:
 
 private:
     Device* m_device = nullptr;
+    uint32_t m_queueFamily = 0;
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
     VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
     bool m_isBundleEncoder = false;

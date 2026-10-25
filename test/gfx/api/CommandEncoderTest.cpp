@@ -127,6 +127,54 @@ TEST_P(GfxCommandEncoderTest, CreateCommandEncoderWithoutLabel)
     gfxCommandEncoderDestroy(encoder);
 }
 
+TEST_P(GfxCommandEncoderTest, CreateCommandEncoderForQueue)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoderDescriptor desc = {};
+    desc.queue = queue;
+    GfxCommandEncoder encoder = nullptr;
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &desc, &encoder), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    EXPECT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+
+    gfxQueueWaitIdle(queue);
+    gfxCommandEncoderDestroy(encoder);
+}
+
+TEST_P(GfxCommandEncoderTest, CreateCommandEncoderRejectsQueueOfAnotherDevice)
+{
+    // WebGPU cannot create two devices from one adapter
+    GfxInstanceDescriptor instDesc = {};
+    instDesc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
+    instDesc.backend = backend;
+    GfxInstance otherInstance = nullptr;
+    ASSERT_EQ(gfxCreateInstance(&instDesc, &otherInstance), GFX_RESULT_SUCCESS);
+    GfxAdapterDescriptor adapterDesc = {};
+    adapterDesc.sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR;
+    GfxAdapter otherAdapter = nullptr;
+    ASSERT_EQ(gfxInstanceRequestAdapter(otherInstance, &adapterDesc, &otherAdapter), GFX_RESULT_SUCCESS);
+    GfxDeviceDescriptor deviceDesc = {};
+    deviceDesc.sType = GFX_STRUCTURE_TYPE_DEVICE_DESCRIPTOR;
+    GfxDevice otherDevice = nullptr;
+    ASSERT_EQ(gfxAdapterCreateDevice(otherAdapter, &deviceDesc, &otherDevice), GFX_RESULT_SUCCESS);
+    GfxQueue otherQueue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(otherDevice, &otherQueue), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoderDescriptor desc = {};
+    desc.queue = otherQueue;
+    GfxCommandEncoder encoder = nullptr;
+    EXPECT_EQ(gfxDeviceCreateCommandEncoder(device, &desc, &encoder), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    gfxDeviceDestroy(otherDevice);
+    gfxInstanceDestroy(otherInstance);
+}
+
 TEST_P(GfxCommandEncoderTest, DestroyNullCommandEncoder)
 {
     GfxResult result = gfxCommandEncoderDestroy(nullptr);
