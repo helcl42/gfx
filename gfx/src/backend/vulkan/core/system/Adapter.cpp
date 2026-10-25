@@ -2,8 +2,8 @@
 
 #include "Instance.h"
 
-#include <algorithm>
-#include <cstring>
+#include "../util/Utils.h"
+
 #include <stdexcept>
 #include <vector>
 
@@ -123,12 +123,7 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
     std::vector<const char*> supportedExtensions;
 
     for (const auto& mapping : knownExtensions) {
-        bool deviceSupportsIt = std::any_of(availableExtensions.begin(), availableExtensions.end(),
-            [&mapping](const VkExtensionProperties& props) {
-                return strcmp(props.extensionName, mapping.vkName) == 0;
-            });
-
-        if (deviceSupportsIt) {
+        if (isExtensionAvailable(availableExtensions, mapping.vkName)) {
             supportedExtensions.push_back(mapping.internalName);
         }
     }
@@ -162,16 +157,6 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
     }
 
     return supportedExtensions;
-}
-
-bool Adapter::supportsExtension(const char* name) const
-{
-    for (const char* extension : enumerateSupportedExtensions()) {
-        if (strcmp(extension, name) == 0) {
-            return true;
-        }
-    }
-    return false;
 }
 
 } // namespace gfx::backend::vulkan::core

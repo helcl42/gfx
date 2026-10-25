@@ -29,7 +29,6 @@ public:
 
     // Get supported device extensions for this adapter
     std::vector<const char*> enumerateSupportedExtensions() const;
-    bool supportsExtension(const char* name) const;
 
 private:
     AdapterInfo createAdapterInfo() const;

@@ -5,6 +5,7 @@
 #include "../util/Utils.h"
 
 #include "common/Logger.h"
+#include "common/Strings.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -105,9 +106,7 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
         throw std::runtime_error("Failed to create WebGPU instance");
     }
 
-    const bool xrCompatible = std::find(createInfo.enabledExtensions.begin(), createInfo.enabledExtensions.end(),
-                                  std::string(extensions::XR_COMPATIBLE))
-        != createInfo.enabledExtensions.end();
+    const bool xrCompatible = gfx::common::containsString(createInfo.enabledExtensions, extensions::XR_COMPATIBLE);
     std::vector<WGPUAdapter> discoveredAdapters = discoverAdapters(m_instance, xrCompatible);
     m_adapters.reserve(discoveredAdapters.size());
     for (auto adapter : discoveredAdapters) {

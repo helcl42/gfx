@@ -8,8 +8,8 @@
 #include "../util/Utils.h"
 
 #include "common/Logger.h"
+#include "common/Strings.h"
 
-#include <algorithm>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -18,16 +18,12 @@
 namespace gfx::backend::webgpu::core {
 
 namespace {
-    bool isExtensionRequested(const std::vector<std::string>& enabledExtensions, const char* name)
-    {
-        return std::find(enabledExtensions.begin(), enabledExtensions.end(), std::string(name)) != enabledExtensions.end();
-    }
-
     // A device can only enable the extensions its adapter supports
     void requireSupportedExtensions(const Adapter* adapter, const std::vector<std::string>& enabledExtensions)
     {
+        const std::vector<const char*> supportedExtensions = adapter->enumerateSupportedExtensions();
         for (const std::string& extension : enabledExtensions) {
-            if (!adapter->supportsExtension(extension.c_str())) {
+            if (!gfx::common::containsString(supportedExtensions, extension.c_str())) {
                 throw std::runtime_error("Device extension not supported by this adapter: " + extension);
             }
         }
@@ -46,7 +42,7 @@ namespace {
             { extensions::DEPTH32_FLOAT_STENCIL8, WGPUFeatureName_Depth32FloatStencil8 },
         };
         for (const auto& [extName, feature] : extensionFeatures) {
-            if (isExtensionRequested(createInfo.enabledExtensions, extName)) {
+            if (gfx::common::containsString(createInfo.enabledExtensions, extName)) {
                 requiredFeatures.push_back(feature);
             }
         }

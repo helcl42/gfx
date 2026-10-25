@@ -26,7 +26,6 @@ public:
     bool supportsPresentation(uint32_t queueFamilyIndex, VkSurfaceKHR surface) const;
 
     std::vector<const char*> enumerateSupportedExtensions() const;
-    bool supportsExtension(const char* name) const;
 
 private:
     bool supportsDepthStencilAttachment(VkFormat format) const;

@@ -4,11 +4,13 @@
 #include "Instance.h"
 #include "Queue.h"
 
+#include "../util/Utils.h"
 #include "../util/VmaAllocator.h"
+
+#include "common/Strings.h"
 
 #include <gfx/gfx.h>
 
-#include <cstring>
 #include <stdexcept>
 
 namespace gfx::backend::vulkan::core {
@@ -17,16 +19,6 @@ namespace {
     uint64_t makeQueueKey(uint32_t queueFamilyIndex, uint32_t queueIndex)
     {
         return (static_cast<uint64_t>(queueFamilyIndex) << 16) | queueIndex;
-    }
-
-    bool containsString(const std::vector<std::string>& strings, const char* value)
-    {
-        for (const auto& str : strings) {
-            if (str == value) {
-                return true;
-            }
-        }
-        return false;
     }
 
     // Parse the requested extension names into a DeviceExtension bitmask so all
@@ -49,21 +41,11 @@ namespace {
 
         uint64_t mask = 0;
         for (const auto& [name, bit] : knownExtensions) {
-            if (containsString(enabledExtensions, name)) {
+            if (gfx::common::containsString(enabledExtensions, name)) {
                 mask |= static_cast<uint64_t>(bit);
             }
         }
         return mask;
-    }
-
-    bool isExtensionAvailable(const std::vector<VkExtensionProperties>& availableExtensions, const char* extension)
-    {
-        for (const auto& availableExt : availableExtensions) {
-            if (strcmp(extension, availableExt.extensionName) == 0) {
-                return true;
-            }
-        }
-        return false;
     }
 
     bool hasExtension(uint64_t enabledExtensions, DeviceExtension extension)
@@ -74,8 +56,9 @@ namespace {
     // A device can only enable the extensions its adapter supports
     void requireSupportedExtensions(const Adapter* adapter, const std::vector<std::string>& enabledExtensions)
     {
+        const std::vector<const char*> supportedExtensions = adapter->enumerateSupportedExtensions();
         for (const std::string& extension : enabledExtensions) {
-            if (!adapter->supportsExtension(extension.c_str())) {
+            if (!gfx::common::containsString(supportedExtensions, extension.c_str())) {
                 throw std::runtime_error("Device extension not supported by this adapter: " + extension);
             }
         }

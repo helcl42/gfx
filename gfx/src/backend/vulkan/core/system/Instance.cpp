@@ -5,11 +5,10 @@
 #include "../util/Utils.h"
 
 #include "../../../../common/Logger.h"
+#include "../../../../common/Strings.h"
 
 #include <gfx/gfx.h>
 
-#include <algorithm>
-#include <cstring>
 #include <set>
 #include <stdexcept>
 #include <vector>
@@ -66,46 +65,6 @@ namespace {
         }
     }
 
-    bool isExtensionEnabled(const std::vector<const char*>& enabledExtensions, const char* extension)
-    {
-        for (const auto& enabledExt : enabledExtensions) {
-            if (strcmp(enabledExt, extension) == 0) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool isExtensionEnabled(const std::vector<std::string>& enabledExtensions, const char* extension)
-    {
-        for (const auto& enabledExt : enabledExtensions) {
-            if (enabledExt == extension) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool isExtensionAvailable(const std::vector<VkExtensionProperties>& availableExtensions, const char* extension)
-    {
-        for (const auto& availableExt : availableExtensions) {
-            if (strcmp(extension, availableExt.extensionName) == 0) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool isLayerAvailable(const std::vector<VkLayerProperties>& availableLayers, const char* layer)
-    {
-        for (const auto& availableLayer : availableLayers) {
-            if (strcmp(layer, availableLayer.layerName) == 0) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     // Collects the instance extension names to request: surface/platform extensions,
     // portability enumeration, debug utils, and native pNext passthrough extensions.
     // Throws if any required extension is unavailable.
@@ -113,7 +72,7 @@ namespace {
     {
         std::vector<const char*> extensions = {};
 #ifndef GFX_HEADLESS_BUILD
-        if (isExtensionEnabled(createInfo.enabledExtensions, extensions::SURFACE)) {
+        if (gfx::common::containsString(createInfo.enabledExtensions, extensions::SURFACE)) {
             extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 #ifdef GFX_HAS_WIN32
             extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
@@ -216,7 +175,7 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
     const auto availableExtensions = enumerateAvailableExtensions();
     const auto availableLayers = enumerateAvailableLayers();
 
-    m_validationEnabled = isExtensionEnabled(createInfo.enabledExtensions, extensions::DEBUG);
+    m_validationEnabled = gfx::common::containsString(createInfo.enabledExtensions, extensions::DEBUG);
     std::vector<const char*> extensions = collectInstanceExtensions(createInfo, availableExtensions, m_validationEnabled);
     std::vector<const char*> layers = collectInstanceLayers(createInfo, availableLayers, m_validationEnabled);
 
@@ -430,13 +389,8 @@ std::vector<const char*> Instance::enumerateSupportedExtensions()
     std::vector<const char*> supportedExtensions;
 
     for (const auto& mapping : knownExtensions) {
-        bool isAvailable = std::any_of(availableExtensions.begin(), availableExtensions.end(),
-            [&mapping](const VkExtensionProperties& props) {
-                return strcmp(props.extensionName, mapping.vkName) == 0;
-            });
-
-        if (isAvailable) {
-            if (!isExtensionEnabled(supportedExtensions, mapping.internalName)) {
+        if (isExtensionAvailable(availableExtensions, mapping.vkName)) {
+            if (!gfx::common::containsString(supportedExtensions, mapping.internalName)) {
                 supportedExtensions.push_back(mapping.internalName);
             }
         }

@@ -3,6 +3,8 @@
 
 #include "../../common/Common.h"
 
+#include <vector>
+
 namespace gfx::backend::vulkan::core {
 
 // ============================================================================
@@ -48,6 +50,16 @@ bool isCompressedVkFormat(VkFormat format);
 uint32_t getVkFormatBlockSize(VkFormat format);
 // Block dimensions in texels (1x1 for uncompressed formats)
 void getVkFormatBlockDimensions(VkFormat format, uint32_t* outWidth, uint32_t* outHeight);
+
+// ============================================================================
+// Vulkan Extension and Layer Utilities
+// ============================================================================
+
+// Check whether an extension name is among the available extension properties
+bool isExtensionAvailable(const std::vector<VkExtensionProperties>& availableExtensions, const char* extension);
+
+// Check whether a layer name is among the available layer properties
+bool isLayerAvailable(const std::vector<VkLayerProperties>& availableLayers, const char* layer);
 
 } // namespace gfx::backend::vulkan::core
 

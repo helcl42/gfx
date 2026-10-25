@@ -2,6 +2,8 @@
 
 #include "../CoreTypes.h"
 
+#include <cstring>
+
 namespace gfx::backend::vulkan::core {
 
 // ============================================================================
@@ -362,6 +364,30 @@ uint32_t getVkFormatBytesPerPixel(VkFormat format)
     default:
         return 4; // Fallback for unknown formats
     }
+}
+
+// ============================================================================
+// Vulkan Extension and Layer Utilities
+// ============================================================================
+
+bool isExtensionAvailable(const std::vector<VkExtensionProperties>& availableExtensions, const char* extension)
+{
+    for (const auto& availableExt : availableExtensions) {
+        if (strcmp(extension, availableExt.extensionName) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool isLayerAvailable(const std::vector<VkLayerProperties>& availableLayers, const char* layer)
+{
+    for (const auto& availableLayer : availableLayers) {
+        if (strcmp(layer, availableLayer.layerName) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace gfx::backend::vulkan::core
