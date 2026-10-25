@@ -67,6 +67,7 @@ TEST_F(WebGPUBlitTest, Execute_SameSize_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 256, 256, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -75,6 +76,7 @@ TEST_F(WebGPUBlitTest, Execute_SameSize_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 256, 256, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -103,6 +105,7 @@ TEST_F(WebGPUBlitTest, Execute_Downscale_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 512, 512, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -111,6 +114,7 @@ TEST_F(WebGPUBlitTest, Execute_Downscale_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 256, 256, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -140,6 +144,7 @@ TEST_F(WebGPUBlitTest, Execute_Upscale_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 128, 128, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -148,6 +153,7 @@ TEST_F(WebGPUBlitTest, Execute_Upscale_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 512, 512, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -181,6 +187,7 @@ TEST_F(WebGPUBlitTest, Execute_SourceRegion_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 512, 512, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -189,6 +196,7 @@ TEST_F(WebGPUBlitTest, Execute_SourceRegion_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 256, 256, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -220,6 +228,7 @@ TEST_F(WebGPUBlitTest, Execute_DestinationRegion_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 256, 256, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -228,6 +237,7 @@ TEST_F(WebGPUBlitTest, Execute_DestinationRegion_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 512, 512, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -259,6 +269,7 @@ TEST_F(WebGPUBlitTest, Execute_BothRegions_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 1024, 1024, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -267,6 +278,7 @@ TEST_F(WebGPUBlitTest, Execute_BothRegions_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 1024, 1024, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -302,6 +314,7 @@ TEST_F(WebGPUBlitTest, Execute_NearestFilter_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 512, 512, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -310,6 +323,7 @@ TEST_F(WebGPUBlitTest, Execute_NearestFilter_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 256, 256, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -339,6 +353,7 @@ TEST_F(WebGPUBlitTest, Execute_LinearFilter_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 512, 512, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -347,6 +362,7 @@ TEST_F(WebGPUBlitTest, Execute_LinearFilter_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 256, 256, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -380,6 +396,7 @@ TEST_F(WebGPUBlitTest, Execute_RGBA8Unorm_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 256, 256, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -388,6 +405,7 @@ TEST_F(WebGPUBlitTest, Execute_RGBA8Unorm_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 256, 256, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -414,6 +432,7 @@ TEST_F(WebGPUBlitTest, Execute_BGRA8Unorm_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_BGRA8Unorm;
     srcInfo.size = { 256, 256, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -422,6 +441,7 @@ TEST_F(WebGPUBlitTest, Execute_BGRA8Unorm_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_BGRA8Unorm;
     dstInfo.size = { 256, 256, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -448,6 +468,7 @@ TEST_F(WebGPUBlitTest, Execute_RGBA16Float_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA16Float;
     srcInfo.size = { 256, 256, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -456,6 +477,7 @@ TEST_F(WebGPUBlitTest, Execute_RGBA16Float_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA16Float;
     dstInfo.size = { 256, 256, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -486,6 +508,7 @@ TEST_F(WebGPUBlitTest, Execute_SourceMipLevel1_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 512, 512, 1 };
     srcInfo.mipLevelCount = 3; // 512x512, 256x256, 128x128
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -494,6 +517,7 @@ TEST_F(WebGPUBlitTest, Execute_SourceMipLevel1_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 256, 256, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -521,6 +545,7 @@ TEST_F(WebGPUBlitTest, Execute_DestinationMipLevel1_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 256, 256, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -529,6 +554,7 @@ TEST_F(WebGPUBlitTest, Execute_DestinationMipLevel1_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 512, 512, 1 };
     dstInfo.mipLevelCount = 3; // 512x512, 256x256, 128x128
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -556,6 +582,7 @@ TEST_F(WebGPUBlitTest, Execute_MipToMip_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 1024, 1024, 1 };
     srcInfo.mipLevelCount = 4; // 1024, 512, 256, 128
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -564,6 +591,7 @@ TEST_F(WebGPUBlitTest, Execute_MipToMip_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 512, 512, 1 };
     dstInfo.mipLevelCount = 3; // 512, 256, 128
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -595,6 +623,7 @@ TEST_F(WebGPUBlitTest, Execute_SmallTexture_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 16, 16, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -602,6 +631,7 @@ TEST_F(WebGPUBlitTest, Execute_SmallTexture_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 16, 16, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -628,6 +658,7 @@ TEST_F(WebGPUBlitTest, Execute_LargeTexture_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 4096, 4096, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -635,6 +666,7 @@ TEST_F(WebGPUBlitTest, Execute_LargeTexture_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 2048, 2048, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -662,6 +694,7 @@ TEST_F(WebGPUBlitTest, Execute_NonSquareTextures_BlitsCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 512, 256, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -669,6 +702,7 @@ TEST_F(WebGPUBlitTest, Execute_NonSquareTextures_BlitsCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 256, 128, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
@@ -696,6 +730,7 @@ TEST_F(WebGPUBlitTest, Execute_MultipleBlit_WorksCorrectly)
     srcInfo.format = WGPUTextureFormat_RGBA8Unorm;
     srcInfo.size = { 256, 256, 1 };
     srcInfo.mipLevelCount = 1;
+    srcInfo.sampleCount = 1;
     srcInfo.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
     auto srcTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), srcInfo);
 
@@ -704,6 +739,7 @@ TEST_F(WebGPUBlitTest, Execute_MultipleBlit_WorksCorrectly)
     dstInfo.format = WGPUTextureFormat_RGBA8Unorm;
     dstInfo.size = { 256, 256, 1 };
     dstInfo.mipLevelCount = 1;
+    dstInfo.sampleCount = 1;
     dstInfo.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst;
     auto dstTexture = std::make_unique<gfx::backend::webgpu::core::Texture>(device.get(), dstInfo);
 
