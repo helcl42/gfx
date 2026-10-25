@@ -112,6 +112,7 @@ TEST_F(VulkanRenderPassEncoderTest, CreateRenderPassEncoder_CreatesSuccessfully)
     EXPECT_EQ(encoder->device(), device.get());
     EXPECT_EQ(encoder->commandEncoder(), commandEncoder.get());
 
+    encoder.reset();
     commandEncoder->end();
 }
 
@@ -135,6 +136,7 @@ TEST_F(VulkanRenderPassEncoderTest, Handle_ReturnsValidVkCommandBuffer)
     EXPECT_NE(handle, VK_NULL_HANDLE);
     EXPECT_EQ(handle, commandEncoder->handle());
 
+    encoder.reset();
     commandEncoder->end();
 }
 
@@ -161,6 +163,7 @@ TEST_F(VulkanRenderPassEncoderTest, SetVertexBuffer_WorksCorrectly)
 
     EXPECT_NO_THROW(encoder->setVertexBuffer(0, buffer.get(), 0));
 
+    encoder.reset();
     commandEncoder->end();
 }
 
@@ -183,6 +186,7 @@ TEST_F(VulkanRenderPassEncoderTest, SetIndexBuffer_WorksCorrectly)
 
     EXPECT_NO_THROW(encoder->setIndexBuffer(buffer.get(), VK_INDEX_TYPE_UINT16, 0));
 
+    encoder.reset();
     commandEncoder->end();
 }
 
@@ -212,6 +216,7 @@ TEST_F(VulkanRenderPassEncoderTest, SetViewport_WorksCorrectly)
 
     EXPECT_NO_THROW(encoder->setViewport(viewport));
 
+    encoder.reset();
     commandEncoder->end();
 }
 
@@ -235,6 +240,7 @@ TEST_F(VulkanRenderPassEncoderTest, SetScissorRect_WorksCorrectly)
 
     EXPECT_NO_THROW(encoder->setScissorRect(scissor));
 
+    encoder.reset();
     commandEncoder->end();
 }
 
@@ -253,6 +259,7 @@ TEST_F(VulkanRenderPassEncoderTest, SetBlendConstant_WorksCorrectly)
     const float blendConstants[4] = { 0.25f, 0.5f, 0.75f, 1.0f };
     EXPECT_NO_THROW(encoder->setBlendConstant(blendConstants));
 
+    encoder.reset();
     commandEncoder->end();
 }
 
@@ -270,6 +277,7 @@ TEST_F(VulkanRenderPassEncoderTest, SetStencilReference_WorksCorrectly)
 
     EXPECT_NO_THROW(encoder->setStencilReference(0x42));
 
+    encoder.reset();
     commandEncoder->end();
 }
 
@@ -298,6 +306,7 @@ TEST_F(VulkanRenderPassEncoderTest, OcclusionQuery_WorksCorrectly)
     EXPECT_NO_THROW(encoder->beginOcclusionQuery(querySet->handle(), 0));
     EXPECT_NO_THROW(encoder->endOcclusionQuery());
 
+    encoder.reset();
     commandEncoder->end();
 }
 
