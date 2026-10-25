@@ -484,6 +484,70 @@ TEST_P(GfxCommandEncoderTest, BufferTextureCopiesRequireAlignedRowPitch)
     gfxTextureDestroy(texture);
 }
 
+// A texture cannot be left in the UNDEFINED layout after a copy or blit
+TEST_P(GfxCommandEncoderTest, CopiesRejectUndefinedFinalLayout)
+{
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { 64, 64, 1 };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.usage = GFX_FLAGS(GFX_TEXTURE_USAGE_COPY_SRC | GFX_TEXTURE_USAGE_COPY_DST);
+    GfxTexture source = nullptr;
+    GfxTexture destination = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &source), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &destination), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor bufferDesc = {};
+    bufferDesc.size = 64 * 64 * 4;
+    bufferDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_COPY_SRC | GFX_BUFFER_USAGE_COPY_DST);
+    bufferDesc.memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL;
+    GfxBuffer buffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &bufferDesc, &buffer), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    GfxCommandEncoder encoder = nullptr;
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxCopyBufferToTextureDescriptor toTexture = {};
+    toTexture.source = buffer;
+    toTexture.destination = destination;
+    toTexture.bytesPerRow = 64 * 4;
+    toTexture.extent = { 64, 64, 1 };
+    EXPECT_EQ(gfxCommandEncoderCopyBufferToTexture(encoder, &toTexture), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    toTexture.finalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_DST;
+    EXPECT_EQ(gfxCommandEncoderCopyBufferToTexture(encoder, &toTexture), GFX_RESULT_SUCCESS);
+
+    GfxCopyTextureToBufferDescriptor toBuffer = {};
+    toBuffer.source = source;
+    toBuffer.destination = buffer;
+    toBuffer.bytesPerRow = 64 * 4;
+    toBuffer.extent = { 64, 64, 1 };
+    EXPECT_EQ(gfxCommandEncoderCopyTextureToBuffer(encoder, &toBuffer), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    GfxCopyTextureToTextureDescriptor textureToTexture = {};
+    textureToTexture.source = source;
+    textureToTexture.sourceFinalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_SRC;
+    textureToTexture.destination = destination;
+    textureToTexture.extent = { 64, 64, 1 };
+    EXPECT_EQ(gfxCommandEncoderCopyTextureToTexture(encoder, &textureToTexture), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    GfxBlitTextureToTextureDescriptor blit = {};
+    blit.source = source;
+    blit.sourceExtent = { 64, 64, 1 };
+    blit.destination = destination;
+    blit.destinationExtent = { 64, 64, 1 };
+    blit.destinationFinalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_DST;
+    EXPECT_EQ(gfxCommandEncoderBlitTextureToTexture(encoder, &blit), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    gfxCommandEncoderDestroy(encoder);
+    gfxBufferDestroy(buffer);
+    gfxTextureDestroy(destination);
+    gfxTextureDestroy(source);
+}
+
 TEST_P(GfxCommandEncoderTest, CopyTextureToTextureWithNullEncoder)
 {
     GfxCopyTextureToTextureDescriptor copyDesc = {};

@@ -127,6 +127,22 @@ TEST_P(GfxRenderPassTest, CreateRenderPassWithNullOutput)
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
+TEST_P(GfxRenderPassTest, CreateRenderPassRejectsUndefinedFinalLayout)
+{
+    GfxRenderPassColorAttachment colorAttachment = {};
+    colorAttachment.target.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    colorAttachment.target.sampleCount = GFX_SAMPLE_COUNT_1;
+    colorAttachment.target.ops.loadOp = GFX_LOAD_OP_CLEAR;
+    colorAttachment.target.ops.storeOp = GFX_STORE_OP_STORE;
+
+    GfxRenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.colorAttachments = &colorAttachment;
+    renderPassDesc.colorAttachmentCount = 1;
+
+    GfxRenderPass renderPass = nullptr;
+    EXPECT_EQ(gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
 // Test: Create basic RenderPass with single color attachment
 TEST_P(GfxRenderPassTest, CreateBasicRenderPass)
 {

@@ -660,7 +660,7 @@ typedef enum {
 typedef uint32_t GfxTextureUsageFlags;
 
 typedef enum {
-    GFX_TEXTURE_LAYOUT_UNDEFINED = 0, // Initial layout, contents undefined
+    GFX_TEXTURE_LAYOUT_UNDEFINED = 0, // Initial layout, contents undefined; not valid as a final layout
     GFX_TEXTURE_LAYOUT_GENERAL = 1, // General purpose, can be used for anything but may be slow
     GFX_TEXTURE_LAYOUT_COLOR_ATTACHMENT = 2, // Optimal for color render target
     GFX_TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT = 3, // Optimal for depth/stencil render target

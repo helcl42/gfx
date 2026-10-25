@@ -255,6 +255,31 @@ TEST_P(GfxQueueTest, ConcurrentQueueOperationsAreThreadSafe)
 }
 
 // Test: A partial texture write keeps the texels outside the written region
+TEST_P(GfxQueueTest, WriteTextureRejectsUndefinedFinalLayout)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { 4, 4, 1 };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.usage = GFX_TEXTURE_USAGE_COPY_DST;
+    GfxTexture texture = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &texture), GFX_RESULT_SUCCESS);
+
+    const std::vector<uint8_t> pixels(4 * 4 * 4, 0xFF);
+    GfxWriteTextureDescriptor writeDesc = {};
+    writeDesc.texture = texture;
+    writeDesc.extent = { 4, 4, 1 };
+    EXPECT_EQ(gfxQueueWriteTexture(queue, &writeDesc, pixels.data(), pixels.size()), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    gfxTextureDestroy(texture);
+}
+
 TEST_P(GfxQueueTest, WriteTexturePartialPreservesContents)
 {
     GfxQueue queue = nullptr;

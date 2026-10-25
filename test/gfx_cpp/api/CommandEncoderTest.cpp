@@ -345,7 +345,8 @@ TEST_P(GfxCppCommandEncoderTest, CopyBufferToTexture)
         .destination = texture,
         .origin = { 0, 0, 0 },
         .extent = { 256, 256, 1 },
-        .mipLevel = 0
+        .mipLevel = 0,
+        .finalLayout = gfx::TextureLayout::TransferDst
     };
 
     encoder->copyBufferToTexture(copyDesc);
@@ -390,7 +391,8 @@ TEST_P(GfxCppCommandEncoderTest, CopyBufferToTextureMultipleArrayLayers)
         .origin = { 0, 0, 0 },
         .extent = { 64, 64, 2 },
         .mipLevel = 0,
-        .arrayLayer = 1
+        .arrayLayer = 1,
+        .finalLayout = gfx::TextureLayout::TransferDst
     };
 
     EXPECT_NO_THROW(encoder->copyBufferToTexture(copyDesc));
@@ -432,7 +434,8 @@ TEST_P(GfxCppCommandEncoderTest, CopyDepthStencilAllAspectIsRejected)
         .aspect = gfx::TextureAspect::All,
         .destination = buffer,
         .destinationOffset = 0,
-        .extent = { 64, 64, 1 }
+        .extent = { 64, 64, 1 },
+        .finalLayout = gfx::TextureLayout::TransferSrc
     };
 
     EXPECT_THROW(encoder->copyTextureToBuffer(copyDesc), std::runtime_error);
@@ -481,7 +484,8 @@ TEST_P(GfxCppCommandEncoderTest, CopyTextureToBuffer)
         .mipLevel = 0,
         .destination = buffer,
         .destinationOffset = 0,
-        .extent = { 256, 256, 1 }
+        .extent = { 256, 256, 1 },
+        .finalLayout = gfx::TextureLayout::TransferSrc
     };
 
     encoder->copyTextureToBuffer(copyDesc);
@@ -527,9 +531,11 @@ TEST_P(GfxCppCommandEncoderTest, CopyTextureToTexture)
         .source = srcTexture,
         .sourceOrigin = { 0, 0, 0 },
         .sourceMipLevel = 0,
+        .sourceFinalLayout = gfx::TextureLayout::TransferSrc,
         .destination = dstTexture,
         .destinationOrigin = { 0, 0, 0 },
         .destinationMipLevel = 0,
+        .destinationFinalLayout = gfx::TextureLayout::TransferDst,
         .extent = { 256, 256, 1 }
     };
 
@@ -577,10 +583,12 @@ TEST_P(GfxCppCommandEncoderTest, BlitTextureToTexture)
         .sourceOrigin = { 0, 0, 0 },
         .sourceExtent = { 512, 512, 1 },
         .sourceMipLevel = 0,
+        .sourceFinalLayout = gfx::TextureLayout::TransferSrc,
         .destination = dstTexture,
         .destinationOrigin = { 0, 0, 0 },
         .destinationExtent = { 256, 256, 1 },
         .destinationMipLevel = 0,
+        .destinationFinalLayout = gfx::TextureLayout::TransferDst,
         .filter = gfx::FilterMode::Linear
     };
 

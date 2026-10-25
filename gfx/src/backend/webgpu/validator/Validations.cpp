@@ -528,6 +528,17 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
+        // A texture cannot be left in the UNDEFINED layout
+        for (uint32_t i = 0; i < descriptor->colorAttachmentCount; ++i) {
+            const GfxRenderPassColorAttachment& attachment = descriptor->colorAttachments[i];
+            if (attachment.target.finalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED || (attachment.resolveTarget && attachment.resolveTarget->finalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED)) {
+                return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+            }
+        }
+        if (descriptor->depthStencilAttachment && descriptor->depthStencilAttachment->target.finalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+
         return GFX_RESULT_SUCCESS;
     }
 
@@ -679,6 +690,9 @@ namespace {
         if (!descriptor->source || !descriptor->destination) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
+        if (descriptor->finalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
 
         // Validate extent
         if (descriptor->extent.width == 0 || descriptor->extent.height == 0 || descriptor->extent.depth == 0) {
@@ -700,6 +714,9 @@ namespace {
 
         // Validate source and destination
         if (!descriptor->source || !descriptor->destination) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+        if (descriptor->finalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
@@ -725,6 +742,9 @@ namespace {
         if (!descriptor->source || !descriptor->destination) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
+        if (descriptor->sourceFinalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED || descriptor->destinationFinalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
 
         // Validate extent
         if (descriptor->extent.width == 0 || descriptor->extent.height == 0 || descriptor->extent.depth == 0) {
@@ -742,6 +762,9 @@ namespace {
 
         // Validate source and destination
         if (!descriptor->source || !descriptor->destination) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+        if (descriptor->sourceFinalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED || descriptor->destinationFinalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
@@ -1293,6 +1316,9 @@ GfxResult validateQueueWriteBuffer(GfxQueue queue, GfxBuffer buffer, const void*
 GfxResult validateQueueWriteTexture(GfxQueue queue, const GfxWriteTextureDescriptor* descriptor, const void* data)
 {
     if (!queue || !descriptor || !descriptor->texture || !data) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    if (descriptor->finalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     if (descriptor->extent.width == 0 || descriptor->extent.height == 0 || descriptor->extent.depth == 0) {
