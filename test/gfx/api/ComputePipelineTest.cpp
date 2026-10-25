@@ -937,6 +937,16 @@ TEST_P(GfxComputePipelineTest, ComputePipelineConstantsReachShader)
     ASSERT_EQ(gfxComputePassEncoderDispatch(pass, 1, 1, 1), GFX_RESULT_SUCCESS);
     ASSERT_EQ(gfxComputePassEncoderEnd(pass), GFX_RESULT_SUCCESS);
 
+    GfxMemoryBarrier barrier = {};
+    barrier.srcStageMask = GFX_PIPELINE_STAGE_COMPUTE_SHADER;
+    barrier.srcAccessMask = GFX_ACCESS_SHADER_WRITE;
+    barrier.dstStageMask = GFX_PIPELINE_STAGE_TRANSFER;
+    barrier.dstAccessMask = GFX_ACCESS_TRANSFER_READ;
+    GfxPipelineBarrierDescriptor barrierDesc = {};
+    barrierDesc.memoryBarriers = &barrier;
+    barrierDesc.memoryBarrierCount = 1;
+    ASSERT_EQ(gfxCommandEncoderPipelineBarrier(encoder, &barrierDesc), GFX_RESULT_SUCCESS);
+
     GfxCopyBufferToBufferDescriptor copyDesc = {};
     copyDesc.source = storage;
     copyDesc.sourceOffset = 0;
@@ -1242,6 +1252,16 @@ TEST_P(GfxComputePipelineTest, BindGroupDynamicOffsetReachesShader)
     ASSERT_EQ(gfxComputePassEncoderSetBindGroup(pass, 0, bindGroup, &dynamicOffset, 1), GFX_RESULT_SUCCESS);
     ASSERT_EQ(gfxComputePassEncoderDispatch(pass, 1, 1, 1), GFX_RESULT_SUCCESS);
     ASSERT_EQ(gfxComputePassEncoderEnd(pass), GFX_RESULT_SUCCESS);
+
+    GfxMemoryBarrier barrier = {};
+    barrier.srcStageMask = GFX_PIPELINE_STAGE_COMPUTE_SHADER;
+    barrier.srcAccessMask = GFX_ACCESS_SHADER_WRITE;
+    barrier.dstStageMask = GFX_PIPELINE_STAGE_TRANSFER;
+    barrier.dstAccessMask = GFX_ACCESS_TRANSFER_READ;
+    GfxPipelineBarrierDescriptor barrierDesc = {};
+    barrierDesc.memoryBarriers = &barrier;
+    barrierDesc.memoryBarrierCount = 1;
+    ASSERT_EQ(gfxCommandEncoderPipelineBarrier(encoder, &barrierDesc), GFX_RESULT_SUCCESS);
 
     GfxCopyBufferToBufferDescriptor copyDesc = {};
     copyDesc.source = storage;
