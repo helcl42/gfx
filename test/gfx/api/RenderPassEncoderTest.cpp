@@ -306,6 +306,121 @@ TEST_P(GfxRenderPassEncoderTest, CopyAfterRenderPassKeepsContents)
     gfxTextureDestroy(texture);
 }
 
+// A cleared color attachment without a clear value clears to zero, as in WebGPU
+TEST_P(GfxRenderPassEncoderTest, ClearWithoutClearValueClearsToZero)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    constexpr uint32_t kSize = 64;
+    constexpr uint32_t kBytesPerRow = kSize * 4;
+
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { kSize, kSize, 1 };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.usage = GFX_FLAGS(GFX_TEXTURE_USAGE_RENDER_ATTACHMENT | GFX_TEXTURE_USAGE_COPY_SRC);
+    GfxTexture texture = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &texture), GFX_RESULT_SUCCESS);
+
+    GfxTextureViewDescriptor viewDesc = {};
+    viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
+    viewDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    viewDesc.mipLevelCount = 1;
+    viewDesc.arrayLayerCount = 1;
+    GfxTextureView view = nullptr;
+    ASSERT_EQ(gfxTextureCreateView(texture, &viewDesc, &view), GFX_RESULT_SUCCESS);
+
+    GfxRenderPassColorAttachment colorAttachment = {};
+    colorAttachment.target.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    colorAttachment.target.sampleCount = GFX_SAMPLE_COUNT_1;
+    colorAttachment.target.ops.loadOp = GFX_LOAD_OP_CLEAR;
+    colorAttachment.target.ops.storeOp = GFX_STORE_OP_STORE;
+    colorAttachment.target.finalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_SRC;
+
+    GfxRenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.colorAttachments = &colorAttachment;
+    renderPassDesc.colorAttachmentCount = 1;
+    GfxRenderPass renderPass = nullptr;
+    ASSERT_EQ(gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass), GFX_RESULT_SUCCESS);
+
+    GfxFramebufferAttachment framebufferAttachment = {};
+    framebufferAttachment.view = view;
+    GfxFramebufferDescriptor framebufferDesc = {};
+    framebufferDesc.renderPass = renderPass;
+    framebufferDesc.colorAttachments = &framebufferAttachment;
+    framebufferDesc.colorAttachmentCount = 1;
+    framebufferDesc.extent = { kSize, kSize };
+    GfxFramebuffer framebuffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFramebuffer(device, &framebufferDesc, &framebuffer), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor readbackDesc = {};
+    readbackDesc.size = kBytesPerRow * kSize;
+    readbackDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_READ | GFX_BUFFER_USAGE_COPY_DST);
+    readbackDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+    GfxBuffer readback = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &readbackDesc, &readback), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoder encoder = nullptr;
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    // Fill with green first, so a zero result cannot come from the texture's initial contents
+    const GfxColor green = { 0.0f, 1.0f, 0.0f, 1.0f };
+    GfxRenderPassBeginDescriptor beginDesc = {};
+    beginDesc.renderPass = renderPass;
+    beginDesc.framebuffer = framebuffer;
+    beginDesc.colorClearValues = &green;
+    beginDesc.colorClearValueCount = 1;
+    GfxRenderPassEncoder pass = nullptr;
+    ASSERT_EQ(gfxCommandEncoderBeginRenderPass(encoder, &beginDesc, &pass), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxRenderPassEncoderEnd(pass), GFX_RESULT_SUCCESS);
+
+    beginDesc.colorClearValues = nullptr;
+    beginDesc.colorClearValueCount = 0;
+    ASSERT_EQ(gfxCommandEncoderBeginRenderPass(encoder, &beginDesc, &pass), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxRenderPassEncoderEnd(pass), GFX_RESULT_SUCCESS);
+
+    GfxCopyTextureToBufferDescriptor copyDesc = {};
+    copyDesc.source = texture;
+    copyDesc.destination = readback;
+    copyDesc.bytesPerRow = kBytesPerRow;
+    copyDesc.extent = { kSize, kSize, 1 };
+    copyDesc.finalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_SRC;
+    ASSERT_EQ(gfxCommandEncoderCopyTextureToBuffer(encoder, &copyDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+    GfxFenceDescriptor fenceDesc = {};
+    GfxFence fence = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFence(device, &fenceDesc, &fence), GFX_RESULT_SUCCESS);
+
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    submitDesc.signalFence = fence;
+    ASSERT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxFenceWait(fence, GFX_TIMEOUT_INFINITE), GFX_RESULT_SUCCESS);
+
+    void* mapped = nullptr;
+    ASSERT_EQ(gfxBufferMap(readback, 0, readbackDesc.size, &mapped), GFX_RESULT_SUCCESS);
+    const auto* bytes = static_cast<const uint8_t*>(mapped);
+    const uint8_t zero[4] = {};
+    EXPECT_EQ(std::memcmp(bytes, zero, sizeof(zero)), 0);
+    EXPECT_EQ(std::memcmp(bytes + (kSize - 1) * kBytesPerRow + (kSize - 1) * 4, zero, sizeof(zero)), 0);
+    ASSERT_EQ(gfxBufferUnmap(readback), GFX_RESULT_SUCCESS);
+
+    gfxFenceDestroy(fence);
+    gfxCommandEncoderDestroy(encoder);
+    gfxBufferDestroy(readback);
+    gfxFramebufferDestroy(framebuffer);
+    gfxRenderPassDestroy(renderPass);
+    gfxTextureViewDestroy(view);
+    gfxTextureDestroy(texture);
+}
+
 // ===========================================================================
 // Test Instantiation
 // ===========================================================================

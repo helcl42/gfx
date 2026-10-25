@@ -1257,7 +1257,7 @@ typedef struct {
 
     // Clear values (per-frame data)
     const GfxColor* colorClearValues; // Array of clear colors (used when loadOp = CLEAR)
-    uint32_t colorClearValueCount; // Number of color clear values (should match render pass color attachment count)
+    uint32_t colorClearValueCount; // Color attachments beyond this count clear to (0, 0, 0, 0)
     float depthClearValue; // Used when depth loadOp = CLEAR
     uint32_t stencilClearValue; // Used when stencil loadOp = CLEAR
 

@@ -24,23 +24,19 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
     , m_passOcclusionQueryPool(beginInfo.occlusionQueryPool)
     , m_passTimestampQueryPool(beginInfo.timestampQueryPool)
 {
-    // Build clear values array
+    // One clear value per attachment, in attachment order; a color attachment without one clears to zero, as in WebGPU
     std::vector<VkClearValue> clearValues;
-
-    // Add color clear values with dummy values for resolve attachments
-    const auto& colorHasResolve = renderPass->colorHasResolve();
-    for (size_t i = 0; i < beginInfo.colorClearValues.size(); ++i) {
-        // Add the color attachment clear value
+    const auto& colorHasResolve = renderPass->colorHasResolve(); // One entry per color attachment
+    for (size_t i = 0; i < colorHasResolve.size(); ++i) {
         VkClearValue clearValue{};
-        clearValue.color = beginInfo.colorClearValues[i];
+        if (i < beginInfo.colorClearValues.size()) {
+            clearValue.color = beginInfo.colorClearValues[i];
+        }
         clearValues.push_back(clearValue);
 
-        // If this color attachment has a resolve target, add a dummy clear value for it
-        // (resolve attachments use LOAD_OP_DONT_CARE so the value doesn't matter)
-        if (i < colorHasResolve.size() && colorHasResolve[i]) {
-            VkClearValue dummyClear{};
-            dummyClear.color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
-            clearValues.push_back(dummyClear);
+        // The resolve attachment that follows is never cleared
+        if (colorHasResolve[i]) {
+            clearValues.push_back({});
         }
     }
 
