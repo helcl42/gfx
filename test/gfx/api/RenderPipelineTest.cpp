@@ -1107,6 +1107,81 @@ TEST_P(GfxRenderPipelineTest, CreateRenderPipelineWithDepthStencil)
     gfxRenderPassDestroy(renderPass);
 }
 
+TEST_P(GfxRenderPipelineTest, CreateRenderPipelineWithDepth32FloatStencil8RequiresExtension)
+{
+    GfxRenderPassDepthStencilAttachmentTarget depthTarget = {};
+    depthTarget.format = GFX_FORMAT_DEPTH32_FLOAT;
+    depthTarget.sampleCount = GFX_SAMPLE_COUNT_1;
+    depthTarget.depthOps.loadOp = GFX_LOAD_OP_CLEAR;
+    depthTarget.depthOps.storeOp = GFX_STORE_OP_STORE;
+    depthTarget.finalLayout = GFX_TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT;
+
+    GfxRenderPassDepthStencilAttachment depthAttachment = {};
+    depthAttachment.target = depthTarget;
+
+    GfxRenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.depthStencilAttachment = &depthAttachment;
+
+    GfxRenderPass renderPass = nullptr;
+    ASSERT_EQ(gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass), GFX_RESULT_SUCCESS);
+
+    GfxShaderDescriptor shaderDesc = {};
+    if (backend == GFX_BACKEND_VULKAN) {
+        shaderDesc.sourceType = GFX_SHADER_SOURCE_SPIRV;
+        shaderDesc.code = spirvVertexShader;
+        shaderDesc.codeSize = sizeof(spirvVertexShader);
+    } else {
+        shaderDesc.sourceType = GFX_SHADER_SOURCE_WGSL;
+        shaderDesc.code = wgslVertexShader;
+        shaderDesc.codeSize = strlen(wgslVertexShader) + 1; // Include null terminator
+    }
+    shaderDesc.entryPoint = "main";
+
+    GfxShader vertexShader = nullptr;
+    ASSERT_EQ(gfxDeviceCreateShader(device, &shaderDesc, &vertexShader), GFX_RESULT_SUCCESS);
+
+    GfxVertexAttribute vertexAttr = {};
+    vertexAttr.format = GFX_FORMAT_R32G32B32_FLOAT;
+    vertexAttr.shaderLocation = 0;
+
+    GfxVertexBufferLayout vertexBufferLayout = {};
+    vertexBufferLayout.arrayStride = 12;
+    vertexBufferLayout.attributes = &vertexAttr;
+    vertexBufferLayout.attributeCount = 1;
+    vertexBufferLayout.stepMode = GFX_VERTEX_STEP_MODE_VERTEX;
+
+    GfxVertexState vertexState = {};
+    vertexState.module = vertexShader;
+    vertexState.entryPoint = "main";
+    vertexState.buffers = &vertexBufferLayout;
+    vertexState.bufferCount = 1;
+
+    GfxPrimitiveState primitiveState = {};
+    primitiveState.topology = GFX_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    primitiveState.frontFace = GFX_FRONT_FACE_COUNTER_CLOCKWISE;
+    primitiveState.cullMode = GFX_CULL_MODE_NONE;
+    primitiveState.polygonMode = GFX_POLYGON_MODE_FILL;
+
+    GfxDepthStencilState depthStencilState = {};
+    depthStencilState.format = GFX_FORMAT_DEPTH32_FLOAT_STENCIL8;
+    depthStencilState.depthWriteEnabled = true;
+    depthStencilState.depthCompare = GFX_COMPARE_FUNCTION_LESS;
+
+    GfxRenderPipelineDescriptor pipelineDesc = {};
+    pipelineDesc.renderPass = renderPass;
+    pipelineDesc.vertex = &vertexState;
+    pipelineDesc.primitive = &primitiveState;
+    pipelineDesc.depthStencil = &depthStencilState;
+    pipelineDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+
+    GfxRenderPipeline pipeline = nullptr;
+    EXPECT_EQ(gfxDeviceCreateRenderPipeline(device, &pipelineDesc, &pipeline), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+    EXPECT_EQ(pipeline, nullptr);
+
+    gfxShaderDestroy(vertexShader);
+    gfxRenderPassDestroy(renderPass);
+}
+
 // Test: Create RenderPipeline with bind group layouts
 TEST_P(GfxRenderPipelineTest, CreateRenderPipelineWithBindGroupLayouts)
 {

@@ -310,6 +310,28 @@ TEST_P(GfxRenderPassTest, CreateRenderPassWithDepthStencilAttachment)
     gfxRenderPassDestroy(renderPass);
 }
 
+TEST_P(GfxRenderPassTest, CreateRenderPassWithDepth32FloatStencil8RequiresExtension)
+{
+    GfxRenderPassDepthStencilAttachmentTarget depthStencilTarget = {};
+    depthStencilTarget.format = GFX_FORMAT_DEPTH32_FLOAT_STENCIL8;
+    depthStencilTarget.sampleCount = GFX_SAMPLE_COUNT_1;
+    depthStencilTarget.depthOps.loadOp = GFX_LOAD_OP_CLEAR;
+    depthStencilTarget.depthOps.storeOp = GFX_STORE_OP_STORE;
+    depthStencilTarget.stencilOps.loadOp = GFX_LOAD_OP_CLEAR;
+    depthStencilTarget.stencilOps.storeOp = GFX_STORE_OP_STORE;
+    depthStencilTarget.finalLayout = GFX_TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT;
+
+    GfxRenderPassDepthStencilAttachment depthStencilAttachment = {};
+    depthStencilAttachment.target = depthStencilTarget;
+
+    GfxRenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
+
+    GfxRenderPass renderPass = nullptr;
+    EXPECT_EQ(gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+    EXPECT_EQ(renderPass, nullptr);
+}
+
 // Test: Create RenderPass with different load operations
 TEST_P(GfxRenderPassTest, CreateRenderPassWithDifferentLoadOps)
 {

@@ -474,6 +474,34 @@ namespace {
         return GFX_RESULT_SUCCESS;
     }
 
+    // Optional formats require their device extension (WGPU feature) to be enabled
+    GfxResult validateFormatEnabled(WGPUDevice devHandle, GfxFormat format)
+    {
+        switch (gfx::util::getFormatCompressionFamily(format)) {
+        case gfx::util::FormatCompressionFamily::BC:
+            if (!wgpuDeviceHasFeature(devHandle, WGPUFeatureName_TextureCompressionBC)) {
+                return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+            }
+            break;
+        case gfx::util::FormatCompressionFamily::ETC2:
+            if (!wgpuDeviceHasFeature(devHandle, WGPUFeatureName_TextureCompressionETC2)) {
+                return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+            }
+            break;
+        case gfx::util::FormatCompressionFamily::ASTC:
+            if (!wgpuDeviceHasFeature(devHandle, WGPUFeatureName_TextureCompressionASTC)) {
+                return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+            }
+            break;
+        case gfx::util::FormatCompressionFamily::None:
+            break;
+        }
+        if (format == GFX_FORMAT_DEPTH32_FLOAT_STENCIL8 && !wgpuDeviceHasFeature(devHandle, WGPUFeatureName_Depth32FloatStencil8)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+        return GFX_RESULT_SUCCESS;
+    }
+
     GfxResult validateRenderPipelineDescriptor(const GfxRenderPipelineDescriptor* descriptor)
     {
         if (!descriptor) {
@@ -504,6 +532,9 @@ namespace {
 
         // A pipeline must write a color target or depth-stencil, as in WebGPU
         if ((!descriptor->fragment || descriptor->fragment->targetCount == 0) && !descriptor->depthStencil) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+        if (descriptor->fragment && descriptor->fragment->targetCount > 0 && !descriptor->fragment->targets) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
@@ -1041,29 +1072,10 @@ GfxResult validateDeviceCreateTexture(GfxDevice device, const GfxTextureDescript
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
 
-    // Optional formats require their device extension (WGPU feature) to be enabled
     WGPUDevice devHandle = converter::toNative<core::Device>(device)->handle();
-    switch (gfx::util::getFormatCompressionFamily(descriptor->format)) {
-    case gfx::util::FormatCompressionFamily::BC:
-        if (!wgpuDeviceHasFeature(devHandle, WGPUFeatureName_TextureCompressionBC)) {
-            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
-        }
-        break;
-    case gfx::util::FormatCompressionFamily::ETC2:
-        if (!wgpuDeviceHasFeature(devHandle, WGPUFeatureName_TextureCompressionETC2)) {
-            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
-        }
-        break;
-    case gfx::util::FormatCompressionFamily::ASTC:
-        if (!wgpuDeviceHasFeature(devHandle, WGPUFeatureName_TextureCompressionASTC)) {
-            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
-        }
-        break;
-    case gfx::util::FormatCompressionFamily::None:
-        break;
-    }
-    if (descriptor->format == GFX_FORMAT_DEPTH32_FLOAT_STENCIL8 && !wgpuDeviceHasFeature(devHandle, WGPUFeatureName_Depth32FloatStencil8)) {
-        return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+    GfxResult formatResult = validateFormatEnabled(devHandle, descriptor->format);
+    if (formatResult != GFX_RESULT_SUCCESS) {
+        return formatResult;
     }
 
     return validateTextureDescriptor(descriptor);
@@ -1114,7 +1126,24 @@ GfxResult validateDeviceCreateRenderPipeline(GfxDevice device, const GfxRenderPi
     if (!device || !descriptor || !outPipeline) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    return validateRenderPipelineDescriptor(descriptor);
+    GfxResult descriptorResult = validateRenderPipelineDescriptor(descriptor);
+    if (descriptorResult != GFX_RESULT_SUCCESS) {
+        return descriptorResult;
+    }
+
+    WGPUDevice devHandle = converter::toNative<core::Device>(device)->handle();
+    if (descriptor->fragment) {
+        for (uint32_t i = 0; i < descriptor->fragment->targetCount; ++i) {
+            GfxResult formatResult = validateFormatEnabled(devHandle, descriptor->fragment->targets[i].format);
+            if (formatResult != GFX_RESULT_SUCCESS) {
+                return formatResult;
+            }
+        }
+    }
+    if (descriptor->depthStencil) {
+        return validateFormatEnabled(devHandle, descriptor->depthStencil->format);
+    }
+    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult validateDeviceCreateComputePipeline(GfxDevice device, const GfxComputePipelineDescriptor* descriptor, GfxComputePipeline* outPipeline)
@@ -1130,7 +1159,23 @@ GfxResult validateDeviceCreateRenderPass(GfxDevice device, const GfxRenderPassDe
     if (!device || !descriptor || !outRenderPass) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    return validateRenderPassDescriptor(descriptor);
+
+    GfxResult descriptorResult = validateRenderPassDescriptor(descriptor);
+    if (descriptorResult != GFX_RESULT_SUCCESS) {
+        return descriptorResult;
+    }
+
+    WGPUDevice devHandle = converter::toNative<core::Device>(device)->handle();
+    for (uint32_t i = 0; i < descriptor->colorAttachmentCount; ++i) {
+        GfxResult formatResult = validateFormatEnabled(devHandle, descriptor->colorAttachments[i].target.format);
+        if (formatResult != GFX_RESULT_SUCCESS) {
+            return formatResult;
+        }
+    }
+    if (descriptor->depthStencilAttachment) {
+        return validateFormatEnabled(devHandle, descriptor->depthStencilAttachment->target.format);
+    }
+    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult validateDeviceCreateFramebuffer(GfxDevice device, const GfxFramebufferDescriptor* descriptor, GfxFramebuffer* outFramebuffer)
