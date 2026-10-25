@@ -76,7 +76,7 @@ VkResult Semaphore::signal(uint64_t value)
     return m_pfnSignalSemaphore(m_device->handle(), &signalInfo);
 }
 
-VkResult Semaphore::wait(uint64_t value, uint64_t timeoutNs)
+VkResult Semaphore::wait(uint64_t value, uint64_t timeoutNs) const
 {
     if (m_type != SemaphoreType::Timeline) {
         return VK_ERROR_VALIDATION_FAILED_EXT; // Binary semaphores can't be manually waited

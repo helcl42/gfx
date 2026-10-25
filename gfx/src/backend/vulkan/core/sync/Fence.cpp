@@ -50,7 +50,7 @@ VkResult Fence::getStatus(bool* isSignaled) const
     }
 }
 
-VkResult Fence::wait(uint64_t timeoutNs)
+VkResult Fence::wait(uint64_t timeoutNs) const
 {
     return vkWaitForFences(m_device->handle(), 1, &m_fence, VK_TRUE, timeoutNs);
 }

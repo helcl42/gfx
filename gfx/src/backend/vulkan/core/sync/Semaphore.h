@@ -19,7 +19,7 @@ public:
     SemaphoreType getType() const;
 
     VkResult signal(uint64_t value);
-    VkResult wait(uint64_t value, uint64_t timeoutNs);
+    VkResult wait(uint64_t value, uint64_t timeoutNs) const;
     uint64_t getValue() const;
 
 private:

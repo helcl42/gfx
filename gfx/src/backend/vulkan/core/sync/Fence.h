@@ -17,7 +17,7 @@ public:
 
     VkFence handle() const;
     VkResult getStatus(bool* isSignaled) const;
-    VkResult wait(uint64_t timeoutNs);
+    VkResult wait(uint64_t timeoutNs) const;
     void reset();
 
 private:
