@@ -120,7 +120,9 @@ namespace {
             deviceFeatures.textureCompressionASTC_LDR = VK_TRUE;
         }
 
+        // Core in WebGPU, so enabled wherever the hardware has them
         deviceFeatures.depthBiasClamp = availableFeatures.depthBiasClamp;
+        deviceFeatures.imageCubeArray = availableFeatures.imageCubeArray;
 
         return deviceFeatures;
     }
