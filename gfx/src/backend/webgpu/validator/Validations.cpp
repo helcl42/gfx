@@ -1314,7 +1314,18 @@ GfxResult validateTextureCreateView(GfxTexture texture, const GfxTextureViewDesc
     if (!texture || !outView) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    return validateTextureViewDescriptor(descriptor);
+
+    GfxResult descriptorResult = validateTextureViewDescriptor(descriptor);
+    if (descriptorResult != GFX_RESULT_SUCCESS) {
+        return descriptorResult;
+    }
+
+    // WebGPU rule: a view keeps its texture's format, as textures declare no other view formats
+    if (converter::gfxFormatToWGPUFormat(descriptor->format) != converter::toNative<core::Texture>(texture)->getFormat()) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+
+    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult validateQueueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo)

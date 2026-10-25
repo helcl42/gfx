@@ -137,6 +137,25 @@ TEST_P(GfxTextureViewTest, CreateViewInvalidArguments)
     gfxTextureDestroy(texture);
 }
 
+TEST_P(GfxTextureViewTest, CreateViewWithDifferentFormatIsRejected)
+{
+    GfxTexture texture = createBasicTexture();
+    ASSERT_NE(texture, nullptr);
+
+    GfxTextureViewDescriptor viewDesc = {};
+    viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
+    viewDesc.format = GFX_FORMAT_R8G8B8A8_UNORM_SRGB;
+    viewDesc.baseMipLevel = 0;
+    viewDesc.mipLevelCount = 1;
+    viewDesc.baseArrayLayer = 0;
+    viewDesc.arrayLayerCount = 1;
+
+    GfxTextureView view = nullptr;
+    EXPECT_EQ(gfxTextureCreateView(texture, &viewDesc, &view), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    gfxTextureDestroy(texture);
+}
+
 TEST_P(GfxTextureViewTest, CreateView1D)
 {
     GfxTextureDescriptor desc = {};
@@ -549,6 +568,38 @@ TEST_P(GfxTextureViewTest, CreateViewForDepthTexture)
     GfxTextureViewDescriptor viewDesc = {};
     viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
     viewDesc.format = GFX_FORMAT_DEPTH32_FLOAT;
+    viewDesc.baseMipLevel = 0;
+    viewDesc.mipLevelCount = 1;
+    viewDesc.baseArrayLayer = 0;
+    viewDesc.arrayLayerCount = 1;
+
+    GfxTextureView view = nullptr;
+    result = gfxTextureCreateView(texture, &viewDesc, &view);
+    EXPECT_EQ(result, GFX_RESULT_SUCCESS);
+    EXPECT_NE(view, nullptr);
+
+    gfxTextureViewDestroy(view);
+    gfxTextureDestroy(texture);
+}
+
+TEST_P(GfxTextureViewTest, CreateViewForDepth24PlusTexture)
+{
+    GfxTextureDescriptor desc = {};
+    desc.type = GFX_TEXTURE_TYPE_2D;
+    desc.size = { 512, 512, 1 };
+    desc.arrayLayerCount = 1;
+    desc.mipLevelCount = 1;
+    desc.sampleCount = GFX_SAMPLE_COUNT_1;
+    desc.format = GFX_FORMAT_DEPTH24_PLUS;
+    desc.usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
+
+    GfxTexture texture = nullptr;
+    GfxResult result = gfxDeviceCreateTexture(device, &desc, &texture);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+
+    GfxTextureViewDescriptor viewDesc = {};
+    viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
+    viewDesc.format = GFX_FORMAT_DEPTH24_PLUS;
     viewDesc.baseMipLevel = 0;
     viewDesc.mipLevelCount = 1;
     viewDesc.baseArrayLayer = 0;
