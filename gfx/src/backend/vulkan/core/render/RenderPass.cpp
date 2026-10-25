@@ -1,6 +1,7 @@
 #include "RenderPass.h"
 
 #include "../system/Device.h"
+#include "../util/Utils.h"
 
 #include <stdexcept>
 
@@ -88,25 +89,51 @@ namespace {
         return layout;
     }
 
-    // External->subpass dependency covering the stages the pass actually uses
-    VkSubpassDependency makeExternalDependency(bool hasColor, bool hasDepth)
+    // Stages and writes through which the pass uses its attachments
+    struct AttachmentScope {
+        VkPipelineStageFlags stages = 0;
+        VkAccessFlags writes = 0;
+    };
+
+    AttachmentScope makeAttachmentScope(bool hasColor, bool hasDepth)
+    {
+        AttachmentScope scope;
+        if (hasColor) {
+            scope.stages |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            scope.writes |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        }
+        if (hasDepth) {
+            scope.stages |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+            scope.writes |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        }
+        return scope;
+    }
+
+    // External->subpass dependency: earlier attachment writes finish before the pass writes them
+    VkSubpassDependency makeIncomingDependency(const AttachmentScope& scope)
     {
         VkSubpassDependency dependency{};
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
         dependency.dstSubpass = 0;
+        dependency.srcStageMask = scope.stages;
+        dependency.dstStageMask = scope.stages;
+        dependency.srcAccessMask = scope.writes;
+        dependency.dstAccessMask = scope.writes;
         dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+        return dependency;
+    }
 
-        if (hasColor) {
-            dependency.srcStageMask |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependency.dstStageMask |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependency.srcAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            dependency.dstAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        }
-        if (hasDepth) {
-            dependency.srcStageMask |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-            dependency.dstStageMask |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-            dependency.srcAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            dependency.dstAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    // Subpass->external dependency: the pass's writes and final layout transitions finish before the uses its final layouts name
+    VkSubpassDependency makeOutgoingDependency(const AttachmentScope& scope, const std::vector<VkAttachmentDescription>& attachments)
+    {
+        VkSubpassDependency dependency{};
+        dependency.srcSubpass = 0;
+        dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.srcStageMask = scope.stages;
+        dependency.srcAccessMask = scope.writes;
+        for (const auto& attachment : attachments) {
+            dependency.dstStageMask |= getVkPipelineStagesForLayout(attachment.finalLayout);
+            dependency.dstAccessMask |= getVkAccessFlagsForLayout(attachment.finalLayout);
         }
         return dependency;
     }
@@ -131,7 +158,8 @@ RenderPass::RenderPass(Device* device, const RenderPassCreateInfo& createInfo)
     subpass.pResolveAttachments = layout.resolveRefs.empty() ? nullptr : layout.resolveRefs.data();
     subpass.pDepthStencilAttachment = layout.hasDepth ? &layout.depthRef : nullptr;
 
-    VkSubpassDependency dependency = makeExternalDependency(!layout.colorRefs.empty(), layout.hasDepth);
+    const AttachmentScope scope = makeAttachmentScope(!layout.colorRefs.empty(), layout.hasDepth);
+    const VkSubpassDependency dependencies[] = { makeIncomingDependency(scope), makeOutgoingDependency(scope, layout.attachments) };
 
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -139,8 +167,8 @@ RenderPass::RenderPass(Device* device, const RenderPassCreateInfo& createInfo)
     renderPassInfo.pAttachments = layout.attachments.data();
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
-    renderPassInfo.dependencyCount = 1;
-    renderPassInfo.pDependencies = &dependency;
+    renderPassInfo.dependencyCount = 2;
+    renderPassInfo.pDependencies = dependencies;
 
     // Add multiview support if requested
     VkRenderPassMultiviewCreateInfo multiviewInfo{};

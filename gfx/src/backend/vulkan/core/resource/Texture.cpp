@@ -173,70 +173,9 @@ void Texture::transitionLayout(VkCommandBuffer commandBuffer, VkImageLayout oldL
     barrier.srcAccessMask = getVkAccessFlagsForLayout(oldLayout);
     barrier.dstAccessMask = getVkAccessFlagsForLayout(newLayout);
 
-    // Shader-read layouts may be read by any shader stage GFX exposes (GfxShaderStage: vertex, fragment, compute)
-    constexpr VkPipelineStageFlags shaderStages = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-    constexpr VkPipelineStageFlags depthStencilTestStages = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-
-    // Determine source stage
-    VkPipelineStageFlags srcStage;
-    switch (oldLayout) {
-    case VK_IMAGE_LAYOUT_UNDEFINED:
-        srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        break;
-    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        break;
-    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-        srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        break;
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-        srcStage = depthStencilTestStages;
-        break;
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-        srcStage = depthStencilTestStages | shaderStages;
-        break;
-    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-        srcStage = shaderStages;
-        break;
-    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-        srcStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-        break;
-    default:
-        srcStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-        break;
-    }
-
-    // Determine destination stage
-    VkPipelineStageFlags dstStage;
-    switch (newLayout) {
-    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        break;
-    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-        dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        break;
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-        dstStage = depthStencilTestStages;
-        break;
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-        dstStage = depthStencilTestStages | shaderStages;
-        break;
-    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-        dstStage = shaderStages;
-        break;
-    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-        dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-        break;
-    default:
-        dstStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-        break;
-    }
-
     vkCmdPipelineBarrier(
         commandBuffer,
-        srcStage, dstStage,
+        getVkPipelineStagesForLayout(oldLayout), getVkPipelineStagesForLayout(newLayout),
         0,
         0, nullptr,
         0, nullptr,

@@ -238,6 +238,29 @@ TEST_F(VulkanUtilsTest, GetVkAccessFlagsForLayout_DepthAttachmentStencilReadOnly
     EXPECT_EQ(result, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
 }
 
+TEST_F(VulkanUtilsTest, GetVkPipelineStagesForLayout_ReturnsStagesUsingTheLayout)
+{
+    constexpr VkPipelineStageFlags shaderStages = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    constexpr VkPipelineStageFlags depthStencilTestStages = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    struct {
+        VkImageLayout layout;
+        VkPipelineStageFlags stages;
+    } const cases[] = {
+        { VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT },
+        { VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT },
+        { VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT },
+        { VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
+        { VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, depthStencilTestStages },
+        { VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, depthStencilTestStages | shaderStages },
+        { VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, shaderStages },
+        { VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT },
+        { VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT },
+    };
+    for (const auto& c : cases) {
+        EXPECT_EQ(gfx::backend::vulkan::core::getVkPipelineStagesForLayout(c.layout), c.stages) << "layout " << c.layout;
+    }
+}
+
 // ============================================================================
 // Memory Type Finding Tests
 // ============================================================================

@@ -19,6 +19,9 @@ uint32_t getAspectTexelSize(VkFormat format, VkImageAspectFlags aspectMask);
 // Get the appropriate access flags for a given image layout
 VkAccessFlags getVkAccessFlagsForLayout(VkImageLayout layout);
 
+// Get the pipeline stages that use an image in a given layout
+VkPipelineStageFlags getVkPipelineStagesForLayout(VkImageLayout layout);
+
 // Check if format has depth component
 bool isDepthFormat(VkFormat format);
 
