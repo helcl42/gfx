@@ -470,6 +470,11 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
+        // A pipeline must write a color target or depth-stencil, as in WebGPU
+        if ((!descriptor->fragment || descriptor->fragment->targetCount == 0) && !descriptor->depthStencil) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+
         GfxResult constantsResult = validateConstants(descriptor->vertex->constants, descriptor->vertex->constantCount);
         if (constantsResult != GFX_RESULT_SUCCESS) {
             return constantsResult;

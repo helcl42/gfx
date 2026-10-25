@@ -139,6 +139,14 @@ TEST_P(GfxCppRenderPipelineTest, CreateBasicRenderPipeline)
     auto vertexShader = device->createShader(shaderDesc);
     ASSERT_NE(vertexShader, nullptr);
 
+    auto fragmentShader = device->createShader({ .label = "Fragment Shader",
+        .sourceType = backend == gfx::Backend::Vulkan ? gfx::ShaderSourceType::SPIRV : gfx::ShaderSourceType::WGSL,
+        .code = backend == gfx::Backend::Vulkan
+            ? toShaderCode(spirvFragmentShader, sizeof(spirvFragmentShader))
+            : toShaderCode(wgslFragmentShader),
+        .entryPoint = "main" });
+    ASSERT_NE(fragmentShader, nullptr);
+
     // Create pipeline
     gfx::RenderPipelineDescriptor pipelineDesc{
         .label = "Test Pipeline",
@@ -154,6 +162,7 @@ TEST_P(GfxCppRenderPipelineTest, CreateBasicRenderPipeline)
                             .format = gfx::Format::R32G32B32Float,
                             .offset = 0,
                             .shaderLocation = 0 } } } } },
+        .fragment = gfx::FragmentState{ .module = fragmentShader, .entryPoint = "main", .targets = { gfx::ColorTargetState{ .format = gfx::Format::R8G8B8A8Unorm, .writeMask = gfx::ColorWriteMask::All } } },
         .primitive = { .topology = gfx::PrimitiveTopology::TriangleList, .cullMode = gfx::CullMode::None }
     };
 
@@ -244,6 +253,28 @@ TEST_P(GfxCppRenderPipelineTest, CreateRenderPipelineWithNullRenderPass)
                            .entryPoint = "main" } }); }, std::exception);
 }
 
+// A pipeline must write a color target or depth-stencil
+TEST_P(GfxCppRenderPipelineTest, CreateRenderPipelineWithoutTargets)
+{
+    auto renderPass = device->createRenderPass({ .colorAttachments = {
+                                                     gfx::RenderPassColorAttachment{
+                                                         .target = {
+                                                             .format = gfx::Format::R8G8B8A8Unorm,
+                                                             .sampleCount = gfx::SampleCount::Count1,
+                                                             .ops = { gfx::LoadOp::Clear, gfx::StoreOp::Store },
+                                                             .finalLayout = gfx::TextureLayout::ColorAttachment } } } });
+    ASSERT_NE(renderPass, nullptr);
+
+    auto vertexShader = device->createShader({ .sourceType = backend == gfx::Backend::Vulkan ? gfx::ShaderSourceType::SPIRV : gfx::ShaderSourceType::WGSL,
+        .code = backend == gfx::Backend::Vulkan
+            ? toShaderCode(spirvVertexShader, sizeof(spirvVertexShader))
+            : toShaderCode(wgslVertexShader),
+        .entryPoint = "main" });
+    ASSERT_NE(vertexShader, nullptr);
+
+    EXPECT_THROW(device->createRenderPipeline({ .renderPass = renderPass, .vertex = { .module = vertexShader, .entryPoint = "main" } }), std::exception);
+}
+
 TEST_P(GfxCppRenderPipelineTest, CreateRenderPipelineWithDifferentTopologies)
 {
     auto renderPass = device->createRenderPass({ .colorAttachments = {
@@ -261,6 +292,14 @@ TEST_P(GfxCppRenderPipelineTest, CreateRenderPipelineWithDifferentTopologies)
             : toShaderCode(wgslVertexShader),
         .entryPoint = "main" });
     ASSERT_NE(vertexShader, nullptr);
+
+    auto fragmentShader = device->createShader({ .label = "Fragment Shader",
+        .sourceType = backend == gfx::Backend::Vulkan ? gfx::ShaderSourceType::SPIRV : gfx::ShaderSourceType::WGSL,
+        .code = backend == gfx::Backend::Vulkan
+            ? toShaderCode(spirvFragmentShader, sizeof(spirvFragmentShader))
+            : toShaderCode(wgslFragmentShader),
+        .entryPoint = "main" });
+    ASSERT_NE(fragmentShader, nullptr);
 
     // Test different topologies
     std::vector<gfx::PrimitiveTopology> topologies = {
@@ -284,6 +323,7 @@ TEST_P(GfxCppRenderPipelineTest, CreateRenderPipelineWithDifferentTopologies)
                                 .format = gfx::Format::R32G32B32Float,
                                 .offset = 0,
                                 .shaderLocation = 0 } } } } },
+            .fragment = gfx::FragmentState{ .module = fragmentShader, .entryPoint = "main", .targets = { gfx::ColorTargetState{ .format = gfx::Format::R8G8B8A8Unorm, .writeMask = gfx::ColorWriteMask::All } } },
             .primitive = { .topology = topology } });
 
         EXPECT_NE(pipeline, nullptr);
@@ -308,6 +348,14 @@ TEST_P(GfxCppRenderPipelineTest, CreateRenderPipelineWithCulling)
         .entryPoint = "main" });
     ASSERT_NE(vertexShader, nullptr);
 
+    auto fragmentShader = device->createShader({ .label = "Fragment Shader",
+        .sourceType = backend == gfx::Backend::Vulkan ? gfx::ShaderSourceType::SPIRV : gfx::ShaderSourceType::WGSL,
+        .code = backend == gfx::Backend::Vulkan
+            ? toShaderCode(spirvFragmentShader, sizeof(spirvFragmentShader))
+            : toShaderCode(wgslFragmentShader),
+        .entryPoint = "main" });
+    ASSERT_NE(fragmentShader, nullptr);
+
     // Test back face culling
     auto pipelineBack = device->createRenderPipeline({ .renderPass = renderPass,
         .vertex = {
@@ -321,6 +369,7 @@ TEST_P(GfxCppRenderPipelineTest, CreateRenderPipelineWithCulling)
                             .format = gfx::Format::R32G32B32Float,
                             .offset = 0,
                             .shaderLocation = 0 } } } } },
+        .fragment = gfx::FragmentState{ .module = fragmentShader, .entryPoint = "main", .targets = { gfx::ColorTargetState{ .format = gfx::Format::R8G8B8A8Unorm, .writeMask = gfx::ColorWriteMask::All } } },
         .primitive = { .topology = gfx::PrimitiveTopology::TriangleList, .cullMode = gfx::CullMode::Back } });
     EXPECT_NE(pipelineBack, nullptr);
 
@@ -337,6 +386,7 @@ TEST_P(GfxCppRenderPipelineTest, CreateRenderPipelineWithCulling)
                             .format = gfx::Format::R32G32B32Float,
                             .offset = 0,
                             .shaderLocation = 0 } } } } },
+        .fragment = gfx::FragmentState{ .module = fragmentShader, .entryPoint = "main", .targets = { gfx::ColorTargetState{ .format = gfx::Format::R8G8B8A8Unorm, .writeMask = gfx::ColorWriteMask::All } } },
         .primitive = { .topology = gfx::PrimitiveTopology::TriangleList, .cullMode = gfx::CullMode::Front } });
     EXPECT_NE(pipelineFront, nullptr);
 }
@@ -416,6 +466,14 @@ TEST_P(GfxCppRenderPipelineTest, CreateRenderPipelineWithMultipleVertexAttribute
         .entryPoint = "main" });
     ASSERT_NE(vertexShader, nullptr);
 
+    auto fragmentShader = device->createShader({ .label = "Fragment Shader",
+        .sourceType = backend == gfx::Backend::Vulkan ? gfx::ShaderSourceType::SPIRV : gfx::ShaderSourceType::WGSL,
+        .code = backend == gfx::Backend::Vulkan
+            ? toShaderCode(spirvFragmentShader, sizeof(spirvFragmentShader))
+            : toShaderCode(wgslFragmentShader),
+        .entryPoint = "main" });
+    ASSERT_NE(fragmentShader, nullptr);
+
     // Create pipeline with multiple vertex attributes
     auto pipeline = device->createRenderPipeline({ .renderPass = renderPass,
         .vertex = {
@@ -438,6 +496,7 @@ TEST_P(GfxCppRenderPipelineTest, CreateRenderPipelineWithMultipleVertexAttribute
                             .offset = 24,
                             .shaderLocation = 2 } // texcoord
                     } } } },
+        .fragment = gfx::FragmentState{ .module = fragmentShader, .entryPoint = "main", .targets = { gfx::ColorTargetState{ .format = gfx::Format::R8G8B8A8Unorm, .writeMask = gfx::ColorWriteMask::All } } },
         .primitive = { .topology = gfx::PrimitiveTopology::TriangleList } });
 
     EXPECT_NE(pipeline, nullptr);

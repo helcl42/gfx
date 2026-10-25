@@ -118,6 +118,16 @@ TEST_P(RenderPipelineImplTest, CreateRenderPipeline)
     auto shader = deviceWrapper.createShader(shaderDesc);
     ASSERT_NE(shader, nullptr);
 
+    ShaderDescriptor fragmentShaderDesc{
+        .sourceType = ShaderSourceType::SPIRV,
+        .entryPoint = "main"
+    };
+    fragmentShaderDesc.code.assign(reinterpret_cast<const uint8_t*>(fragmentShaderCode),
+        reinterpret_cast<const uint8_t*>(fragmentShaderCode) + sizeof(fragmentShaderCode));
+
+    auto fragmentShader = deviceWrapper.createShader(fragmentShaderDesc);
+    ASSERT_NE(fragmentShader, nullptr);
+
     // Create render pass using DeviceImpl
     RenderPassCreateDescriptor renderPassDesc{
         .colorAttachments = {
@@ -139,6 +149,7 @@ TEST_P(RenderPipelineImplTest, CreateRenderPipeline)
             .module = shader,
             .entryPoint = "main",
             .buffers = {} },
+        .fragment = FragmentState{ .module = fragmentShader, .entryPoint = "main", .targets = { ColorTargetState{ .format = Format::R8G8B8A8Unorm, .writeMask = ColorWriteMask::All } } },
         .primitive = { .topology = PrimitiveTopology::TriangleList, .frontFace = FrontFace::CounterClockwise, .cullMode = CullMode::None },
         .sampleCount = SampleCount::Count1
     };
@@ -162,6 +173,16 @@ TEST_P(RenderPipelineImplTest, MultipleRenderPipelines_IndependentHandles)
     auto shader = deviceWrapper.createShader(shaderDesc);
     ASSERT_NE(shader, nullptr);
 
+    ShaderDescriptor fragmentShaderDesc{
+        .sourceType = ShaderSourceType::SPIRV,
+        .entryPoint = "main"
+    };
+    fragmentShaderDesc.code.assign(reinterpret_cast<const uint8_t*>(fragmentShaderCode),
+        reinterpret_cast<const uint8_t*>(fragmentShaderCode) + sizeof(fragmentShaderCode));
+
+    auto fragmentShader = deviceWrapper.createShader(fragmentShaderDesc);
+    ASSERT_NE(fragmentShader, nullptr);
+
     // Create render pass
     RenderPassCreateDescriptor renderPassDesc{
         .colorAttachments = {
@@ -183,6 +204,7 @@ TEST_P(RenderPipelineImplTest, MultipleRenderPipelines_IndependentHandles)
             .module = shader,
             .entryPoint = "main",
             .buffers = {} },
+        .fragment = FragmentState{ .module = fragmentShader, .entryPoint = "main", .targets = { ColorTargetState{ .format = Format::R8G8B8A8Unorm, .writeMask = ColorWriteMask::All } } },
         .primitive = { .topology = PrimitiveTopology::TriangleList, .frontFace = FrontFace::CounterClockwise, .cullMode = CullMode::None },
         .sampleCount = SampleCount::Count1
     };

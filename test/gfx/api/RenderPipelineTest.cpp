@@ -897,6 +897,16 @@ TEST_P(GfxRenderPipelineTest, UnsupportedPrimitiveStateIsRejected)
     GfxShader vertexShader = nullptr;
     ASSERT_EQ(gfxDeviceCreateShader(device, &shaderDesc, &vertexShader), GFX_RESULT_SUCCESS);
 
+    if (backend == GFX_BACKEND_VULKAN) {
+        shaderDesc.code = spirvFragmentShader;
+        shaderDesc.codeSize = sizeof(spirvFragmentShader);
+    } else {
+        shaderDesc.code = wgslFragmentShader;
+        shaderDesc.codeSize = strlen(wgslFragmentShader) + 1;
+    }
+    GfxShader fragmentShader = nullptr;
+    ASSERT_EQ(gfxDeviceCreateShader(device, &shaderDesc, &fragmentShader), GFX_RESULT_SUCCESS);
+
     GfxVertexAttribute vertexAttr = {};
     vertexAttr.format = GFX_FORMAT_R32G32B32_FLOAT;
     vertexAttr.shaderLocation = 0;
@@ -920,9 +930,20 @@ TEST_P(GfxRenderPipelineTest, UnsupportedPrimitiveStateIsRejected)
     primitiveState.cullMode = GFX_CULL_MODE_NONE;
     primitiveState.polygonMode = GFX_POLYGON_MODE_FILL;
 
+    GfxColorTargetState colorTargetState = {};
+    colorTargetState.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    colorTargetState.writeMask = 0xF;
+
+    GfxFragmentState fragmentState = {};
+    fragmentState.module = fragmentShader;
+    fragmentState.entryPoint = "main";
+    fragmentState.targets = &colorTargetState;
+    fragmentState.targetCount = 1;
+
     GfxRenderPipelineDescriptor pipelineDesc = {};
     pipelineDesc.renderPass = renderPass;
     pipelineDesc.vertex = &vertexState;
+    pipelineDesc.fragment = &fragmentState;
     pipelineDesc.primitive = &primitiveState;
     pipelineDesc.sampleCount = GFX_SAMPLE_COUNT_1;
 
@@ -947,6 +968,7 @@ TEST_P(GfxRenderPipelineTest, UnsupportedPrimitiveStateIsRejected)
         gfxRenderPipelineDestroy(pipeline);
     }
 
+    gfxShaderDestroy(fragmentShader);
     gfxShaderDestroy(vertexShader);
     gfxRenderPassDestroy(renderPass);
 }
