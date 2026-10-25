@@ -161,6 +161,54 @@ TEST_P(GfxQueueTest, SubmitWithEmptyDescriptor)
     EXPECT_EQ(result, GFX_RESULT_SUCCESS);
 }
 
+TEST_P(GfxQueueTest, SubmitRejectsNullCommandEncoder)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoder encoder = nullptr;
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    EXPECT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    submitDesc.commandEncoders = nullptr;
+    EXPECT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+// A render bundle is executed inside a render pass, never submitted
+TEST_P(GfxQueueTest, SubmitRejectsRenderBundleEncoder)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    GfxRenderPassColorAttachment colorAttachment = {};
+    colorAttachment.target.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    colorAttachment.target.sampleCount = GFX_SAMPLE_COUNT_1;
+    colorAttachment.target.ops.loadOp = GFX_LOAD_OP_CLEAR;
+    colorAttachment.target.ops.storeOp = GFX_STORE_OP_STORE;
+    colorAttachment.target.finalLayout = GFX_TEXTURE_LAYOUT_COLOR_ATTACHMENT;
+    GfxRenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.colorAttachments = &colorAttachment;
+    renderPassDesc.colorAttachmentCount = 1;
+    GfxRenderPass renderPass = nullptr;
+    ASSERT_EQ(gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass), GFX_RESULT_SUCCESS);
+
+    GfxRenderBundleEncoderDescriptor bundleDesc = {};
+    bundleDesc.sType = GFX_STRUCTURE_TYPE_RENDER_BUNDLE_ENCODER_DESCRIPTOR;
+    bundleDesc.renderPass = renderPass;
+    GfxCommandEncoder bundleEncoder = nullptr;
+    ASSERT_EQ(gfxDeviceCreateRenderBundleCommandEncoder(device, &bundleDesc, &bundleEncoder), GFX_RESULT_SUCCESS);
+
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &bundleEncoder;
+    submitDesc.commandEncoderCount = 1;
+    EXPECT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    gfxCommandEncoderDestroy(bundleEncoder);
+    gfxRenderPassDestroy(renderPass);
+}
+
 // Test: Vulkan requires a waitStages entry per wait semaphore. The validator must reject a
 // submit that has wait semaphores but a NULL waitStages array (rejected before any GPU wait,
 // so no deadlock). WebGPU ignores waitStages, so this requirement is Vulkan-only.

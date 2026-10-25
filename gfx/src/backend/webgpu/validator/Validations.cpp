@@ -1338,6 +1338,16 @@ GfxResult validateQueueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitD
     if (!queue || !submitDescriptor) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
+    if ((submitDescriptor->commandEncoderCount > 0 && !submitDescriptor->commandEncoders) || (submitDescriptor->signalSemaphoreCount > 0 && !submitDescriptor->signalSemaphores)) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    // A render bundle is executed inside a pass, never submitted
+    for (uint32_t i = 0; i < submitDescriptor->commandEncoderCount; ++i) {
+        GfxCommandEncoder encoder = submitDescriptor->commandEncoders[i];
+        if (!encoder || converter::toNative<core::CommandEncoder>(encoder)->isBundleEncoder()) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+    }
     return GFX_RESULT_SUCCESS;
 }
 

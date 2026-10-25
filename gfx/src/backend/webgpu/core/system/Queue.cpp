@@ -46,16 +46,11 @@ bool Queue::submit(const SubmitInfo& submitInfo)
 {
     // Wait semaphores are implicit: the single queue runs submissions in order
     for (uint32_t i = 0; i < submitInfo.commandEncoderCount; ++i) {
-        if (submitInfo.commandEncoders[i]) {
-            auto* encoderPtr = submitInfo.commandEncoders[i];
-
-            WGPUCommandBuffer cmdBuffer = encoderPtr->commandBuffer();
-            if (cmdBuffer) {
-                wgpuQueueSubmit(m_queue, 1, &cmdBuffer);
-            } else {
-                return false;
-            }
+        WGPUCommandBuffer cmdBuffer = submitInfo.commandEncoders[i]->commandBuffer();
+        if (!cmdBuffer) {
+            return false;
         }
+        wgpuQueueSubmit(m_queue, 1, &cmdBuffer);
     }
 
     // Signaled once this work completes, so submit does not block

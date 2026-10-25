@@ -1335,10 +1335,18 @@ GfxResult validateQueueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitD
     if (submitDescriptor->waitSemaphoreCount > 0 && (!submitDescriptor->waitSemaphores || !submitDescriptor->waitStages)) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
+    if ((submitDescriptor->commandEncoderCount > 0 && !submitDescriptor->commandEncoders) || (submitDescriptor->signalSemaphoreCount > 0 && !submitDescriptor->signalSemaphores)) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
     const uint32_t queueFamily = converter::toNative<core::Queue>(queue)->family();
     for (uint32_t i = 0; i < submitDescriptor->commandEncoderCount; ++i) {
         GfxCommandEncoder encoder = submitDescriptor->commandEncoders[i];
-        if (encoder && converter::toNative<core::CommandEncoder>(encoder)->queueFamily() != queueFamily) {
+        if (!encoder) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+        // A render bundle is executed inside a pass, never submitted
+        const auto* nativeEncoder = converter::toNative<core::CommandEncoder>(encoder);
+        if (nativeEncoder->isBundleEncoder() || nativeEncoder->queueFamily() != queueFamily) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
     }
