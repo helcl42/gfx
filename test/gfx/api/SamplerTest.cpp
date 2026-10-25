@@ -96,6 +96,32 @@ TEST_P(GfxSamplerTest, CreateSamplerWithValidDescriptor)
     }
 }
 
+TEST_P(GfxSamplerTest, CreateSamplerWithAnisotropyAboveDeviceLimit)
+{
+    GfxSamplerDescriptor desc = {};
+    desc.label = "Anisotropic Sampler";
+    desc.addressModeU = GFX_ADDRESS_MODE_REPEAT;
+    desc.addressModeV = GFX_ADDRESS_MODE_REPEAT;
+    desc.addressModeW = GFX_ADDRESS_MODE_REPEAT;
+    desc.magFilter = GFX_FILTER_MODE_LINEAR;
+    desc.minFilter = GFX_FILTER_MODE_LINEAR;
+    desc.mipmapFilter = GFX_FILTER_MODE_LINEAR;
+    desc.lodMinClamp = 0.0f;
+    desc.lodMaxClamp = 1000.0f;
+    desc.compare = GFX_COMPARE_FUNCTION_UNDEFINED;
+    desc.maxAnisotropy = 32;
+
+    GfxSampler sampler = nullptr;
+    GfxResult result = gfxDeviceCreateSampler(device, &desc, &sampler);
+
+    EXPECT_EQ(result, GFX_RESULT_SUCCESS);
+    EXPECT_NE(sampler, nullptr);
+
+    if (sampler) {
+        gfxSamplerDestroy(sampler);
+    }
+}
+
 TEST_P(GfxSamplerTest, CreateSamplerWithNullDevice)
 {
     GfxSamplerDescriptor desc = {};

@@ -76,11 +76,8 @@ namespace {
     {
         VkPhysicalDeviceFeatures deviceFeatures{};
 
-        if (hasExtension(enabledExtensions, DeviceExtension::AnisotropicFiltering)) {
-            if (!availableFeatures.samplerAnisotropy) {
-                throw std::runtime_error("Anisotropic filtering is not supported by this device");
-            }
-            deviceFeatures.samplerAnisotropy = VK_TRUE;
+        if (hasExtension(enabledExtensions, DeviceExtension::AnisotropicFiltering) && !availableFeatures.samplerAnisotropy) {
+            throw std::runtime_error("Anisotropic filtering is not supported by this device");
         }
 
         if (hasExtension(enabledExtensions, DeviceExtension::OcclusionQueryPrecise)) {
@@ -123,6 +120,7 @@ namespace {
         // Core in WebGPU, so enabled wherever the hardware has them
         deviceFeatures.depthBiasClamp = availableFeatures.depthBiasClamp;
         deviceFeatures.imageCubeArray = availableFeatures.imageCubeArray;
+        deviceFeatures.samplerAnisotropy = availableFeatures.samplerAnisotropy;
 
         return deviceFeatures;
     }
