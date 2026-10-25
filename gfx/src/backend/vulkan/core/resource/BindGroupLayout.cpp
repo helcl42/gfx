@@ -8,6 +8,7 @@ namespace gfx::backend::vulkan::core {
 
 BindGroupLayout::BindGroupLayout(Device* device, const BindGroupLayoutCreateInfo& createInfo)
     : m_device(device)
+    , m_entries(createInfo.entries)
 {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 
@@ -19,9 +20,6 @@ BindGroupLayout::BindGroupLayout(Device* device, const BindGroupLayoutCreateInfo
         binding.stageFlags = entry.stageFlags;
 
         bindings.push_back(binding);
-
-        // Store binding info for later queries
-        m_bindingTypes[entry.binding] = entry.descriptorType;
     }
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
@@ -49,11 +47,17 @@ VkDescriptorSetLayout BindGroupLayout::handle() const
 
 VkDescriptorType BindGroupLayout::getBindingType(uint32_t binding) const
 {
-    auto it = m_bindingTypes.find(binding);
-    if (it != m_bindingTypes.end()) {
-        return it->second;
+    for (const BindGroupLayoutEntry& entry : m_entries) {
+        if (entry.binding == binding) {
+            return entry.descriptorType;
+        }
     }
     return VK_DESCRIPTOR_TYPE_MAX_ENUM; // Invalid
+}
+
+const std::vector<BindGroupLayoutEntry>& BindGroupLayout::getEntries() const
+{
+    return m_entries;
 }
 
 } // namespace gfx::backend::vulkan::core

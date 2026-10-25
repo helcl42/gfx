@@ -17,9 +17,11 @@ public:
     ~BindGroupLayout();
 
     WGPUBindGroupLayout handle() const;
+    const std::vector<BindGroupLayoutEntry>& getEntries() const;
 
 private:
     WGPUBindGroupLayout m_layout = nullptr;
+    std::vector<BindGroupLayoutEntry> m_entries;
 };
 
 } // namespace gfx::backend::webgpu::core

@@ -592,6 +592,114 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithMultipleEntries)
     gfxBindGroupLayoutDestroy(layout);
 }
 
+TEST_P(GfxBindGroupTest, CreateBindGroupWithMissingBindingIsRejected)
+{
+    GfxBindGroupLayoutEntry layoutEntries[2] = {};
+    for (uint32_t i = 0; i < 2; ++i) {
+        layoutEntries[i].binding = i;
+        layoutEntries[i].visibility = GFX_SHADER_STAGE_FRAGMENT;
+        layoutEntries[i].type = GFX_BINDING_TYPE_SAMPLER;
+        layoutEntries[i].sampler.type = GFX_SAMPLER_BINDING_TYPE_FILTERING;
+    }
+
+    GfxBindGroupLayoutDescriptor layoutDesc = {};
+    layoutDesc.entries = layoutEntries;
+    layoutDesc.entryCount = 2;
+
+    GfxBindGroupLayout layout = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBindGroupLayout(device, &layoutDesc, &layout), GFX_RESULT_SUCCESS);
+
+    GfxSamplerDescriptor samplerDesc = {};
+    samplerDesc.addressModeU = GFX_ADDRESS_MODE_REPEAT;
+    samplerDesc.addressModeV = GFX_ADDRESS_MODE_REPEAT;
+    samplerDesc.addressModeW = GFX_ADDRESS_MODE_REPEAT;
+    samplerDesc.magFilter = GFX_FILTER_MODE_LINEAR;
+    samplerDesc.minFilter = GFX_FILTER_MODE_LINEAR;
+    samplerDesc.mipmapFilter = GFX_FILTER_MODE_LINEAR;
+
+    GfxSampler sampler = nullptr;
+    ASSERT_EQ(gfxDeviceCreateSampler(device, &samplerDesc, &sampler), GFX_RESULT_SUCCESS);
+
+    // Binding 1 is left out
+    GfxBindGroupEntry entry = {};
+    entry.binding = 0;
+    entry.type = GFX_BIND_GROUP_ENTRY_TYPE_SAMPLER;
+    entry.resource.sampler = sampler;
+
+    GfxBindGroupDescriptor bindGroupDesc = {};
+    bindGroupDesc.layout = layout;
+    bindGroupDesc.entries = &entry;
+    bindGroupDesc.entryCount = 1;
+
+    GfxBindGroup bindGroup = nullptr;
+    EXPECT_EQ(gfxDeviceCreateBindGroup(device, &bindGroupDesc, &bindGroup), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(bindGroup, nullptr);
+
+    gfxSamplerDestroy(sampler);
+    gfxBindGroupLayoutDestroy(layout);
+}
+
+TEST_P(GfxBindGroupTest, CreateBindGroupWithMissingArrayElementIsRejected)
+{
+    GfxBindGroupLayoutEntry layoutEntry = {};
+    layoutEntry.binding = 0;
+    layoutEntry.visibility = GFX_SHADER_STAGE_FRAGMENT;
+    layoutEntry.type = GFX_BINDING_TYPE_TEXTURE;
+    layoutEntry.count = 2;
+    layoutEntry.texture.sampleType = GFX_TEXTURE_SAMPLE_TYPE_FLOAT;
+    layoutEntry.texture.viewDimension = GFX_TEXTURE_VIEW_TYPE_2D;
+
+    GfxBindGroupLayoutDescriptor layoutDesc = {};
+    layoutDesc.entries = &layoutEntry;
+    layoutDesc.entryCount = 1;
+
+    GfxBindGroupLayout layout = nullptr;
+    if (gfxDeviceCreateBindGroupLayout(device, &layoutDesc, &layout) != GFX_RESULT_SUCCESS) {
+        GTEST_SKIP() << "Binding arrays not supported by this backend";
+    }
+
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { 64, 64, 1 };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.usage = GFX_TEXTURE_USAGE_TEXTURE_BINDING;
+
+    GfxTexture texture = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &texture), GFX_RESULT_SUCCESS);
+
+    GfxTextureViewDescriptor viewDesc = {};
+    viewDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
+    viewDesc.mipLevelCount = 1;
+    viewDesc.arrayLayerCount = 1;
+
+    GfxTextureView view = nullptr;
+    ASSERT_EQ(gfxTextureCreateView(texture, &viewDesc, &view), GFX_RESULT_SUCCESS);
+
+    // Array element 1 is left out
+    GfxBindGroupEntry entry = {};
+    entry.binding = 0;
+    entry.arrayElement = 0;
+    entry.type = GFX_BIND_GROUP_ENTRY_TYPE_TEXTURE_VIEW;
+    entry.resource.textureView = view;
+
+    GfxBindGroupDescriptor bindGroupDesc = {};
+    bindGroupDesc.layout = layout;
+    bindGroupDesc.entries = &entry;
+    bindGroupDesc.entryCount = 1;
+
+    GfxBindGroup bindGroup = nullptr;
+    EXPECT_EQ(gfxDeviceCreateBindGroup(device, &bindGroupDesc, &bindGroup), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(bindGroup, nullptr);
+
+    gfxTextureViewDestroy(view);
+    gfxTextureDestroy(texture);
+    gfxBindGroupLayoutDestroy(layout);
+}
+
 // Test: Create BindGroup with buffer offset
 TEST_P(GfxBindGroupTest, CreateBindGroupWithBufferOffset)
 {

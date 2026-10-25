@@ -4,6 +4,7 @@
 #include "backend/webgpu/core/command/CommandEncoder.h"
 #include "backend/webgpu/core/command/RenderPassEncoder.h"
 #include "backend/webgpu/core/query/QuerySet.h"
+#include "backend/webgpu/core/resource/BindGroupLayout.h"
 #include "backend/webgpu/core/resource/Buffer.h"
 #include "backend/webgpu/core/resource/Texture.h"
 #include "backend/webgpu/core/system/Adapter.h"
@@ -421,6 +422,16 @@ namespace {
         }
 
         return GFX_RESULT_SUCCESS;
+    }
+
+    bool hasBindGroupEntry(const GfxBindGroupDescriptor* descriptor, uint32_t binding, uint32_t arrayElement)
+    {
+        for (uint32_t i = 0; i < descriptor->entryCount; ++i) {
+            if (descriptor->entries[i].binding == binding && descriptor->entries[i].arrayElement == arrayElement) {
+                return true;
+            }
+        }
+        return false;
     }
 
     GfxResult validateBindGroupDescriptor(const GfxBindGroupDescriptor* descriptor)
@@ -1118,7 +1129,21 @@ GfxResult validateDeviceCreateBindGroup(GfxDevice device, const GfxBindGroupDesc
     if (!device || !descriptor || !outBindGroup) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    return validateBindGroupDescriptor(descriptor);
+
+    GfxResult descriptorResult = validateBindGroupDescriptor(descriptor);
+    if (descriptorResult != GFX_RESULT_SUCCESS) {
+        return descriptorResult;
+    }
+
+    // WebGPU rule: every layout binding, and each element of an array binding, needs an entry
+    for (const core::BindGroupLayoutEntry& layoutEntry : converter::toNative<core::BindGroupLayout>(descriptor->layout)->getEntries()) {
+        for (uint32_t arrayElement = 0; arrayElement < layoutEntry.count; ++arrayElement) {
+            if (!hasBindGroupEntry(descriptor, layoutEntry.binding, arrayElement)) {
+                return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+            }
+        }
+    }
+    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult validateDeviceCreateRenderPipeline(GfxDevice device, const GfxRenderPipelineDescriptor* descriptor, GfxRenderPipeline* outPipeline)

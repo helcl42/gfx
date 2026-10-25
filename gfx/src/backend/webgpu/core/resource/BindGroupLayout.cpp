@@ -39,6 +39,7 @@ namespace {
 } // anonymous namespace
 
 BindGroupLayout::BindGroupLayout(Device* device, const BindGroupLayoutCreateInfo& createInfo)
+    : m_entries(createInfo.entries)
 {
     std::vector<WGPUBindGroupLayoutEntry> wgpuEntries;
     wgpuEntries.reserve(createInfo.entries.size());
@@ -67,6 +68,11 @@ BindGroupLayout::~BindGroupLayout()
 WGPUBindGroupLayout BindGroupLayout::handle() const
 {
     return m_layout;
+}
+
+const std::vector<BindGroupLayoutEntry>& BindGroupLayout::getEntries() const
+{
+    return m_entries;
 }
 
 } // namespace gfx::backend::webgpu::core

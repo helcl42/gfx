@@ -3,7 +3,7 @@
 
 #include "../CoreTypes.h"
 
-#include <unordered_map>
+#include <vector>
 
 namespace gfx::backend::vulkan::core {
 
@@ -19,11 +19,12 @@ public:
 
     VkDescriptorSetLayout handle() const;
     VkDescriptorType getBindingType(uint32_t binding) const;
+    const std::vector<BindGroupLayoutEntry>& getEntries() const;
 
 private:
     VkDescriptorSetLayout m_layout = VK_NULL_HANDLE;
     Device* m_device = nullptr;
-    std::unordered_map<uint32_t, VkDescriptorType> m_bindingTypes;
+    std::vector<BindGroupLayoutEntry> m_entries;
 };
 
 } // namespace gfx::backend::vulkan::core
