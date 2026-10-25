@@ -556,7 +556,7 @@ TEST_P(GfxCppCommandEncoderTest, BlitTextureToTexture)
         .mipLevelCount = 1,
         .sampleCount = gfx::SampleCount::Count1,
         .format = gfx::Format::R8G8B8A8Unorm,
-        .usage = gfx::TextureUsage::TextureBinding
+        .usage = gfx::TextureUsage::TextureBinding | gfx::TextureUsage::CopySrc
     };
     auto srcTexture = device->createTexture(srcTextureDesc);
     ASSERT_NE(srcTexture, nullptr);
@@ -569,7 +569,7 @@ TEST_P(GfxCppCommandEncoderTest, BlitTextureToTexture)
         .mipLevelCount = 1,
         .sampleCount = gfx::SampleCount::Count1,
         .format = gfx::Format::R8G8B8A8Unorm,
-        .usage = gfx::TextureUsage::RenderAttachment
+        .usage = gfx::TextureUsage::RenderAttachment | gfx::TextureUsage::CopyDst
     };
     auto dstTexture = device->createTexture(dstTextureDesc);
     ASSERT_NE(dstTexture, nullptr);
@@ -609,7 +609,7 @@ TEST_P(GfxCppCommandEncoderTest, GenerateMipmaps)
         .mipLevelCount = 9,
         .sampleCount = gfx::SampleCount::Count1,
         .format = gfx::Format::R8G8B8A8Unorm,
-        .usage = gfx::TextureUsage::TextureBinding | gfx::TextureUsage::RenderAttachment
+        .usage = gfx::TextureUsage::TextureBinding | gfx::TextureUsage::RenderAttachment | gfx::TextureUsage::CopySrc | gfx::TextureUsage::CopyDst
     };
     auto texture = device->createTexture(textureDesc);
     ASSERT_NE(texture, nullptr);
@@ -635,7 +635,7 @@ TEST_P(GfxCppCommandEncoderTest, GenerateMipmapsRange)
         .mipLevelCount = 9,
         .sampleCount = gfx::SampleCount::Count1,
         .format = gfx::Format::R8G8B8A8Unorm,
-        .usage = gfx::TextureUsage::TextureBinding | gfx::TextureUsage::RenderAttachment
+        .usage = gfx::TextureUsage::TextureBinding | gfx::TextureUsage::RenderAttachment | gfx::TextureUsage::CopySrc | gfx::TextureUsage::CopyDst
     };
     auto texture = device->createTexture(textureDesc);
     ASSERT_NE(texture, nullptr);

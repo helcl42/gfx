@@ -119,9 +119,10 @@ void Texture::generateMipmapsRange(CommandEncoder* encoder, uint32_t baseMipLeve
     // Get the Blit helper from the device
     Blit* blit = encoder->getDevice()->getBlit();
 
-    // Generate each mip level by blitting from the previous level
-    // Must iterate over all array layers for array textures
-    for (uint32_t layer = 0; layer < m_info.arrayLayers; ++layer) {
+    // Generate each mip level by blitting from the previous level: per array layer, or whole for a 3D texture
+    const bool is3D = m_info.dimension == WGPUTextureDimension_3D;
+    const uint32_t layerCount = is3D ? 1 : m_info.arrayLayers;
+    for (uint32_t layer = 0; layer < layerCount; ++layer) {
         for (uint32_t i = 0; i < levelCount - 1; ++i) {
             uint32_t srcMip = baseMipLevel + i;
             uint32_t dstMip = srcMip + 1;
@@ -130,12 +131,14 @@ void Texture::generateMipmapsRange(CommandEncoder* encoder, uint32_t baseMipLeve
             WGPUExtent3D srcSize = m_info.size;
             uint32_t srcWidth = std::max(1u, srcSize.width >> srcMip);
             uint32_t srcHeight = std::max(1u, srcSize.height >> srcMip);
+            uint32_t srcDepth = is3D ? std::max(1u, srcSize.depthOrArrayLayers >> srcMip) : 1;
             uint32_t dstWidth = std::max(1u, srcSize.width >> dstMip);
             uint32_t dstHeight = std::max(1u, srcSize.height >> dstMip);
+            uint32_t dstDepth = is3D ? std::max(1u, srcSize.depthOrArrayLayers >> dstMip) : 1;
 
             WGPUOrigin3D origin = { 0, 0, layer };
-            WGPUExtent3D srcExtent = { srcWidth, srcHeight, 1 };
-            WGPUExtent3D dstExtent = { dstWidth, dstHeight, 1 };
+            WGPUExtent3D srcExtent = { srcWidth, srcHeight, srcDepth };
+            WGPUExtent3D dstExtent = { dstWidth, dstHeight, dstDepth };
 
             // Use linear filtering for mipmap generation
             blit->execute(encoder->handle(),

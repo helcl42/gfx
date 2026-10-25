@@ -1344,6 +1344,8 @@ typedef struct {
     GfxExtent3D extent;
 } GfxCopyTextureToTextureDescriptor;
 
+// The source needs COPY_SRC and TEXTURE_BINDING usage, the destination COPY_DST and RENDER_ATTACHMENT:
+// Vulkan blits with transfer commands, WebGPU samples the source in a render pass
 typedef struct {
     GfxTexture source;
     GfxOrigin3D sourceOrigin;
@@ -2151,6 +2153,7 @@ GFX_API GfxResult gfxCommandEncoderCopyTextureToBuffer(GfxCommandEncoder command
 GFX_API GfxResult gfxCommandEncoderCopyTextureToTexture(GfxCommandEncoder commandEncoder, const GfxCopyTextureToTextureDescriptor* descriptor);
 GFX_API GfxResult gfxCommandEncoderBlitTextureToTexture(GfxCommandEncoder commandEncoder, const GfxBlitTextureToTextureDescriptor* descriptor);
 GFX_API GfxResult gfxCommandEncoderPipelineBarrier(GfxCommandEncoder commandEncoder, const GfxPipelineBarrierDescriptor* descriptor);
+// The texture needs the usage of both a blit source and destination (see GfxBlitTextureToTextureDescriptor)
 GFX_API GfxResult gfxCommandEncoderGenerateMipmaps(GfxCommandEncoder commandEncoder, GfxTexture texture);
 GFX_API GfxResult gfxCommandEncoderGenerateMipmapsRange(GfxCommandEncoder commandEncoder, GfxTexture texture, uint32_t baseMipLevel, uint32_t levelCount);
 GFX_API GfxResult gfxCommandEncoderWriteTimestamp(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t queryIndex);

@@ -264,7 +264,8 @@ void Texture::generateMipmapsRange(CommandEncoder* encoder, uint32_t baseMipLeve
         levelCount = m_info.mipLevelCount - baseMipLevel;
     }
 
-    VkImageLayout initialLayout = m_currentLayout;
+    // A texture never written has no layout to return to, so it stays in the one generation leaves it in
+    const VkImageLayout finalLayout = (m_currentLayout == VK_IMAGE_LAYOUT_UNDEFINED) ? VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL : m_currentLayout;
     VkCommandBuffer cmdBuffer = encoder->handle();
 
     // Transition base mip level to TRANSFER_SRC_OPTIMAL (it's already been written to)
@@ -317,11 +318,11 @@ void Texture::generateMipmapsRange(CommandEncoder* encoder, uint32_t baseMipLeve
         transitionLayout(cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstMip, 1, 0, m_info.arrayLayers);
     }
 
-    // Transition all mip levels from TRANSFER_SRC_OPTIMAL back to the initial layout
-    transitionLayout(cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, initialLayout, baseMipLevel, levelCount, 0, m_info.arrayLayers);
+    // Transition all mip levels from TRANSFER_SRC_OPTIMAL to the final layout
+    transitionLayout(cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, finalLayout, baseMipLevel, levelCount, 0, m_info.arrayLayers);
 
     // Update tracked layout
-    m_currentLayout = initialLayout;
+    m_currentLayout = finalLayout;
 }
 
 // Static helper to create TextureInfo from TextureCreateInfo

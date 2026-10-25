@@ -5,31 +5,37 @@
 
 namespace gfx::backend::webgpu::core {
 
+namespace {
+    // Matches SourceRegion in the shader (padded to its 8-byte alignment)
+    struct SourceRegion {
+        float uvMinX, uvMinY;
+        float uvMaxX, uvMaxY;
+        float depth;
+        float padding;
+    };
+} // anonymous namespace
+
 Blit::Blit(WGPUDevice device)
     : m_device(device)
 {
-    initBlit2D();
-    initBlit3D();
-}
-
-void Blit::initBlit2D()
-{
-    // Create shader module for 2D textures with source region support
-    const char* shader2DCode = R"(
+    // Draws the destination region, sampling the matching source region
+    const char* shaderCode = R"(
             struct SourceRegion {
                 uvMin: vec2f,
                 uvMax: vec2f,
+                depth: f32, // Normalized depth of the sampled slice of a 3D source
             }
-            
+
             struct VertexOutput {
                 @builtin(position) position: vec4f,
                 @location(0) texCoord: vec2f,
             }
-            
+
             @group(0) @binding(0) var srcTexture: texture_2d<f32>;
             @group(0) @binding(1) var srcSampler: sampler;
             @group(0) @binding(2) var<uniform> sourceRegion: SourceRegion;
-            
+            @group(0) @binding(3) var srcTexture3D: texture_3d<f32>;
+
             @vertex
             fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
                 var output: VertexOutput;
@@ -41,339 +47,199 @@ void Blit::initBlit2D()
                 output.texCoord = mix(sourceRegion.uvMin, sourceRegion.uvMax, uv);
                 return output;
             }
-            
+
             @fragment
             fn fs_main(input: VertexOutput) -> @location(0) vec4f {
                 return textureSample(srcTexture, srcSampler, input.texCoord);
+            }
+
+            @fragment
+            fn fs_main3D(input: VertexOutput) -> @location(0) vec4f {
+                return textureSample(srcTexture3D, srcSampler, vec3f(input.texCoord, sourceRegion.depth));
             }
         )";
 
     WGPUShaderSourceWGSL wgslSource = WGPU_SHADER_SOURCE_WGSL_INIT;
     wgslSource.chain.sType = WGPUSType_ShaderSourceWGSL;
-    wgslSource.code = toStringView(shader2DCode);
+    wgslSource.code = toStringView(shaderCode);
 
     WGPUShaderModuleDescriptor shaderDesc = WGPU_SHADER_MODULE_DESCRIPTOR_INIT;
     shaderDesc.nextInChain = &wgslSource.chain;
     m_shaderModule = wgpuDeviceCreateShaderModule(m_device, &shaderDesc);
 
-    // Create bind group layout with uniform buffer for source region
+    initDimension(m_blit2D, WGPUTextureViewDimension_2D);
+    initDimension(m_blit3D, WGPUTextureViewDimension_3D);
+}
+
+Blit::~Blit()
+{
+    destroyDimension(m_blit2D);
+    destroyDimension(m_blit3D);
+    for (auto& pair : m_samplers) {
+        wgpuSamplerRelease(pair.second);
+    }
+    if (m_shaderModule) {
+        wgpuShaderModuleRelease(m_shaderModule);
+    }
+}
+
+void Blit::initDimension(DimensionPipelines& blit, WGPUTextureViewDimension viewDimension)
+{
     WGPUBindGroupLayoutEntry bgLayoutEntries[3] = { WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT, WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT, WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT };
-    bgLayoutEntries[0].binding = 0;
+    bgLayoutEntries[0].binding = blit.textureBinding;
     bgLayoutEntries[0].visibility = WGPUShaderStage_Fragment;
     bgLayoutEntries[0].texture.sampleType = WGPUTextureSampleType_Float;
-    bgLayoutEntries[0].texture.viewDimension = WGPUTextureViewDimension_2D;
+    bgLayoutEntries[0].texture.viewDimension = viewDimension;
 
     bgLayoutEntries[1].binding = 1;
     bgLayoutEntries[1].visibility = WGPUShaderStage_Fragment;
     bgLayoutEntries[1].sampler.type = WGPUSamplerBindingType_Filtering;
 
     bgLayoutEntries[2].binding = 2;
-    bgLayoutEntries[2].visibility = WGPUShaderStage_Vertex;
+    bgLayoutEntries[2].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
     bgLayoutEntries[2].buffer.type = WGPUBufferBindingType_Uniform;
-    bgLayoutEntries[2].buffer.minBindingSize = 16; // vec2f + vec2f = 16 bytes
+    bgLayoutEntries[2].buffer.minBindingSize = sizeof(SourceRegion);
 
     WGPUBindGroupLayoutDescriptor bgLayoutDesc = WGPU_BIND_GROUP_LAYOUT_DESCRIPTOR_INIT;
     bgLayoutDesc.entryCount = 3;
     bgLayoutDesc.entries = bgLayoutEntries;
-    m_bindGroupLayout = wgpuDeviceCreateBindGroupLayout(m_device, &bgLayoutDesc);
+    blit.bindGroupLayout = wgpuDeviceCreateBindGroupLayout(m_device, &bgLayoutDesc);
 
-    // Create pipeline layout
     WGPUPipelineLayoutDescriptor pipelineLayoutDesc = WGPU_PIPELINE_LAYOUT_DESCRIPTOR_INIT;
     pipelineLayoutDesc.bindGroupLayoutCount = 1;
-    pipelineLayoutDesc.bindGroupLayouts = &m_bindGroupLayout;
-    m_pipelineLayout = wgpuDeviceCreatePipelineLayout(m_device, &pipelineLayoutDesc);
+    pipelineLayoutDesc.bindGroupLayouts = &blit.bindGroupLayout;
+    blit.pipelineLayout = wgpuDeviceCreatePipelineLayout(m_device, &pipelineLayoutDesc);
 }
 
-void Blit::initBlit3D()
+void Blit::destroyDimension(DimensionPipelines& blit)
 {
-    // Create compute shader for 3D texture mipmap downsampling
-    const char* shader3DCode = R"(
-            @group(0) @binding(0) var srcTexture: texture_3d<f32>;
-            @group(0) @binding(1) var dstTexture: texture_storage_3d<rgba8unorm, write>;
-
-            @compute @workgroup_size(4, 4, 4)
-            fn main(@builtin(global_invocation_id) id: vec3u) {
-                let dstSize = textureDimensions(dstTexture);
-                if (id.x >= dstSize.x || id.y >= dstSize.y || id.z >= dstSize.z) {
-                    return;
-                }
-
-                // Sample 8 texels from the source mip level (2x2x2 box filter)
-                let srcCoord = id * 2u;
-                let s000 = textureLoad(srcTexture, vec3i(srcCoord + vec3u(0u, 0u, 0u)), 0);
-                let s100 = textureLoad(srcTexture, vec3i(srcCoord + vec3u(1u, 0u, 0u)), 0);
-                let s010 = textureLoad(srcTexture, vec3i(srcCoord + vec3u(0u, 1u, 0u)), 0);
-                let s110 = textureLoad(srcTexture, vec3i(srcCoord + vec3u(1u, 1u, 0u)), 0);
-                let s001 = textureLoad(srcTexture, vec3i(srcCoord + vec3u(0u, 0u, 1u)), 0);
-                let s101 = textureLoad(srcTexture, vec3i(srcCoord + vec3u(1u, 0u, 1u)), 0);
-                let s011 = textureLoad(srcTexture, vec3i(srcCoord + vec3u(0u, 1u, 1u)), 0);
-                let s111 = textureLoad(srcTexture, vec3i(srcCoord + vec3u(1u, 1u, 1u)), 0);
-
-                let result = (s000 + s100 + s010 + s110 + s001 + s101 + s011 + s111) * 0.125;
-                textureStore(dstTexture, vec3i(id), result);
-            }
-        )";
-
-    WGPUShaderSourceWGSL wgslSource = WGPU_SHADER_SOURCE_WGSL_INIT;
-    wgslSource.chain.sType = WGPUSType_ShaderSourceWGSL;
-    wgslSource.code = toStringView(shader3DCode);
-
-    WGPUShaderModuleDescriptor shaderDesc = WGPU_SHADER_MODULE_DESCRIPTOR_INIT;
-    shaderDesc.nextInChain = &wgslSource.chain;
-    m_shaderModule3D = wgpuDeviceCreateShaderModule(m_device, &shaderDesc);
-
-    // Bind group layout: binding 0 = texture_3d, binding 1 = storage texture 3D write
-    WGPUBindGroupLayoutEntry bgLayoutEntries3D[2] = { WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT, WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT };
-    bgLayoutEntries3D[0].binding = 0;
-    bgLayoutEntries3D[0].visibility = WGPUShaderStage_Compute;
-    bgLayoutEntries3D[0].texture.sampleType = WGPUTextureSampleType_Float;
-    bgLayoutEntries3D[0].texture.viewDimension = WGPUTextureViewDimension_3D;
-
-    bgLayoutEntries3D[1].binding = 1;
-    bgLayoutEntries3D[1].visibility = WGPUShaderStage_Compute;
-    bgLayoutEntries3D[1].storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-    bgLayoutEntries3D[1].storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
-    bgLayoutEntries3D[1].storageTexture.viewDimension = WGPUTextureViewDimension_3D;
-
-    WGPUBindGroupLayoutDescriptor bgLayoutDesc3D = WGPU_BIND_GROUP_LAYOUT_DESCRIPTOR_INIT;
-    bgLayoutDesc3D.entryCount = 2;
-    bgLayoutDesc3D.entries = bgLayoutEntries3D;
-    m_bindGroupLayout3D = wgpuDeviceCreateBindGroupLayout(m_device, &bgLayoutDesc3D);
-
-    WGPUPipelineLayoutDescriptor pipelineLayoutDesc3D = WGPU_PIPELINE_LAYOUT_DESCRIPTOR_INIT;
-    pipelineLayoutDesc3D.bindGroupLayoutCount = 1;
-    pipelineLayoutDesc3D.bindGroupLayouts = &m_bindGroupLayout3D;
-    m_pipelineLayout3D = wgpuDeviceCreatePipelineLayout(m_device, &pipelineLayoutDesc3D);
-
-    WGPUComputePipelineDescriptor computeDesc = WGPU_COMPUTE_PIPELINE_DESCRIPTOR_INIT;
-    computeDesc.layout = m_pipelineLayout3D;
-    computeDesc.compute.module = m_shaderModule3D;
-    computeDesc.compute.entryPoint = toStringView("main");
-    m_pipeline3D = wgpuDeviceCreateComputePipeline(m_device, &computeDesc);
-}
-
-Blit::~Blit()
-{
-    destroyBlit2D();
-    destroyBlit3D();
-}
-
-void Blit::destroyBlit2D()
-{
-    for (auto& pair : m_pipelines) {
+    for (auto& pair : blit.pipelines) {
         wgpuRenderPipelineRelease(pair.second);
     }
-    m_pipelines.clear();
-    for (auto& pair : m_samplers) {
-        wgpuSamplerRelease(pair.second);
+    blit.pipelines.clear();
+    if (blit.pipelineLayout) {
+        wgpuPipelineLayoutRelease(blit.pipelineLayout);
+        blit.pipelineLayout = nullptr;
     }
-    m_samplers.clear();
-    if (m_pipelineLayout) {
-        wgpuPipelineLayoutRelease(m_pipelineLayout);
-        m_pipelineLayout = nullptr;
-    }
-    if (m_bindGroupLayout) {
-        wgpuBindGroupLayoutRelease(m_bindGroupLayout);
-        m_bindGroupLayout = nullptr;
-    }
-    if (m_shaderModule) {
-        wgpuShaderModuleRelease(m_shaderModule);
-        m_shaderModule = nullptr;
-    }
-}
-
-void Blit::destroyBlit3D()
-{
-    if (m_pipeline3D) {
-        wgpuComputePipelineRelease(m_pipeline3D);
-        m_pipeline3D = nullptr;
-    }
-    if (m_pipelineLayout3D) {
-        wgpuPipelineLayoutRelease(m_pipelineLayout3D);
-        m_pipelineLayout3D = nullptr;
-    }
-    if (m_bindGroupLayout3D) {
-        wgpuBindGroupLayoutRelease(m_bindGroupLayout3D);
-        m_bindGroupLayout3D = nullptr;
-    }
-    if (m_shaderModule3D) {
-        wgpuShaderModuleRelease(m_shaderModule3D);
-        m_shaderModule3D = nullptr;
+    if (blit.bindGroupLayout) {
+        wgpuBindGroupLayoutRelease(blit.bindGroupLayout);
+        blit.bindGroupLayout = nullptr;
     }
 }
 
 void Blit::execute(WGPUCommandEncoder commandEncoder, WGPUTexture srcTexture, const WGPUOrigin3D& srcOrigin, const WGPUExtent3D& srcExtent, uint32_t srcMipLevel, WGPUTexture dstTexture, const WGPUOrigin3D& dstOrigin, const WGPUExtent3D& dstExtent, uint32_t dstMipLevel, WGPUFilterMode filterMode)
 {
-    WGPUTextureDimension srcDimension = wgpuTextureGetDimension(srcTexture);
-
-    if (srcDimension == WGPUTextureDimension_3D) {
-        execute3D(commandEncoder, srcTexture, srcMipLevel, dstTexture, dstMipLevel);
-    } else if (srcDimension == WGPUTextureDimension_2D) {
-        execute2D(commandEncoder, srcTexture, srcOrigin, srcExtent, srcMipLevel, dstTexture, dstOrigin, dstExtent, dstMipLevel, filterMode);
-    } else {
+    const WGPUTextureDimension textureDimension = wgpuTextureGetDimension(srcTexture);
+    if (textureDimension == WGPUTextureDimension_1D) {
         gfx::common::Logger::instance().logWarning("[WebGPU Blit] 1D textures are not supported for blitting");
+        return;
     }
-}
+    // A 3D texture is sampled whole and drawn one destination slice at a time; for 2D, origin z selects the array layer
+    const bool is3D = textureDimension == WGPUTextureDimension_3D;
+    DimensionPipelines& blit = is3D ? m_blit3D : m_blit2D;
+    const WGPUTextureViewDimension viewDimension = is3D ? WGPUTextureViewDimension_3D : WGPUTextureViewDimension_2D;
 
-void Blit::execute3D(WGPUCommandEncoder commandEncoder, WGPUTexture srcTexture, uint32_t srcMipLevel, WGPUTexture dstTexture, uint32_t dstMipLevel)
-{
-    // Create 3D texture views for src and dst mip levels
     WGPUTextureViewDescriptor srcViewDesc = WGPU_TEXTURE_VIEW_DESCRIPTOR_INIT;
     srcViewDesc.format = wgpuTextureGetFormat(srcTexture);
-    srcViewDesc.dimension = WGPUTextureViewDimension_3D;
+    srcViewDesc.dimension = viewDimension;
     srcViewDesc.baseMipLevel = srcMipLevel;
     srcViewDesc.mipLevelCount = 1;
-    srcViewDesc.baseArrayLayer = 0;
+    srcViewDesc.baseArrayLayer = is3D ? 0 : srcOrigin.z;
     srcViewDesc.arrayLayerCount = 1;
     WGPUTextureView srcView = wgpuTextureCreateView(srcTexture, &srcViewDesc);
 
-    WGPUTextureViewDescriptor dstViewDesc = WGPU_TEXTURE_VIEW_DESCRIPTOR_INIT;
-    dstViewDesc.format = wgpuTextureGetFormat(dstTexture);
-    dstViewDesc.dimension = WGPUTextureViewDimension_3D;
-    dstViewDesc.baseMipLevel = dstMipLevel;
-    dstViewDesc.mipLevelCount = 1;
-    dstViewDesc.baseArrayLayer = 0;
-    dstViewDesc.arrayLayerCount = 1;
-    WGPUTextureView dstView = wgpuTextureCreateView(dstTexture, &dstViewDesc);
-
-    // Create bind group
-    WGPUBindGroupEntry bgEntries[2] = { WGPU_BIND_GROUP_ENTRY_INIT, WGPU_BIND_GROUP_ENTRY_INIT };
-    bgEntries[0].binding = 0;
-    bgEntries[0].textureView = srcView;
-    bgEntries[1].binding = 1;
-    bgEntries[1].textureView = dstView;
-
-    WGPUBindGroupDescriptor bgDesc = WGPU_BIND_GROUP_DESCRIPTOR_INIT;
-    bgDesc.layout = m_bindGroupLayout3D;
-    bgDesc.entryCount = 2;
-    bgDesc.entries = bgEntries;
-    WGPUBindGroup bindGroup = wgpuDeviceCreateBindGroup(m_device, &bgDesc);
-
-    // Calculate destination mip dimensions
-    uint32_t dstWidth = std::max(1u, wgpuTextureGetWidth(dstTexture) >> dstMipLevel);
-    uint32_t dstHeight = std::max(1u, wgpuTextureGetHeight(dstTexture) >> dstMipLevel);
-    uint32_t dstDepth = std::max(1u, wgpuTextureGetDepthOrArrayLayers(dstTexture) >> dstMipLevel);
-
-    // Dispatch compute shader
-    WGPUComputePassDescriptor passDesc = WGPU_COMPUTE_PASS_DESCRIPTOR_INIT;
-    WGPUComputePassEncoder computePass = wgpuCommandEncoderBeginComputePass(commandEncoder, &passDesc);
-    wgpuComputePassEncoderSetPipeline(computePass, m_pipeline3D);
-    wgpuComputePassEncoderSetBindGroup(computePass, 0, bindGroup, 0, nullptr);
-    wgpuComputePassEncoderDispatchWorkgroups(computePass, (dstWidth + 3) / 4, (dstHeight + 3) / 4, (dstDepth + 3) / 4);
-    wgpuComputePassEncoderEnd(computePass);
-
-    // Cleanup
-    wgpuComputePassEncoderRelease(computePass);
-    wgpuBindGroupRelease(bindGroup);
-    wgpuTextureViewRelease(dstView);
-    wgpuTextureViewRelease(srcView);
-}
-
-void Blit::execute2D(WGPUCommandEncoder commandEncoder, WGPUTexture srcTexture, const WGPUOrigin3D& srcOrigin, const WGPUExtent3D& srcExtent, uint32_t srcMipLevel, WGPUTexture dstTexture, const WGPUOrigin3D& dstOrigin, const WGPUExtent3D& dstExtent, uint32_t dstMipLevel, WGPUFilterMode filterMode)
-{
-    // Get or create sampler with requested filter mode
-    WGPUSampler sampler = getOrCreateSampler(filterMode);
-
-    // Create texture view for source
-    WGPUTextureViewDescriptor srcViewDesc = WGPU_TEXTURE_VIEW_DESCRIPTOR_INIT;
-    srcViewDesc.format = wgpuTextureGetFormat(srcTexture);
-    srcViewDesc.dimension = WGPUTextureViewDimension_2D;
-    srcViewDesc.baseMipLevel = srcMipLevel;
-    srcViewDesc.mipLevelCount = 1;
-    srcViewDesc.baseArrayLayer = srcOrigin.z;
-    srcViewDesc.arrayLayerCount = 1;
-    WGPUTextureView srcView = wgpuTextureCreateView(srcTexture, &srcViewDesc);
-
-    // Calculate source texture size at mip level
-    uint32_t srcTexWidth = std::max(1u, wgpuTextureGetWidth(srcTexture) >> srcMipLevel);
-    uint32_t srcTexHeight = std::max(1u, wgpuTextureGetHeight(srcTexture) >> srcMipLevel);
-
-    // Calculate UV coordinates for source region
-    struct SourceRegionData {
-        float uvMinX, uvMinY;
-        float uvMaxX, uvMaxY;
-    } regionData;
-    regionData.uvMinX = static_cast<float>(srcOrigin.x) / static_cast<float>(srcTexWidth);
-    regionData.uvMinY = static_cast<float>(srcOrigin.y) / static_cast<float>(srcTexHeight);
-    regionData.uvMaxX = static_cast<float>(srcOrigin.x + srcExtent.width) / static_cast<float>(srcTexWidth);
-    regionData.uvMaxY = static_cast<float>(srcOrigin.y + srcExtent.height) / static_cast<float>(srcTexHeight);
-
-    // Create uniform buffer for source region
-    WGPUBufferDescriptor uniformBufferDesc = WGPU_BUFFER_DESCRIPTOR_INIT;
-    uniformBufferDesc.size = sizeof(SourceRegionData);
-    uniformBufferDesc.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
-    WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(m_device, &uniformBufferDesc);
-    wgpuQueueWriteBuffer(wgpuDeviceGetQueue(m_device), uniformBuffer, 0, &regionData, sizeof(SourceRegionData));
-
-    // Create bind group
-    WGPUBindGroupEntry bgEntries[3] = { WGPU_BIND_GROUP_ENTRY_INIT, WGPU_BIND_GROUP_ENTRY_INIT, WGPU_BIND_GROUP_ENTRY_INIT };
-    bgEntries[0].binding = 0;
-    bgEntries[0].textureView = srcView;
-
-    bgEntries[1].binding = 1;
-    bgEntries[1].sampler = sampler;
-
-    bgEntries[2].binding = 2;
-    bgEntries[2].buffer = uniformBuffer;
-    bgEntries[2].size = sizeof(SourceRegionData);
-
-    WGPUBindGroupDescriptor bgDesc = WGPU_BIND_GROUP_DESCRIPTOR_INIT;
-    bgDesc.layout = m_bindGroupLayout;
-    bgDesc.entryCount = 3;
-    bgDesc.entries = bgEntries;
-    WGPUBindGroup bindGroup = wgpuDeviceCreateBindGroup(m_device, &bgDesc);
-
-    // Get or create render pipeline for this format
-    WGPUTextureFormat dstFormat = wgpuTextureGetFormat(dstTexture);
-    WGPURenderPipeline pipeline = getOrCreatePipeline(dstFormat);
-
-    // Create texture view for destination
+    const WGPUTextureFormat dstFormat = wgpuTextureGetFormat(dstTexture);
     WGPUTextureViewDescriptor dstViewDesc = WGPU_TEXTURE_VIEW_DESCRIPTOR_INIT;
     dstViewDesc.format = dstFormat;
-    dstViewDesc.dimension = WGPUTextureViewDimension_2D;
+    dstViewDesc.dimension = viewDimension;
     dstViewDesc.baseMipLevel = dstMipLevel;
     dstViewDesc.mipLevelCount = 1;
-    dstViewDesc.baseArrayLayer = dstOrigin.z;
+    dstViewDesc.baseArrayLayer = is3D ? 0 : dstOrigin.z;
     dstViewDesc.arrayLayerCount = 1;
     WGPUTextureView dstView = wgpuTextureCreateView(dstTexture, &dstViewDesc);
 
-    // Create render pass
-    WGPURenderPassColorAttachment colorAttachment = WGPU_RENDER_PASS_COLOR_ATTACHMENT_INIT;
-    colorAttachment.view = dstView;
-    colorAttachment.loadOp = WGPULoadOp_Load;
-    colorAttachment.storeOp = WGPUStoreOp_Store;
+    // Source region in normalized coordinates of the source mip level
+    const float srcWidth = static_cast<float>(std::max(1u, wgpuTextureGetWidth(srcTexture) >> srcMipLevel));
+    const float srcHeight = static_cast<float>(std::max(1u, wgpuTextureGetHeight(srcTexture) >> srcMipLevel));
+    const float srcDepth = is3D ? static_cast<float>(std::max(1u, wgpuTextureGetDepthOrArrayLayers(srcTexture) >> srcMipLevel)) : 1.0f;
+    SourceRegion region{};
+    region.uvMinX = static_cast<float>(srcOrigin.x) / srcWidth;
+    region.uvMinY = static_cast<float>(srcOrigin.y) / srcHeight;
+    region.uvMaxX = static_cast<float>(srcOrigin.x + srcExtent.width) / srcWidth;
+    region.uvMaxY = static_cast<float>(srcOrigin.y + srcExtent.height) / srcHeight;
 
-    WGPURenderPassDescriptor renderPassDesc = {};
-    renderPassDesc.colorAttachmentCount = 1;
-    renderPassDesc.colorAttachments = &colorAttachment;
+    WGPURenderPipeline pipeline = getOrCreatePipeline(blit, dstFormat);
+    WGPUSampler sampler = getOrCreateSampler(filterMode);
+    WGPUQueue queue = wgpuDeviceGetQueue(m_device);
 
-    WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(commandEncoder, &renderPassDesc);
-    wgpuRenderPassEncoderSetPipeline(renderPass, pipeline);
-    wgpuRenderPassEncoderSetBindGroup(renderPass, 0, bindGroup, 0, nullptr);
+    const uint32_t sliceCount = is3D ? dstExtent.depthOrArrayLayers : 1;
+    for (uint32_t slice = 0; slice < sliceCount; ++slice) {
+        if (is3D) {
+            // Sample the source depth at the center of this destination slice
+            const float sliceCenter = (static_cast<float>(slice) + 0.5f) * static_cast<float>(srcExtent.depthOrArrayLayers) / static_cast<float>(dstExtent.depthOrArrayLayers);
+            region.depth = (static_cast<float>(srcOrigin.z) + sliceCenter) / srcDepth;
+        }
 
-    // Set viewport to destination region for proper scaling
-    wgpuRenderPassEncoderSetViewport(renderPass, static_cast<float>(dstOrigin.x), static_cast<float>(dstOrigin.y), static_cast<float>(dstExtent.width), static_cast<float>(dstExtent.height), 0.0f, 1.0f);
+        // Each slice needs its own buffer: queue writes all land before the commands run
+        WGPUBufferDescriptor uniformBufferDesc = WGPU_BUFFER_DESCRIPTOR_INIT;
+        uniformBufferDesc.size = sizeof(SourceRegion);
+        uniformBufferDesc.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
+        WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(m_device, &uniformBufferDesc);
+        wgpuQueueWriteBuffer(queue, uniformBuffer, 0, &region, sizeof(SourceRegion));
 
-    // Set scissor to destination region
-    wgpuRenderPassEncoderSetScissorRect(renderPass, dstOrigin.x, dstOrigin.y, dstExtent.width, dstExtent.height);
+        WGPUBindGroupEntry bgEntries[3] = { WGPU_BIND_GROUP_ENTRY_INIT, WGPU_BIND_GROUP_ENTRY_INIT, WGPU_BIND_GROUP_ENTRY_INIT };
+        bgEntries[0].binding = blit.textureBinding;
+        bgEntries[0].textureView = srcView;
+        bgEntries[1].binding = 1;
+        bgEntries[1].sampler = sampler;
+        bgEntries[2].binding = 2;
+        bgEntries[2].buffer = uniformBuffer;
+        bgEntries[2].size = sizeof(SourceRegion);
 
-    wgpuRenderPassEncoderDraw(renderPass, 4, 1, 0, 0);
-    wgpuRenderPassEncoderEnd(renderPass);
+        WGPUBindGroupDescriptor bgDesc = WGPU_BIND_GROUP_DESCRIPTOR_INIT;
+        bgDesc.layout = blit.bindGroupLayout;
+        bgDesc.entryCount = 3;
+        bgDesc.entries = bgEntries;
+        WGPUBindGroup bindGroup = wgpuDeviceCreateBindGroup(m_device, &bgDesc);
 
-    // Cleanup temporary resources
-    wgpuRenderPassEncoderRelease(renderPass);
+        WGPURenderPassColorAttachment colorAttachment = WGPU_RENDER_PASS_COLOR_ATTACHMENT_INIT;
+        colorAttachment.view = dstView;
+        if (is3D) {
+            colorAttachment.depthSlice = dstOrigin.z + slice;
+        }
+        colorAttachment.loadOp = WGPULoadOp_Load;
+        colorAttachment.storeOp = WGPUStoreOp_Store;
+
+        WGPURenderPassDescriptor renderPassDesc = WGPU_RENDER_PASS_DESCRIPTOR_INIT;
+        renderPassDesc.colorAttachmentCount = 1;
+        renderPassDesc.colorAttachments = &colorAttachment;
+
+        WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(commandEncoder, &renderPassDesc);
+        wgpuRenderPassEncoderSetPipeline(renderPass, pipeline);
+        wgpuRenderPassEncoderSetBindGroup(renderPass, 0, bindGroup, 0, nullptr);
+
+        // Viewport and scissor confine drawing to the destination region
+        wgpuRenderPassEncoderSetViewport(renderPass, static_cast<float>(dstOrigin.x), static_cast<float>(dstOrigin.y), static_cast<float>(dstExtent.width), static_cast<float>(dstExtent.height), 0.0f, 1.0f);
+        wgpuRenderPassEncoderSetScissorRect(renderPass, dstOrigin.x, dstOrigin.y, dstExtent.width, dstExtent.height);
+
+        wgpuRenderPassEncoderDraw(renderPass, 4, 1, 0, 0);
+        wgpuRenderPassEncoderEnd(renderPass);
+
+        wgpuRenderPassEncoderRelease(renderPass);
+        wgpuBindGroupRelease(bindGroup);
+        wgpuBufferRelease(uniformBuffer);
+    }
+
+    wgpuQueueRelease(queue);
     wgpuTextureViewRelease(dstView);
-    wgpuBindGroupRelease(bindGroup);
-    wgpuBufferRelease(uniformBuffer);
     wgpuTextureViewRelease(srcView);
-    // Note: sampler is cached, don't release it here
 }
 
-WGPURenderPipeline Blit::getOrCreatePipeline(WGPUTextureFormat format)
+WGPURenderPipeline Blit::getOrCreatePipeline(DimensionPipelines& blit, WGPUTextureFormat format)
 {
     // Check cache
-    auto it = m_pipelines.find(format);
-    if (it != m_pipelines.end()) {
+    auto it = blit.pipelines.find(format);
+    if (it != blit.pipelines.end()) {
         return it->second;
     }
 
@@ -384,12 +250,12 @@ WGPURenderPipeline Blit::getOrCreatePipeline(WGPUTextureFormat format)
 
     WGPUFragmentState fragmentState = WGPU_FRAGMENT_STATE_INIT;
     fragmentState.module = m_shaderModule;
-    fragmentState.entryPoint = toStringView("fs_main");
+    fragmentState.entryPoint = toStringView(blit.fragmentEntryPoint);
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTarget;
 
     WGPURenderPipelineDescriptor pipelineDesc = WGPU_RENDER_PIPELINE_DESCRIPTOR_INIT;
-    pipelineDesc.layout = m_pipelineLayout;
+    pipelineDesc.layout = blit.pipelineLayout;
     pipelineDesc.vertex.module = m_shaderModule;
     pipelineDesc.vertex.entryPoint = toStringView("vs_main");
     pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
@@ -397,7 +263,7 @@ WGPURenderPipeline Blit::getOrCreatePipeline(WGPUTextureFormat format)
     pipelineDesc.multisample.count = 1;
 
     WGPURenderPipeline pipeline = wgpuDeviceCreateRenderPipeline(m_device, &pipelineDesc);
-    m_pipelines[format] = pipeline;
+    blit.pipelines[format] = pipeline;
     return pipeline;
 }
 

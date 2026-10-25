@@ -757,6 +757,24 @@ namespace {
         return GFX_RESULT_SUCCESS;
     }
 
+    // Blits and mipmaps use transfer commands on Vulkan but render on WebGPU, so they need the usage of both
+    GfxTextureInfo textureInfo(GfxTexture texture)
+    {
+        return converter::vkTextureInfoToGfxTextureInfo(converter::toNative<core::Texture>(texture)->getInfo());
+    }
+
+    bool hasBlitSourceUsage(const GfxTextureInfo& info)
+    {
+        const GfxTextureUsageFlags required = GFX_TEXTURE_USAGE_COPY_SRC | GFX_TEXTURE_USAGE_TEXTURE_BINDING;
+        return (info.usage & required) == required;
+    }
+
+    bool hasBlitDestinationUsage(const GfxTextureInfo& info)
+    {
+        const GfxTextureUsageFlags required = GFX_TEXTURE_USAGE_COPY_DST | GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
+        return (info.usage & required) == required;
+    }
+
     GfxResult validateBlitTextureToTextureDescriptor(const GfxBlitTextureToTextureDescriptor* descriptor)
     {
         if (!descriptor) {
@@ -768,6 +786,9 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
         if (descriptor->sourceFinalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED || descriptor->destinationFinalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED) {
+            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+        if (!hasBlitSourceUsage(textureInfo(descriptor->source)) || !hasBlitDestinationUsage(textureInfo(descriptor->destination))) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
@@ -1419,12 +1440,22 @@ GfxResult validateCommandEncoderGenerateMipmaps(GfxCommandEncoder commandEncoder
     if (!commandEncoder || !texture) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
+    // Each level is blitted from the one above, so the texture is both blit source and destination
+    const GfxTextureInfo info = textureInfo(texture);
+    if (!hasBlitSourceUsage(info) || !hasBlitDestinationUsage(info)) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
     return GFX_RESULT_SUCCESS;
 }
 
 GfxResult validateCommandEncoderGenerateMipmapsRange(GfxCommandEncoder commandEncoder, GfxTexture texture)
 {
     if (!commandEncoder || !texture) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    // Each level is blitted from the one above, so the texture is both blit source and destination
+    const GfxTextureInfo info = textureInfo(texture);
+    if (!hasBlitSourceUsage(info) || !hasBlitDestinationUsage(info)) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     return GFX_RESULT_SUCCESS;

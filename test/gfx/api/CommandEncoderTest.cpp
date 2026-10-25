@@ -1,6 +1,7 @@
 #include "CommonTest.h"
 
 #include <cstring>
+#include <vector>
 
 // C API tests compiled with C++ for GoogleTest compatibility
 
@@ -546,6 +547,129 @@ TEST_P(GfxCommandEncoderTest, CopiesRejectUndefinedFinalLayout)
     gfxBufferDestroy(buffer);
     gfxTextureDestroy(destination);
     gfxTextureDestroy(source);
+}
+
+// Blits and mipmaps use transfer commands on Vulkan but render on WebGPU, so they need the usage of both
+TEST_P(GfxCommandEncoderTest, BlitAndMipmapsRequireUsageOfBothBackends)
+{
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { 64, 64, 1 };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 2;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.usage = GFX_FLAGS(GFX_TEXTURE_USAGE_COPY_SRC | GFX_TEXTURE_USAGE_COPY_DST);
+    GfxTexture copyOnly = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &copyOnly), GFX_RESULT_SUCCESS);
+    textureDesc.usage = GFX_FLAGS(GFX_TEXTURE_USAGE_COPY_SRC | GFX_TEXTURE_USAGE_COPY_DST | GFX_TEXTURE_USAGE_TEXTURE_BINDING | GFX_TEXTURE_USAGE_RENDER_ATTACHMENT);
+    GfxTexture source = nullptr;
+    GfxTexture destination = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &source), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &destination), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    GfxCommandEncoder encoder = nullptr;
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxBlitTextureToTextureDescriptor blit = {};
+    blit.source = copyOnly;
+    blit.sourceExtent = { 64, 64, 1 };
+    blit.sourceFinalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_SRC;
+    blit.destination = destination;
+    blit.destinationExtent = { 32, 32, 1 };
+    blit.destinationFinalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_DST;
+    EXPECT_EQ(gfxCommandEncoderBlitTextureToTexture(encoder, &blit), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    blit.source = source;
+    blit.destination = copyOnly;
+    EXPECT_EQ(gfxCommandEncoderBlitTextureToTexture(encoder, &blit), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    blit.destination = destination;
+    EXPECT_EQ(gfxCommandEncoderBlitTextureToTexture(encoder, &blit), GFX_RESULT_SUCCESS);
+
+    EXPECT_EQ(gfxCommandEncoderGenerateMipmaps(encoder, copyOnly), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxCommandEncoderGenerateMipmaps(encoder, source), GFX_RESULT_SUCCESS);
+
+    gfxCommandEncoderDestroy(encoder);
+    gfxTextureDestroy(destination);
+    gfxTextureDestroy(source);
+    gfxTextureDestroy(copyOnly);
+}
+
+// A 3D mip level averages its source in depth too, slice by slice
+TEST_P(GfxCommandEncoderTest, GenerateMipmaps3DFiltersDepth)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    constexpr uint32_t kSize = 4;
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_3D;
+    textureDesc.size = { kSize, kSize, kSize };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 2;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8_UNORM; // Any renderable format works, not only RGBA8
+    textureDesc.usage = GFX_FLAGS(GFX_TEXTURE_USAGE_COPY_SRC | GFX_TEXTURE_USAGE_COPY_DST | GFX_TEXTURE_USAGE_TEXTURE_BINDING | GFX_TEXTURE_USAGE_RENDER_ATTACHMENT);
+    GfxTexture texture = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &texture), GFX_RESULT_SUCCESS);
+
+    // Slices 0-1 are 0 and slices 2-3 are 200, so mip 1 must read 0 in slice 0 and 200 in slice 1
+    constexpr size_t kSliceBytes = kSize * kSize;
+    std::vector<uint8_t> pixels(kSliceBytes * kSize, 0);
+    std::memset(pixels.data() + 2 * kSliceBytes, 200, 2 * kSliceBytes);
+    GfxWriteTextureDescriptor writeDesc = {};
+    writeDesc.texture = texture;
+    writeDesc.extent = { kSize, kSize, kSize };
+    writeDesc.bytesPerRow = kSize;
+    writeDesc.rowsPerImage = kSize;
+    writeDesc.finalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_DST;
+    ASSERT_EQ(gfxQueueWriteTexture(queue, &writeDesc, pixels.data(), pixels.size()), GFX_RESULT_SUCCESS);
+
+    constexpr uint32_t kBytesPerRow = 256; // WebGPU's row pitch for texture-to-buffer copies
+    GfxBufferDescriptor readbackDesc = {};
+    readbackDesc.size = kBytesPerRow * 2 * 2;
+    readbackDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_READ | GFX_BUFFER_USAGE_COPY_DST);
+    readbackDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+    GfxBuffer readback = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &readbackDesc, &readback), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    GfxCommandEncoder encoder = nullptr;
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderGenerateMipmaps(encoder, texture), GFX_RESULT_SUCCESS);
+
+    GfxCopyTextureToBufferDescriptor copyDesc = {};
+    copyDesc.source = texture;
+    copyDesc.mipLevel = 1;
+    copyDesc.destination = readback;
+    copyDesc.bytesPerRow = kBytesPerRow;
+    copyDesc.rowsPerImage = 2;
+    copyDesc.extent = { 2, 2, 2 };
+    copyDesc.finalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_SRC;
+    ASSERT_EQ(gfxCommandEncoderCopyTextureToBuffer(encoder, &copyDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+    GfxFenceDescriptor fenceDesc = {};
+    GfxFence fence = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFence(device, &fenceDesc, &fence), GFX_RESULT_SUCCESS);
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    submitDesc.signalFence = fence;
+    ASSERT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxFenceWait(fence, GFX_TIMEOUT_INFINITE), GFX_RESULT_SUCCESS);
+
+    void* mapped = nullptr;
+    ASSERT_EQ(gfxBufferMap(readback, 0, readbackDesc.size, &mapped), GFX_RESULT_SUCCESS);
+    const auto* bytes = static_cast<const uint8_t*>(mapped);
+    EXPECT_EQ(bytes[0], 0);
+    EXPECT_EQ(bytes[kBytesPerRow * 2], 200);
+    ASSERT_EQ(gfxBufferUnmap(readback), GFX_RESULT_SUCCESS);
+
+    gfxFenceDestroy(fence);
+    gfxCommandEncoderDestroy(encoder);
+    gfxBufferDestroy(readback);
+    gfxTextureDestroy(texture);
 }
 
 TEST_P(GfxCommandEncoderTest, CopyTextureToTextureWithNullEncoder)
