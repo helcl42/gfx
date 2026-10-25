@@ -689,9 +689,10 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithBindGroupLayouts)
     GfxBindGroupLayoutEntry entry = {};
     entry.binding = 0;
     entry.visibility = GFX_SHADER_STAGE_COMPUTE;
-    entry.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
-    entry.uniformBuffer.hasDynamicOffset = false;
-    entry.uniformBuffer.minBindingSize = 0;
+    entry.type = GFX_BINDING_TYPE_STORAGE_BUFFER;
+    entry.storageBuffer.access = GFX_STORAGE_BUFFER_ACCESS_READ_WRITE;
+    entry.storageBuffer.hasDynamicOffset = false;
+    entry.storageBuffer.minBindingSize = 0;
 
     GfxBindGroupLayoutDescriptor layoutDesc = {};
     layoutDesc.label = "Compute Bind Group Layout";
@@ -750,9 +751,10 @@ TEST_P(GfxComputePipelineTest, CreateComputePipelineWithMultipleBindGroupLayouts
     GfxBindGroupLayoutEntry entry1 = {};
     entry1.binding = 0;
     entry1.visibility = GFX_SHADER_STAGE_COMPUTE;
-    entry1.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
-    entry1.uniformBuffer.hasDynamicOffset = false;
-    entry1.uniformBuffer.minBindingSize = 0;
+    entry1.type = GFX_BINDING_TYPE_STORAGE_BUFFER;
+    entry1.storageBuffer.access = GFX_STORAGE_BUFFER_ACCESS_READ_WRITE;
+    entry1.storageBuffer.hasDynamicOffset = false;
+    entry1.storageBuffer.minBindingSize = 0;
 
     GfxBindGroupLayoutDescriptor layoutDesc1 = {};
     layoutDesc1.label = "Storage Buffer Layout";

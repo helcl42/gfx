@@ -221,7 +221,8 @@ TEST_P(GfxCppComputePipelineTest, CreateComputePipelineWithBindGroupLayouts)
     gfx::BindGroupLayoutEntry entry{
         .binding = 0,
         .visibility = gfx::ShaderStage::Compute,
-        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::StorageBufferBinding{
+            .access = gfx::StorageBufferAccess::ReadWrite,
             .hasDynamicOffset = false,
             .minBindingSize = 0 }
     };
@@ -264,7 +265,8 @@ TEST_P(GfxCppComputePipelineTest, CreateComputePipelineWithMultipleBindGroupLayo
     gfx::BindGroupLayoutEntry entry1{
         .binding = 0,
         .visibility = gfx::ShaderStage::Compute,
-        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::StorageBufferBinding{
+            .access = gfx::StorageBufferAccess::ReadWrite,
             .hasDynamicOffset = false,
             .minBindingSize = 0 }
     };
