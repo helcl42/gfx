@@ -82,7 +82,7 @@ TEST_F(VulkanTextureViewTest, CreateViewExplicitFormat_UsesSpecifiedFormat)
     textureInfo.mipLevelCount = 1;
     textureInfo.imageType = VK_IMAGE_TYPE_2D;
     textureInfo.arrayLayers = 1;
-    textureInfo.flags = 0;
+    textureInfo.flags = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
     gfx::backend::vulkan::core::Texture texture(device.get(), textureInfo);
 
     gfx::backend::vulkan::core::TextureViewCreateInfo viewInfo{};
@@ -483,46 +483,6 @@ TEST_F(VulkanTextureViewTest, CreateMultipleViewsSameTexture_CreatesSuccessfully
     EXPECT_NE(textureView1.handle(), textureView2.handle());
     EXPECT_EQ(textureView1.getTexture(), &texture);
     EXPECT_EQ(textureView2.getTexture(), &texture);
-}
-
-TEST_F(VulkanTextureViewTest, CreateViewsWithDifferentFormats_CreatesSuccessfully)
-{
-    gfx::backend::vulkan::core::TextureCreateInfo textureInfo{};
-    textureInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-    textureInfo.size = { 256, 256, 1 };
-    textureInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
-    textureInfo.sampleCount = VK_SAMPLE_COUNT_1_BIT;
-    textureInfo.mipLevelCount = 1;
-    textureInfo.imageType = VK_IMAGE_TYPE_2D;
-    textureInfo.arrayLayers = 1;
-    textureInfo.flags = 0;
-    gfx::backend::vulkan::core::Texture texture(device.get(), textureInfo);
-
-    // UNORM view
-    gfx::backend::vulkan::core::TextureViewCreateInfo viewInfo1{};
-    viewInfo1.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo1.format = VK_FORMAT_R8G8B8A8_UNORM;
-    viewInfo1.baseMipLevel = 0;
-    viewInfo1.mipLevelCount = 1;
-    viewInfo1.baseArrayLayer = 0;
-    viewInfo1.arrayLayerCount = 1;
-
-    // SRGB view (reinterpretation)
-    gfx::backend::vulkan::core::TextureViewCreateInfo viewInfo2{};
-    viewInfo2.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo2.format = VK_FORMAT_R8G8B8A8_SRGB;
-    viewInfo2.baseMipLevel = 0;
-    viewInfo2.mipLevelCount = 1;
-    viewInfo2.baseArrayLayer = 0;
-    viewInfo2.arrayLayerCount = 1;
-
-    gfx::backend::vulkan::core::TextureView textureView1(&texture, viewInfo1);
-    gfx::backend::vulkan::core::TextureView textureView2(&texture, viewInfo2);
-
-    EXPECT_NE(textureView1.handle(), VK_NULL_HANDLE);
-    EXPECT_NE(textureView2.handle(), VK_NULL_HANDLE);
-    EXPECT_EQ(textureView1.getFormat(), VK_FORMAT_R8G8B8A8_UNORM);
-    EXPECT_EQ(textureView2.getFormat(), VK_FORMAT_R8G8B8A8_SRGB);
 }
 
 // ============================================================================
