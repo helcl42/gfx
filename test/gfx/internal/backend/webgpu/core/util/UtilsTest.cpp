@@ -37,6 +37,30 @@ protected:
 // Stencil Format Tests
 // ============================================================================
 
+TEST_F(WebGPUUtilsTest, HasDepth_Depth24PlusStencil8_ReturnsTrue)
+{
+    bool result = gfx::backend::webgpu::core::hasDepth(WGPUTextureFormat_Depth24PlusStencil8);
+    EXPECT_TRUE(result);
+}
+
+TEST_F(WebGPUUtilsTest, HasDepth_Depth32Float_ReturnsTrue)
+{
+    bool result = gfx::backend::webgpu::core::hasDepth(WGPUTextureFormat_Depth32Float);
+    EXPECT_TRUE(result);
+}
+
+TEST_F(WebGPUUtilsTest, HasDepth_Stencil8_ReturnsFalse)
+{
+    bool result = gfx::backend::webgpu::core::hasDepth(WGPUTextureFormat_Stencil8);
+    EXPECT_FALSE(result);
+}
+
+TEST_F(WebGPUUtilsTest, HasDepth_ColorFormat_ReturnsFalse)
+{
+    bool result = gfx::backend::webgpu::core::hasDepth(WGPUTextureFormat_RGBA8Unorm);
+    EXPECT_FALSE(result);
+}
+
 TEST_F(WebGPUUtilsTest, HasStencil_Depth24PlusStencil8_ReturnsTrue)
 {
     bool result = gfx::backend::webgpu::core::hasStencil(WGPUTextureFormat_Depth24PlusStencil8);

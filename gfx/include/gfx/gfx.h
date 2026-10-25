@@ -1556,6 +1556,7 @@ typedef struct {
     uint32_t mipLevelCount;
     uint32_t baseArrayLayer;
     uint32_t arrayLayerCount;
+    GfxTextureAspect aspect; // DEPTH_ONLY or STENCIL_ONLY to sample one aspect of a depth-stencil texture
 } GfxTextureViewDescriptor;
 
 typedef struct {

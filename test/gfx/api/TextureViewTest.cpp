@@ -156,6 +156,26 @@ TEST_P(GfxTextureViewTest, CreateViewWithDifferentFormatIsRejected)
     gfxTextureDestroy(texture);
 }
 
+TEST_P(GfxTextureViewTest, CreateViewWithAspectMissingFromFormatIsRejected)
+{
+    GfxTexture texture = createBasicTexture();
+    ASSERT_NE(texture, nullptr);
+
+    GfxTextureViewDescriptor viewDesc = {};
+    viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
+    viewDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    viewDesc.mipLevelCount = 1;
+    viewDesc.arrayLayerCount = 1;
+
+    GfxTextureView view = nullptr;
+    viewDesc.aspect = GFX_TEXTURE_ASPECT_DEPTH_ONLY;
+    EXPECT_EQ(gfxTextureCreateView(texture, &viewDesc, &view), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    viewDesc.aspect = GFX_TEXTURE_ASPECT_STENCIL_ONLY;
+    EXPECT_EQ(gfxTextureCreateView(texture, &viewDesc, &view), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+
+    gfxTextureDestroy(texture);
+}
+
 TEST_P(GfxTextureViewTest, CreateView1D)
 {
     GfxTextureDescriptor desc = {};

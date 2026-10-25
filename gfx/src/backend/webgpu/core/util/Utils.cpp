@@ -10,6 +10,11 @@ WGPUStringView toStringView(const char* str)
     return WGPUStringView{ str, WGPU_STRLEN };
 }
 
+bool hasDepth(WGPUTextureFormat format)
+{
+    return format == WGPUTextureFormat_Depth16Unorm || format == WGPUTextureFormat_Depth24Plus || format == WGPUTextureFormat_Depth24PlusStencil8 || format == WGPUTextureFormat_Depth32Float || format == WGPUTextureFormat_Depth32FloatStencil8;
+}
+
 bool hasStencil(WGPUTextureFormat format)
 {
     return format == WGPUTextureFormat_Stencil8 || format == WGPUTextureFormat_Depth24PlusStencil8 || format == WGPUTextureFormat_Depth32FloatStencil8;

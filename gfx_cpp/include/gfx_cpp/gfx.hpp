@@ -1120,6 +1120,7 @@ struct TextureViewDescriptor {
     uint32_t mipLevelCount = 1;
     uint32_t baseArrayLayer = 0;
     uint32_t arrayLayerCount = 1;
+    TextureAspect aspect = TextureAspect::All; // DepthOnly or StencilOnly to sample one aspect of a depth-stencil texture
 };
 
 struct SamplerDescriptor {

@@ -980,6 +980,7 @@ void convertTextureViewDescriptor(const TextureViewDescriptor& descriptor, GfxTe
     outDesc.mipLevelCount = descriptor.mipLevelCount;
     outDesc.baseArrayLayer = descriptor.baseArrayLayer;
     outDesc.arrayLayerCount = descriptor.arrayLayerCount;
+    outDesc.aspect = cppTextureAspectToCTextureAspect(descriptor.aspect);
 }
 
 void convertSamplerDescriptor(const SamplerDescriptor& descriptor, GfxSamplerDescriptor& outDesc)

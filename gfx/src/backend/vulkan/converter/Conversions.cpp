@@ -1600,6 +1600,7 @@ core::TextureViewCreateInfo gfxDescriptorToTextureViewCreateInfo(const GfxTextur
     createInfo.mipLevelCount = descriptor->mipLevelCount;
     createInfo.baseArrayLayer = descriptor->baseArrayLayer;
     createInfo.arrayLayerCount = descriptor->arrayLayerCount;
+    createInfo.aspectMask = gfxTextureAspectToVkAspectMask(descriptor->aspect, createInfo.format);
     return createInfo;
 }
 

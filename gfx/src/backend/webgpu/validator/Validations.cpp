@@ -1398,8 +1398,15 @@ GfxResult validateTextureCreateView(GfxTexture texture, const GfxTextureViewDesc
         return descriptorResult;
     }
 
+    const WGPUTextureFormat format = converter::toNative<core::Texture>(texture)->getFormat();
+
     // WebGPU rule: a view keeps its texture's format, as textures declare no other view formats
-    if (converter::gfxFormatToWGPUFormat(descriptor->format) != converter::toNative<core::Texture>(texture)->getFormat()) {
+    if (converter::gfxFormatToWGPUFormat(descriptor->format) != format) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+
+    // A single-aspect view needs that aspect in the texture's format
+    if ((descriptor->aspect == GFX_TEXTURE_ASPECT_DEPTH_ONLY && !core::hasDepth(format)) || (descriptor->aspect == GFX_TEXTURE_ASPECT_STENCIL_ONLY && !core::hasStencil(format))) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
 

@@ -153,6 +153,7 @@ struct TextureViewCreateInfo {
     uint32_t mipLevelCount;
     uint32_t baseArrayLayer;
     uint32_t arrayLayerCount;
+    WGPUTextureAspect aspect = WGPUTextureAspect_All;
 };
 
 struct ShaderCreateInfo {

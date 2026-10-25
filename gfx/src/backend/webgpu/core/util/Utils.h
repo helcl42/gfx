@@ -7,6 +7,7 @@ namespace gfx::backend::webgpu::core {
 
 WGPUStringView toStringView(const char* str);
 
+bool hasDepth(WGPUTextureFormat format);
 bool hasStencil(WGPUTextureFormat format);
 
 // Get bytes per pixel for a texture format

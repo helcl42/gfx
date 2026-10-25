@@ -336,7 +336,9 @@ core::TextureViewCreateInfo gfxDescriptorToWebGPUTextureViewCreateInfo(const Gfx
 {
     core::TextureViewCreateInfo createInfo{};
     createInfo.viewDimension = gfxTextureViewTypeToWGPU(descriptor->viewType);
-    createInfo.format = gfxFormatToWGPUFormat(descriptor->format);
+    createInfo.aspect = gfxTextureAspectToWGPUTextureAspect(descriptor->aspect);
+    // A single-aspect view takes that aspect's format (depth24plus of depth24plus-stencil8), which Dawn resolves
+    createInfo.format = createInfo.aspect == WGPUTextureAspect_All ? gfxFormatToWGPUFormat(descriptor->format) : WGPUTextureFormat_Undefined;
     createInfo.baseMipLevel = descriptor->baseMipLevel;
     createInfo.mipLevelCount = descriptor->mipLevelCount;
     createInfo.baseArrayLayer = descriptor->baseArrayLayer;

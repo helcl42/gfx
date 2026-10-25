@@ -18,6 +18,7 @@ TextureView::TextureView(Texture* texture, const TextureViewCreateInfo& createIn
     desc.mipLevelCount = createInfo.mipLevelCount;
     desc.baseArrayLayer = createInfo.baseArrayLayer;
     desc.arrayLayerCount = createInfo.arrayLayerCount;
+    desc.aspect = createInfo.aspect;
 
     m_view = wgpuTextureCreateView(texture->handle(), &desc);
     if (!m_view) {

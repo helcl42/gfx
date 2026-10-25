@@ -155,6 +155,7 @@ struct TextureViewCreateInfo {
     uint32_t mipLevelCount;
     uint32_t baseArrayLayer;
     uint32_t arrayLayerCount;
+    VkImageAspectFlags aspectMask = 0; // 0 means every aspect of the format
 };
 
 struct ShaderCreateInfo {
