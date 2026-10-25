@@ -31,6 +31,7 @@ add_executable(gfx_cpp_api_test
     api/TextureTest.cpp
     api/TextureViewTest.cpp
     api/UtilTest.cpp
+    api/ValidationEnforcement.cpp
 )
 
 target_link_libraries(gfx_cpp_api_test
@@ -69,8 +70,10 @@ endif()
 
 gfx_apply_sanitizers(gfx_cpp_api_test)
 
+# Synchronization validation also fails tests on missing barriers when the Vulkan validation layer is present
 gtest_discover_tests(gfx_cpp_api_test
     DISCOVERY_MODE PRE_TEST
+    PROPERTIES ENVIRONMENT "VK_LAYER_VALIDATE_SYNC=1"
 )
 
 # =============================================================================

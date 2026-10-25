@@ -15,7 +15,8 @@ protected:
         backend = GetParam();
         try {
             gfx::InstanceDescriptor instanceDesc{
-                .backend = backend
+                .backend = backend,
+                .enabledExtensions = { gfx::INSTANCE_EXTENSION_DEBUG }
             };
             instance = gfx::createInstance(instanceDesc);
 
