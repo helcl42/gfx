@@ -254,7 +254,6 @@ TEST_P(GfxQueueTest, ConcurrentQueueOperationsAreThreadSafe)
     gfxTextureDestroy(texture);
 }
 
-// Test: A partial texture write keeps the texels outside the written region
 TEST_P(GfxQueueTest, WriteTextureRejectsUndefinedFinalLayout)
 {
     GfxQueue queue = nullptr;
@@ -280,6 +279,7 @@ TEST_P(GfxQueueTest, WriteTextureRejectsUndefinedFinalLayout)
     gfxTextureDestroy(texture);
 }
 
+// Test: A partial texture write keeps the texels outside the written region
 TEST_P(GfxQueueTest, WriteTexturePartialPreservesContents)
 {
     GfxQueue queue = nullptr;
