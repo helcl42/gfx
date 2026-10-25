@@ -181,6 +181,10 @@ TEST_P(GfxCppTextureViewTest, CreateViewCube)
 
 TEST_P(GfxCppTextureViewTest, CreateView1DArray)
 {
+    if (GetParam() == gfx::Backend::WebGPU) {
+        GTEST_SKIP() << "WebGPU has no 1D array textures";
+    }
+
     gfx::TextureDescriptor desc{};
     desc.type = gfx::TextureType::Texture1D;
     desc.size = { 512, 1, 1 };
@@ -203,6 +207,35 @@ TEST_P(GfxCppTextureViewTest, CreateView1DArray)
 
     auto view = texture->createView(viewDesc);
     EXPECT_NE(view, nullptr);
+}
+
+// WebGPU has neither 1D array textures nor 1D array views
+TEST_P(GfxCppTextureViewTest, OneDimensionalArraysAreUnsupportedOnWebGPU)
+{
+    if (GetParam() != gfx::Backend::WebGPU) {
+        GTEST_SKIP() << "Vulkan supports 1D arrays";
+    }
+
+    gfx::TextureDescriptor desc{};
+    desc.type = gfx::TextureType::Texture1D;
+    desc.size = { 512, 1, 1 };
+    desc.arrayLayerCount = 4;
+    desc.mipLevelCount = 1;
+    desc.sampleCount = gfx::SampleCount::Count1;
+    desc.format = gfx::Format::R8G8B8A8Unorm;
+    desc.usage = gfx::TextureUsage::TextureBinding;
+
+    EXPECT_THROW(device->createTexture(desc), std::exception);
+
+    desc.arrayLayerCount = 1;
+    auto texture = device->createTexture(desc);
+    ASSERT_NE(texture, nullptr);
+
+    gfx::TextureViewDescriptor viewDesc{};
+    viewDesc.viewType = gfx::TextureViewType::View1DArray;
+    viewDesc.format = gfx::Format::R8G8B8A8Unorm;
+
+    EXPECT_THROW(texture->createView(viewDesc), std::exception);
 }
 
 TEST_P(GfxCppTextureViewTest, CreateView2DArray)

@@ -235,6 +235,10 @@ TEST_P(GfxTextureViewTest, CreateViewCube)
 
 TEST_P(GfxTextureViewTest, CreateView1DArray)
 {
+    if (GetParam() == GFX_BACKEND_WEBGPU) {
+        GTEST_SKIP() << "WebGPU has no 1D array textures";
+    }
+
     GfxTextureDescriptor desc = {};
     desc.type = GFX_TEXTURE_TYPE_1D;
     desc.size = { 512, 1, 1 };
@@ -262,6 +266,40 @@ TEST_P(GfxTextureViewTest, CreateView1DArray)
     EXPECT_NE(view, nullptr);
 
     gfxTextureViewDestroy(view);
+    gfxTextureDestroy(texture);
+}
+
+// WebGPU has neither 1D array textures nor 1D array views
+TEST_P(GfxTextureViewTest, OneDimensionalArraysAreUnsupportedOnWebGPU)
+{
+    if (GetParam() != GFX_BACKEND_WEBGPU) {
+        GTEST_SKIP() << "Vulkan supports 1D arrays";
+    }
+
+    GfxTextureDescriptor desc = {};
+    desc.type = GFX_TEXTURE_TYPE_1D;
+    desc.size = { 512, 1, 1 };
+    desc.arrayLayerCount = 4;
+    desc.mipLevelCount = 1;
+    desc.sampleCount = GFX_SAMPLE_COUNT_1;
+    desc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    desc.usage = GFX_TEXTURE_USAGE_TEXTURE_BINDING;
+
+    GfxTexture texture = nullptr;
+    EXPECT_EQ(gfxDeviceCreateTexture(device, &desc, &texture), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+
+    desc.arrayLayerCount = 1;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &desc, &texture), GFX_RESULT_SUCCESS);
+
+    GfxTextureViewDescriptor viewDesc = {};
+    viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_1D_ARRAY;
+    viewDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    viewDesc.mipLevelCount = 1;
+    viewDesc.arrayLayerCount = 1;
+
+    GfxTextureView view = nullptr;
+    EXPECT_EQ(gfxTextureCreateView(texture, &viewDesc, &view), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+
     gfxTextureDestroy(texture);
 }
 

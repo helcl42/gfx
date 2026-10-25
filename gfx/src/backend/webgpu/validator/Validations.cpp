@@ -193,6 +193,10 @@ namespace {
             if (descriptor->size.width == 0) {
                 return GFX_RESULT_ERROR_INVALID_ARGUMENT;
             }
+            // WebGPU has no 1D array textures
+            if (descriptor->arrayLayerCount > 1) {
+                return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+            }
             break;
         case GFX_TEXTURE_TYPE_2D:
         case GFX_TEXTURE_TYPE_CUBE:
@@ -272,6 +276,10 @@ namespace {
         case GFX_TEXTURE_TYPE_1D:
             if (descriptor->size.width == 0) {
                 return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+            }
+            // WebGPU has no 1D array textures
+            if (descriptor->arrayLayerCount > 1) {
+                return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
             }
             break;
         case GFX_TEXTURE_TYPE_2D:
@@ -386,6 +394,11 @@ namespace {
         // Validate array layer count
         if (descriptor->arrayLayerCount == 0) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+
+        // WebGPU has no 1D array views
+        if (descriptor->viewType == GFX_TEXTURE_VIEW_TYPE_1D_ARRAY) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
         }
 
         return GFX_RESULT_SUCCESS;

@@ -167,6 +167,10 @@ TEST_P(TextureViewImplTest, CreateMultipleViews_SameTexture)
 }
 TEST_P(TextureViewImplTest, CreateView1DArray)
 {
+    if (backend == GFX_BACKEND_WEBGPU) {
+        GTEST_SKIP() << "WebGPU has no 1D array textures";
+    }
+
     DeviceImpl deviceWrapper(device);
 
     // Create 1D array texture
