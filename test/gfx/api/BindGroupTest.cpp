@@ -349,6 +349,73 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithTextureView)
     gfxBindGroupLayoutDestroy(layout);
 }
 
+TEST_P(GfxBindGroupTest, CreateBindGroupWithDepth24PlusTextureView)
+{
+    GfxBindGroupLayoutEntry layoutEntry = {};
+    layoutEntry.binding = 0;
+    layoutEntry.visibility = GFX_SHADER_STAGE_FRAGMENT;
+    layoutEntry.type = GFX_BINDING_TYPE_TEXTURE;
+    layoutEntry.texture.sampleType = GFX_TEXTURE_SAMPLE_TYPE_DEPTH;
+    layoutEntry.texture.viewDimension = GFX_TEXTURE_VIEW_TYPE_2D;
+    layoutEntry.texture.multisampled = false;
+
+    GfxBindGroupLayoutDescriptor layoutDesc = {};
+    layoutDesc.entries = &layoutEntry;
+    layoutDesc.entryCount = 1;
+
+    GfxBindGroupLayout layout = nullptr;
+    GfxResult result = gfxDeviceCreateBindGroupLayout(device, &layoutDesc, &layout);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+    ASSERT_NE(layout, nullptr);
+
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { 256, 256, 1 };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_DEPTH24_PLUS;
+    textureDesc.usage = GFX_TEXTURE_USAGE_TEXTURE_BINDING;
+
+    GfxTexture texture = nullptr;
+    result = gfxDeviceCreateTexture(device, &textureDesc, &texture);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+    ASSERT_NE(texture, nullptr);
+
+    GfxTextureViewDescriptor viewDesc = {};
+    viewDesc.format = GFX_FORMAT_DEPTH24_PLUS;
+    viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
+    viewDesc.baseMipLevel = 0;
+    viewDesc.mipLevelCount = 1;
+    viewDesc.baseArrayLayer = 0;
+    viewDesc.arrayLayerCount = 1;
+
+    GfxTextureView textureView = nullptr;
+    result = gfxTextureCreateView(texture, &viewDesc, &textureView);
+    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
+    ASSERT_NE(textureView, nullptr);
+
+    GfxBindGroupEntry entry = {};
+    entry.binding = 0;
+    entry.type = GFX_BIND_GROUP_ENTRY_TYPE_TEXTURE_VIEW;
+    entry.resource.textureView = textureView;
+
+    GfxBindGroupDescriptor bindGroupDesc = {};
+    bindGroupDesc.layout = layout;
+    bindGroupDesc.entries = &entry;
+    bindGroupDesc.entryCount = 1;
+
+    GfxBindGroup bindGroup = nullptr;
+    result = gfxDeviceCreateBindGroup(device, &bindGroupDesc, &bindGroup);
+    EXPECT_EQ(result, GFX_RESULT_SUCCESS);
+    EXPECT_NE(bindGroup, nullptr);
+
+    gfxBindGroupDestroy(bindGroup);
+    gfxTextureViewDestroy(textureView);
+    gfxTextureDestroy(texture);
+    gfxBindGroupLayoutDestroy(layout);
+}
+
 // Test: Create BindGroup with a texture array binding (layout count > 1)
 TEST_P(GfxBindGroupTest, CreateBindGroupWithTextureArrayBinding)
 {
