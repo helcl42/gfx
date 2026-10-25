@@ -869,6 +869,42 @@ TEST_P(GfxCommandEncoderTest, PipelineBarrierEmpty)
     gfxCommandEncoderDestroy(encoder);
 }
 
+// A NONE source stage waits for nothing, as for a texture's first transition
+TEST_P(GfxCommandEncoderTest, PipelineBarrierWithNoneSourceStage)
+{
+    GfxTextureDescriptor textureDesc = {};
+    textureDesc.type = GFX_TEXTURE_TYPE_2D;
+    textureDesc.size = { 64, 64, 1 };
+    textureDesc.arrayLayerCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
+    textureDesc.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.usage = GFX_TEXTURE_USAGE_COPY_DST;
+    GfxTexture texture = nullptr;
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &texture), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    GfxCommandEncoder encoder = nullptr;
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxTextureBarrier barrier = {};
+    barrier.texture = texture;
+    barrier.oldLayout = GFX_TEXTURE_LAYOUT_UNDEFINED;
+    barrier.newLayout = GFX_TEXTURE_LAYOUT_TRANSFER_DST;
+    barrier.srcStageMask = GFX_PIPELINE_STAGE_NONE;
+    barrier.dstStageMask = GFX_PIPELINE_STAGE_TRANSFER;
+    barrier.dstAccessMask = GFX_ACCESS_TRANSFER_WRITE;
+    barrier.mipLevelCount = 1;
+    barrier.arrayLayerCount = 1;
+    GfxPipelineBarrierDescriptor barrierDesc = {};
+    barrierDesc.textureBarriers = &barrier;
+    barrierDesc.textureBarrierCount = 1;
+    EXPECT_EQ(gfxCommandEncoderPipelineBarrier(encoder, &barrierDesc), GFX_RESULT_SUCCESS);
+
+    gfxCommandEncoderDestroy(encoder);
+    gfxTextureDestroy(texture);
+}
+
 // ===========================================================================
 // Render Bundle Command Encoder Tests
 // ===========================================================================

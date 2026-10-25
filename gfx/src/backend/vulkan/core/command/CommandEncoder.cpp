@@ -155,6 +155,10 @@ void CommandEncoder::replayBundle(VkCommandBuffer commandBuffer) const
 
 void CommandEncoder::pipelineBarrier(const MemoryBarrier* memoryBarriers, uint32_t memoryBarrierCount, const BufferBarrier* bufferBarriers, uint32_t bufferBarrierCount, const TextureBarrier* textureBarriers, uint32_t textureBarrierCount)
 {
+    if (memoryBarrierCount == 0 && bufferBarrierCount == 0 && textureBarrierCount == 0) {
+        return;
+    }
+
     std::vector<VkMemoryBarrier> memBarriers;
     memBarriers.reserve(memoryBarrierCount);
 
@@ -239,6 +243,14 @@ void CommandEncoder::pipelineBarrier(const MemoryBarrier* memoryBarriers, uint32
 
         // Update tracked layout
         barrier.texture->setLayout(barrier.newLayout);
+    }
+
+    // Without synchronization2 a NONE stage must be given as the start or the end of the pipeline
+    if (srcStage == 0) {
+        srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    }
+    if (dstStage == 0) {
+        dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
     }
 
     vkCmdPipelineBarrier(m_commandBuffer, srcStage, dstStage, 0, static_cast<uint32_t>(memBarriers.size()), memBarriers.empty() ? nullptr : memBarriers.data(), static_cast<uint32_t>(bufferMemoryBarriers.size()), bufferMemoryBarriers.empty() ? nullptr : bufferMemoryBarriers.data(), static_cast<uint32_t>(imageBarriers.size()), imageBarriers.empty() ? nullptr : imageBarriers.data());
