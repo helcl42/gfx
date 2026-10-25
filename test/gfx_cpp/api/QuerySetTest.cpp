@@ -402,7 +402,7 @@ TEST_P(GfxCppQuerySetTest, ResolveQuerySetWithOffset)
     ASSERT_NE(querySet, nullptr);
 
     gfx::BufferDescriptor bufferDesc{
-        .size = 8 * sizeof(uint64_t),
+        .size = 256 + 4 * sizeof(uint64_t),
         .usage = gfx::BufferUsage::QueryResolve | gfx::BufferUsage::CopyDst,
         .memoryProperties = gfx::MemoryProperty::HostVisible | gfx::MemoryProperty::HostCoherent
     };
@@ -418,8 +418,8 @@ TEST_P(GfxCppQuerySetTest, ResolveQuerySetWithOffset)
     encoder->writeTimestamp(querySet, 2);
     encoder->writeTimestamp(querySet, 3);
 
-    // Resolve to buffer with offset
-    encoder->resolveQuerySet(querySet, 0, 4, buffer, 2 * sizeof(uint64_t));
+    // Resolve to buffer with offset (resolve offsets are 256-byte aligned)
+    encoder->resolveQuerySet(querySet, 0, 4, buffer, 256);
 
     encoder->end();
 }

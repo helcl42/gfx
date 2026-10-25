@@ -306,7 +306,7 @@ GfxResult CommandComponent::commandEncoderResetQuerySet(GfxCommandEncoder comman
 
 GfxResult CommandComponent::commandEncoderResolveQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, uint32_t firstQuery, uint32_t queryCount, GfxBuffer destinationBuffer, uint64_t destinationOffset) const
 {
-    GfxResult validationResult = validator::validateCommandEncoderResolveQuerySet(commandEncoder, querySet, destinationBuffer);
+    GfxResult validationResult = validator::validateCommandEncoderResolveQuerySet(commandEncoder, querySet, destinationBuffer, destinationOffset);
     if (validationResult != GFX_RESULT_SUCCESS) {
         return validationResult;
     }

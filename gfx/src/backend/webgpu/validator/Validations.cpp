@@ -1473,9 +1473,13 @@ GfxResult validateCommandEncoderResetQuerySet(GfxCommandEncoder commandEncoder, 
     return GFX_RESULT_SUCCESS;
 }
 
-GfxResult validateCommandEncoderResolveQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, GfxBuffer destinationBuffer)
+GfxResult validateCommandEncoderResolveQuerySet(GfxCommandEncoder commandEncoder, GfxQuerySet querySet, GfxBuffer destinationBuffer, uint64_t destinationOffset)
 {
     if (!commandEncoder || !querySet || !destinationBuffer) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    // WebGPU rule: query results resolve to a 256-byte aligned buffer offset
+    if (destinationOffset % 256 != 0) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
     const auto* buf = converter::toNative<core::Buffer>(destinationBuffer);

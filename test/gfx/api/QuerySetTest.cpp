@@ -381,6 +381,34 @@ TEST_P(GfxQuerySetTest, ResolveQuerySetWithWrongBufferUsage)
     gfxCommandEncoderDestroy(encoder);
 }
 
+// Queries resolve to 256-byte aligned buffer offsets, as WebGPU requires
+TEST_P(GfxQuerySetTest, ResolveQuerySetRequiresAlignedOffset)
+{
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    GfxCommandEncoder encoder = nullptr;
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxQuerySetDescriptor querySetDesc = {};
+    querySetDesc.type = GFX_QUERY_TYPE_OCCLUSION;
+    querySetDesc.count = 2;
+    GfxQuerySet querySet = nullptr;
+    ASSERT_EQ(gfxDeviceCreateQuerySet(device, &querySetDesc, &querySet), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor bufferDesc = {};
+    bufferDesc.size = 256 + 2 * sizeof(uint64_t);
+    bufferDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_QUERY_RESOLVE);
+    bufferDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_DEVICE_LOCAL);
+    GfxBuffer buffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &bufferDesc, &buffer), GFX_RESULT_SUCCESS);
+
+    EXPECT_EQ(gfxCommandEncoderResolveQuerySet(encoder, querySet, 0, 2, buffer, 16), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(gfxCommandEncoderResolveQuerySet(encoder, querySet, 0, 2, buffer, 256), GFX_RESULT_SUCCESS);
+
+    gfxBufferDestroy(buffer);
+    gfxQuerySetDestroy(querySet);
+    gfxCommandEncoderDestroy(encoder);
+}
+
 // ===========================================================================
 // Render Pass Encoder Query Operations - Validation Tests
 // ===========================================================================
