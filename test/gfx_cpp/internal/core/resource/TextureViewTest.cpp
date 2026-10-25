@@ -238,7 +238,7 @@ TEST_P(TextureViewImplTest, CreateCubeTextureView)
 
     // Create cube texture
     TextureDescriptor textureDesc{
-        .type = TextureType::TextureCube,
+        .type = TextureType::Texture2D,
         .size = { 256, 256, 1 },
         .arrayLayerCount = 6,
         .mipLevelCount = 1,

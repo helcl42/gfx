@@ -393,7 +393,6 @@ TEST_F(VulkanTextureTest, ImportTexture_ValidHandle_CreatesSuccessfully)
     importInfo.mipLevelCount = 1;
     importInfo.imageType = VK_IMAGE_TYPE_2D;
     importInfo.arrayLayers = 1;
-    importInfo.flags = 0;
 
     gfx::backend::vulkan::core::Texture importedTexture(device.get(), handle, importInfo);
 

@@ -456,32 +456,6 @@ TEST_P(GfxTextureTest, CreateTexture3D)
     gfxTextureDestroy(texture);
 }
 
-TEST_P(GfxTextureTest, CreateTextureCube)
-{
-    GfxTextureDescriptor desc = {};
-    desc.type = GFX_TEXTURE_TYPE_CUBE;
-    desc.size = { 256, 256, 1 };
-    desc.arrayLayerCount = 6; // Cube must have 6 layers
-    desc.mipLevelCount = 1;
-    desc.sampleCount = GFX_SAMPLE_COUNT_1;
-    desc.format = GFX_FORMAT_R8G8B8A8_UNORM;
-    desc.usage = GFX_TEXTURE_USAGE_TEXTURE_BINDING;
-
-    GfxTexture texture = nullptr;
-    GfxResult result = gfxDeviceCreateTexture(device, &desc, &texture);
-    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
-    ASSERT_NE(texture, nullptr);
-
-    GfxTextureInfo info = {};
-    result = gfxTextureGetInfo(texture, &info);
-    EXPECT_EQ(result, GFX_RESULT_SUCCESS);
-    // Note: Some backends may represent cube textures as 2D arrays with 6 layers
-    // The important thing is that it has 6 array layers
-    EXPECT_EQ(info.arrayLayerCount, 6u);
-
-    gfxTextureDestroy(texture);
-}
-
 TEST_P(GfxTextureTest, CreateTextureWithMipmaps)
 {
     GfxTextureDescriptor desc = {};

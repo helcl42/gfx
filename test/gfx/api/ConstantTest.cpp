@@ -190,7 +190,6 @@ TEST(GfxConstantTest, TextureTypeValues)
     EXPECT_EQ(GFX_TEXTURE_TYPE_1D, 0);
     EXPECT_EQ(GFX_TEXTURE_TYPE_2D, 1);
     EXPECT_EQ(GFX_TEXTURE_TYPE_3D, 2);
-    EXPECT_EQ(GFX_TEXTURE_TYPE_CUBE, 3);
 }
 
 TEST(GfxConstantTest, FilterModeValues)

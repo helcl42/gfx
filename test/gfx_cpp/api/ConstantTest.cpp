@@ -188,7 +188,6 @@ TEST(GfxCppConstantTest, TextureTypeValues)
     EXPECT_EQ(static_cast<int32_t>(gfx::TextureType::Texture1D), 0);
     EXPECT_EQ(static_cast<int32_t>(gfx::TextureType::Texture2D), 1);
     EXPECT_EQ(static_cast<int32_t>(gfx::TextureType::Texture3D), 2);
-    EXPECT_EQ(static_cast<int32_t>(gfx::TextureType::TextureCube), 3);
 }
 
 TEST(GfxCppConstantTest, FilterModeValues)

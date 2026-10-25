@@ -389,8 +389,7 @@ enum class Format : int32_t {
 enum class TextureType : int32_t {
     Texture1D = 0,
     Texture2D = 1,
-    Texture3D = 2,
-    TextureCube = 3
+    Texture3D = 2
 };
 
 enum class TextureViewType : int32_t {

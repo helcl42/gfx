@@ -200,7 +200,6 @@ namespace {
             }
             break;
         case GFX_TEXTURE_TYPE_2D:
-        case GFX_TEXTURE_TYPE_CUBE:
             if (descriptor->size.width == 0 || descriptor->size.height == 0) {
                 return GFX_RESULT_ERROR_INVALID_ARGUMENT;
             }
@@ -284,7 +283,6 @@ namespace {
             }
             break;
         case GFX_TEXTURE_TYPE_2D:
-        case GFX_TEXTURE_TYPE_CUBE:
             if (descriptor->size.width == 0 || descriptor->size.height == 0) {
                 return GFX_RESULT_ERROR_INVALID_ARGUMENT;
             }

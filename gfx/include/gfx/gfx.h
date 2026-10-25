@@ -614,9 +614,6 @@ typedef enum {
     GFX_TEXTURE_TYPE_1D = 0,
     GFX_TEXTURE_TYPE_2D = 1,
     GFX_TEXTURE_TYPE_3D = 2,
-    // Cube textures: size.width == size.height, size.depth == 1, arrayLayerCount == 6
-    // (layer order +X, -X, +Y, -Y, +Z, -Z); sample via a GFX_TEXTURE_VIEW_TYPE_CUBE view
-    GFX_TEXTURE_TYPE_CUBE = 3,
     GFX_TEXTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } GfxTextureType;
 
@@ -624,6 +621,8 @@ typedef enum {
     GFX_TEXTURE_VIEW_TYPE_1D = 0,
     GFX_TEXTURE_VIEW_TYPE_2D = 1,
     GFX_TEXTURE_VIEW_TYPE_3D = 2,
+    // Cube views need a 2D texture with width == height and 6 layers per cube
+    // (layer order +X, -X, +Y, -Y, +Z, -Z)
     GFX_TEXTURE_VIEW_TYPE_CUBE = 3,
     GFX_TEXTURE_VIEW_TYPE_1D_ARRAY = 4,
     GFX_TEXTURE_VIEW_TYPE_2D_ARRAY = 5,

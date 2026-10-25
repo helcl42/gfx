@@ -215,29 +215,6 @@ TEST_P(GfxCppTextureTest, CreateTexture3D)
     EXPECT_EQ(info.size.depth, 64u);
 }
 
-TEST_P(GfxCppTextureTest, CreateTextureCube)
-{
-    ASSERT_NE(device, nullptr);
-
-    gfx::TextureDescriptor desc{
-        .type = gfx::TextureType::TextureCube,
-        .size = { 256, 256, 1 },
-        .arrayLayerCount = 6, // Cube must have 6 layers
-        .mipLevelCount = 1,
-        .sampleCount = gfx::SampleCount::Count1,
-        .format = gfx::Format::R8G8B8A8Unorm,
-        .usage = gfx::TextureUsage::TextureBinding
-    };
-
-    auto texture = device->createTexture(desc);
-    ASSERT_NE(texture, nullptr);
-
-    auto info = texture->getInfo();
-    // Some backends may represent cube textures as 2D arrays with 6 layers
-    // The important thing is that it has 6 array layers
-    EXPECT_EQ(info.arrayLayerCount, 6u);
-}
-
 TEST_P(GfxCppTextureTest, CreateTextureWithMipmaps)
 {
     ASSERT_NE(device, nullptr);

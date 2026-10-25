@@ -121,7 +121,6 @@ struct TextureImportInfo {
     uint32_t mipLevelCount;
     VkImageType imageType;
     uint32_t arrayLayers;
-    VkImageCreateFlags flags; // For cube maps, etc.
 };
 
 struct TextureInfo {

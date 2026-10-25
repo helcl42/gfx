@@ -1803,8 +1803,6 @@ WGPUTextureDimension gfxTextureTypeToWGPUTextureDimension(GfxTextureType type)
         return WGPUTextureDimension_1D;
     case GFX_TEXTURE_TYPE_2D:
         return WGPUTextureDimension_2D;
-    case GFX_TEXTURE_TYPE_CUBE:
-        return WGPUTextureDimension_2D; // Cube maps are 2D arrays in WebGPU
     case GFX_TEXTURE_TYPE_3D:
         return WGPUTextureDimension_3D;
     default:
@@ -1818,7 +1816,7 @@ GfxTextureType wgpuTextureDimensionToGfxTextureType(WGPUTextureDimension dimensi
     case WGPUTextureDimension_1D:
         return GFX_TEXTURE_TYPE_1D;
     case WGPUTextureDimension_2D:
-        return GFX_TEXTURE_TYPE_2D; // Note: Can't distinguish CUBE from this alone
+        return GFX_TEXTURE_TYPE_2D;
     case WGPUTextureDimension_3D:
         return GFX_TEXTURE_TYPE_3D;
     default:

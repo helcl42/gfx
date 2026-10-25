@@ -156,7 +156,7 @@ TEST_P(GfxCppTextureViewTest, CreateView3D)
 TEST_P(GfxCppTextureViewTest, CreateViewCube)
 {
     gfx::TextureDescriptor desc{};
-    desc.type = gfx::TextureType::TextureCube;
+    desc.type = gfx::TextureType::Texture2D;
     desc.size = { 256, 256, 1 };
     desc.arrayLayerCount = 6; // Cube requires 6 layers
     desc.mipLevelCount = 1;
@@ -267,7 +267,7 @@ TEST_P(GfxCppTextureViewTest, CreateView2DArray)
 TEST_P(GfxCppTextureViewTest, CreateViewCubeArray)
 {
     gfx::TextureDescriptor desc{};
-    desc.type = gfx::TextureType::TextureCube;
+    desc.type = gfx::TextureType::Texture2D;
     desc.size = { 256, 256, 1 };
     desc.arrayLayerCount = 12; // 2 cubes = 12 layers
     desc.mipLevelCount = 1;
@@ -454,7 +454,7 @@ TEST_P(GfxCppTextureViewTest, CreateViewForDepthTexture)
 TEST_P(GfxCppTextureViewTest, CreateView2DFromSingleCubeFace)
 {
     gfx::TextureDescriptor desc{};
-    desc.type = gfx::TextureType::TextureCube;
+    desc.type = gfx::TextureType::Texture2D;
     desc.size = { 256, 256, 1 };
     desc.arrayLayerCount = 6;
     desc.mipLevelCount = 1;

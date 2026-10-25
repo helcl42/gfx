@@ -782,7 +782,6 @@ VkImageType gfxTextureTypeToVkImageType(GfxTextureType type)
     case GFX_TEXTURE_TYPE_1D:
         return VK_IMAGE_TYPE_1D;
     case GFX_TEXTURE_TYPE_2D:
-    case GFX_TEXTURE_TYPE_CUBE:
         return VK_IMAGE_TYPE_2D;
     case GFX_TEXTURE_TYPE_3D:
         return VK_IMAGE_TYPE_3D;
@@ -797,7 +796,7 @@ GfxTextureType vkImageTypeToGfxTextureType(VkImageType type)
     case VK_IMAGE_TYPE_1D:
         return GFX_TEXTURE_TYPE_1D;
     case VK_IMAGE_TYPE_2D:
-        return GFX_TEXTURE_TYPE_2D; // Note: Can't distinguish CUBE from this alone
+        return GFX_TEXTURE_TYPE_2D;
     case VK_IMAGE_TYPE_3D:
         return GFX_TEXTURE_TYPE_3D;
     default:
@@ -1558,8 +1557,8 @@ core::TextureCreateInfo gfxDescriptorToTextureCreateInfo(const GfxTextureDescrip
     createInfo.arrayLayers = descriptor->arrayLayerCount > 0 ? descriptor->arrayLayerCount : 1;
     createInfo.flags = 0;
 
-    // Set cube map flag if needed
-    if (descriptor->type == GFX_TEXTURE_TYPE_CUBE) {
+    // Any square 2D texture with 6+ layers can be viewed as a cube, as in WebGPU
+    if (createInfo.imageType == VK_IMAGE_TYPE_2D && createInfo.size.width == createInfo.size.height && createInfo.arrayLayers >= 6) {
         createInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
     }
 
@@ -1579,12 +1578,6 @@ core::TextureImportInfo gfxExternalDescriptorToTextureImportInfo(const GfxTextur
     importInfo.mipLevelCount = descriptor->mipLevelCount;
     importInfo.imageType = gfxTextureTypeToVkImageType(descriptor->type);
     importInfo.arrayLayers = descriptor->arrayLayerCount > 0 ? descriptor->arrayLayerCount : 1;
-    importInfo.flags = 0;
-
-    // Set cube map flag if specified
-    if (descriptor->type == GFX_TEXTURE_TYPE_CUBE) {
-        importInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-    }
 
     importInfo.usage = gfxTextureUsageToVkImageUsage(descriptor->usage, importInfo.format);
 

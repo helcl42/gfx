@@ -243,7 +243,7 @@ TEST_P(GfxTextureViewTest, CreateView3D)
 TEST_P(GfxTextureViewTest, CreateViewCube)
 {
     GfxTextureDescriptor desc = {};
-    desc.type = GFX_TEXTURE_TYPE_CUBE;
+    desc.type = GFX_TEXTURE_TYPE_2D;
     desc.size = { 256, 256, 1 };
     desc.arrayLayerCount = 6; // Cube requires 6 layers
     desc.mipLevelCount = 1;
@@ -377,7 +377,7 @@ TEST_P(GfxTextureViewTest, CreateView2DArray)
 TEST_P(GfxTextureViewTest, CreateViewCubeArray)
 {
     GfxTextureDescriptor desc = {};
-    desc.type = GFX_TEXTURE_TYPE_CUBE;
+    desc.type = GFX_TEXTURE_TYPE_2D;
     desc.size = { 256, 256, 1 };
     desc.arrayLayerCount = 12; // 2 cubes = 12 layers
     desc.mipLevelCount = 1;
@@ -605,7 +605,7 @@ TEST_P(GfxTextureViewTest, CreateViewForDepthTexture)
 TEST_P(GfxTextureViewTest, CreateView2DFromSingleCubeFace)
 {
     GfxTextureDescriptor desc = {};
-    desc.type = GFX_TEXTURE_TYPE_CUBE;
+    desc.type = GFX_TEXTURE_TYPE_2D;
     desc.size = { 256, 256, 1 };
     desc.arrayLayerCount = 6;
     desc.mipLevelCount = 1;
