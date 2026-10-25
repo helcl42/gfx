@@ -270,6 +270,13 @@ TEST_P(GfxCppCommandEncoderTest, MultipleCopyOperations)
         .destinationOffset = 0,
         .size = 128 });
 
+    // The second copy reads what the first one wrote
+    encoder->pipelineBarrier({ .memoryBarriers = { gfx::MemoryBarrier{
+                                   .srcStageMask = gfx::PipelineStage::Transfer,
+                                   .dstStageMask = gfx::PipelineStage::Transfer,
+                                   .srcAccessMask = gfx::AccessFlags::TransferWrite,
+                                   .dstAccessMask = gfx::AccessFlags::TransferRead } } });
+
     encoder->copyBufferToBuffer({ .source = buffer2,
         .sourceOffset = 0,
         .destination = buffer3,
