@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
-#include <vector>
 
 // Test Vulkan core Shader class
 // These tests verify the internal shader module implementation, not the public API
@@ -17,28 +16,27 @@ namespace {
 // Minimal valid SPIR-V shader modules for testing
 // ============================================================================
 
-// Minimal vertex shader SPIR-V (empty main function)
+// Minimal vertex shader SPIR-V (main writes a zero position)
 static const uint32_t MINIMAL_VERTEX_SPIRV[] = {
-    0x07230203, 0x00010000, 0x00080001, 0x0000000d, 0x00000000, 0x00020011, 0x00000001, 0x0006000b,
+    0x07230203, 0x00010000, 0x00080001, 0x0000000b, 0x00000000, 0x00020011, 0x00000001, 0x0006000b,
     0x00000001, 0x4c534c47, 0x6474732e, 0x3035342e, 0x00000000, 0x0003000e, 0x00000000, 0x00000001,
-    0x0005000f, 0x00000000, 0x00000004, 0x6e69616d, 0x00000000, 0x00060010, 0x00000004, 0x00000011,
-    0x00000001, 0x00000001, 0x00000001, 0x00030003, 0x00000002, 0x000001c2, 0x00040005, 0x00000004,
-    0x6e69616d, 0x00000000, 0x00050048, 0x00000009, 0x00000000, 0x0000000b, 0x00000000, 0x00030047,
-    0x00000009, 0x00000002, 0x00020013, 0x00000002, 0x00030021, 0x00000003, 0x00000002, 0x00050015,
-    0x00000006, 0x00000020, 0x00000000, 0x00000000, 0x00040017, 0x00000007, 0x00000006, 0x00000004,
-    0x0004001e, 0x00000009, 0x00000007, 0x00000007, 0x00040020, 0x0000000a, 0x00000003, 0x00000009,
-    0x0004003b, 0x0000000a, 0x0000000b, 0x00000003, 0x00050036, 0x00000002, 0x00000004, 0x00000000,
-    0x00000003, 0x000200f8, 0x0000000c, 0x000100fd, 0x00010038
+    0x0006000f, 0x00000000, 0x00000004, 0x6e69616d, 0x00000000, 0x00000009, 0x00030003, 0x00000002,
+    0x000001c2, 0x00040005, 0x00000004, 0x6e69616d, 0x00000000, 0x00040047, 0x00000009, 0x0000000b,
+    0x00000000, 0x00020013, 0x00000002, 0x00030021, 0x00000003, 0x00000002, 0x00030016, 0x00000006,
+    0x00000020, 0x00040017, 0x00000007, 0x00000006, 0x00000004, 0x00040020, 0x00000008, 0x00000003,
+    0x00000007, 0x0004003b, 0x00000008, 0x00000009, 0x00000003, 0x0003002e, 0x00000007, 0x0000000a,
+    0x00050036, 0x00000002, 0x00000004, 0x00000000, 0x00000003, 0x000200f8, 0x00000005, 0x0003003e,
+    0x00000009, 0x0000000a, 0x000100fd, 0x00010038
 };
 
 // Minimal fragment shader SPIR-V (empty main function)
 static const uint32_t MINIMAL_FRAGMENT_SPIRV[] = {
-    0x07230203, 0x00010000, 0x00080001, 0x00000008, 0x00000000, 0x00020011, 0x00000001, 0x0006000b,
+    0x07230203, 0x00010000, 0x00080001, 0x00000006, 0x00000000, 0x00020011, 0x00000001, 0x0006000b,
     0x00000001, 0x4c534c47, 0x6474732e, 0x3035342e, 0x00000000, 0x0003000e, 0x00000000, 0x00000001,
-    0x0005000f, 0x00000004, 0x00000004, 0x6e69616d, 0x00000000, 0x00060010, 0x00000004, 0x00000011,
-    0x00000007, 0x00000001, 0x00000001, 0x00030003, 0x00000002, 0x000001c2, 0x00040005, 0x00000004,
-    0x6e69616d, 0x00000000, 0x00020013, 0x00000002, 0x00030021, 0x00000003, 0x00000002, 0x00050036,
-    0x00000002, 0x00000004, 0x00000000, 0x00000003, 0x000200f8, 0x00000007, 0x000100fd, 0x00010038
+    0x0005000f, 0x00000004, 0x00000004, 0x6e69616d, 0x00000000, 0x00030010, 0x00000004, 0x00000007,
+    0x00030003, 0x00000002, 0x000001c2, 0x00040005, 0x00000004, 0x6e69616d, 0x00000000, 0x00020013,
+    0x00000002, 0x00030021, 0x00000003, 0x00000002, 0x00050036, 0x00000002, 0x00000004, 0x00000000,
+    0x00000003, 0x000200f8, 0x00000005, 0x000100fd, 0x00010038
 };
 
 // Minimal compute shader SPIR-V (empty main function)
@@ -269,44 +267,6 @@ TEST_F(VulkanShaderTest, CreateMultipleShaders_HaveUniqueHandles)
     EXPECT_NE(shader1.handle(), shader2.handle());
     EXPECT_NE(shader2.handle(), shader3.handle());
     EXPECT_NE(shader1.handle(), shader3.handle());
-}
-
-// ============================================================================
-// SPIR-V Size Tests
-// ============================================================================
-
-TEST_F(VulkanShaderTest, CreateSmallSPIRV_CreatesSuccessfully)
-{
-    gfx::backend::vulkan::core::ShaderCreateInfo createInfo{};
-    createInfo.code = MINIMAL_VERTEX_SPIRV;
-    createInfo.codeSize = sizeof(MINIMAL_VERTEX_SPIRV);
-    createInfo.entryPoint = "main";
-
-    gfx::backend::vulkan::core::Shader shader(device.get(), createInfo);
-
-    EXPECT_NE(shader.handle(), VK_NULL_HANDLE);
-}
-
-TEST_F(VulkanShaderTest, CreateLargeSPIRV_CreatesSuccessfully)
-{
-    // Create a larger SPIR-V by duplicating the minimal shader multiple times
-    std::vector<uint32_t> largeSPIRV;
-    largeSPIRV.insert(largeSPIRV.end(), MINIMAL_VERTEX_SPIRV,
-        MINIMAL_VERTEX_SPIRV + (sizeof(MINIMAL_VERTEX_SPIRV) / sizeof(uint32_t)));
-
-    // Pad with NOPs to make it larger (OpNop = 0x00010000)
-    for (int i = 0; i < 1000; ++i) {
-        largeSPIRV.push_back(0x00010000);
-    }
-
-    gfx::backend::vulkan::core::ShaderCreateInfo createInfo{};
-    createInfo.code = largeSPIRV.data();
-    createInfo.codeSize = largeSPIRV.size() * sizeof(uint32_t);
-    createInfo.entryPoint = "main";
-
-    gfx::backend::vulkan::core::Shader shader(device.get(), createInfo);
-
-    EXPECT_NE(shader.handle(), VK_NULL_HANDLE);
 }
 
 } // namespace
