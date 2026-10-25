@@ -566,6 +566,7 @@ TEST_P(GfxCppQuerySetTest, BeginOcclusionQueryInRenderPass)
     renderPassEncoder->beginOcclusionQuery(querySet, 0);
     renderPassEncoder->endOcclusionQuery();
 
+    renderPassEncoder.reset(); // Ends the render pass
     encoder->end();
 }
 
@@ -650,6 +651,7 @@ TEST_P(GfxCppQuerySetTest, EndOcclusionQueryInRenderPass)
     // Would perform more draw calls here
     renderPassEncoder->endOcclusionQuery();
 
+    renderPassEncoder.reset(); // Ends the render pass
     encoder->end();
 }
 
