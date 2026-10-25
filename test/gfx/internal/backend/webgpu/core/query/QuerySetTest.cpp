@@ -21,6 +21,7 @@ protected:
             adapter = instance->requestAdapter(adapterInfo);
 
             gfx::backend::webgpu::core::DeviceCreateInfo deviceInfo{};
+            deviceInfo.enabledExtensions = { "gfx_timestamp_query" };
             device = std::make_unique<gfx::backend::webgpu::core::Device>(adapter, deviceInfo);
         } catch (const std::exception& e) {
             GTEST_SKIP() << "WebGPU not available: " << e.what();
@@ -70,6 +71,10 @@ TEST_F(WebGPUQuerySetTest, GetDevice_ReturnsCorrectDevice)
 
 TEST_F(WebGPUQuerySetTest, CreateQuerySet_Timestamp)
 {
+    if (!device->isTimestampQueryEnabled()) {
+        GTEST_SKIP() << "Timestamp queries are not supported";
+    }
+
     gfx::backend::webgpu::core::QuerySetCreateInfo createInfo{};
     createInfo.type = WGPUQueryType_Timestamp;
     createInfo.count = 32;
@@ -83,6 +88,10 @@ TEST_F(WebGPUQuerySetTest, CreateQuerySet_Timestamp)
 
 TEST_F(WebGPUQuerySetTest, MultipleQuerySets_CanCoexist)
 {
+    if (!device->isTimestampQueryEnabled()) {
+        GTEST_SKIP() << "Timestamp queries are not supported";
+    }
+
     gfx::backend::webgpu::core::QuerySetCreateInfo createInfo1{};
     createInfo1.type = WGPUQueryType_Occlusion;
     createInfo1.count = 8;
