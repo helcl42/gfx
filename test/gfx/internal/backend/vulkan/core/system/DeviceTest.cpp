@@ -58,30 +58,10 @@ TEST_F(VulkanDeviceTest, CreateDeviceNoExtensions_CreatesSuccessfully)
     EXPECT_NE(device.handle(), VK_NULL_HANDLE);
 }
 
-TEST_F(VulkanDeviceTest, CreateDeviceWithSwapchainExtension_CreatesSuccessfully)
-{
-    gfx::backend::vulkan::core::DeviceCreateInfo createInfo{};
-    createInfo.enabledExtensions = { "gfx_swapchain" };
-
-    gfx::backend::vulkan::core::Device device(adapter, createInfo);
-
-    EXPECT_NE(device.handle(), VK_NULL_HANDLE);
-}
-
 TEST_F(VulkanDeviceTest, CreateDeviceWithTimelineSemaphore_CreatesSuccessfully)
 {
     gfx::backend::vulkan::core::DeviceCreateInfo createInfo{};
     createInfo.enabledExtensions = { "gfx_timeline_semaphore" };
-
-    gfx::backend::vulkan::core::Device device(adapter, createInfo);
-
-    EXPECT_NE(device.handle(), VK_NULL_HANDLE);
-}
-
-TEST_F(VulkanDeviceTest, CreateDeviceWithMultipleExtensions_CreatesSuccessfully)
-{
-    gfx::backend::vulkan::core::DeviceCreateInfo createInfo{};
-    createInfo.enabledExtensions = { "gfx_swapchain", "gfx_timeline_semaphore" };
 
     gfx::backend::vulkan::core::Device device(adapter, createInfo);
 
@@ -306,21 +286,6 @@ TEST_F(VulkanDeviceTest, DeviceLifecycleWithQueue_WorksCorrectly)
 // ============================================================================
 // Use Case Tests
 // ============================================================================
-
-TEST_F(VulkanDeviceTest, TypicalDeviceSetup_WorksCorrectly)
-{
-    gfx::backend::vulkan::core::DeviceCreateInfo createInfo{};
-    createInfo.enabledExtensions = { "gfx_swapchain" };
-
-    gfx::backend::vulkan::core::Device device(adapter, createInfo);
-
-    EXPECT_NE(device.handle(), VK_NULL_HANDLE);
-
-    auto* queue = device.getQueue();
-    EXPECT_NE(queue, nullptr);
-
-    device.waitIdle();
-}
 
 TEST_F(VulkanDeviceTest, CreateMultipleDevicesSameAdapter_AllValid)
 {

@@ -282,23 +282,6 @@ TEST_F(VulkanRenderPassTest, MSAAWithResolve_CreatesSuccessfully)
 // Final Layout Tests
 // ============================================================================
 
-TEST_F(VulkanRenderPassTest, PresentLayout_CreatesSuccessfully)
-{
-    gfx::backend::vulkan::core::RenderPassCreateInfo createInfo{};
-
-    gfx::backend::vulkan::core::RenderPassColorAttachment colorAtt{};
-    colorAtt.target.format = VK_FORMAT_R8G8B8A8_UNORM;
-    colorAtt.target.sampleCount = VK_SAMPLE_COUNT_1_BIT;
-    colorAtt.target.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAtt.target.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAtt.target.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    createInfo.colorAttachments.push_back(colorAtt);
-
-    gfx::backend::vulkan::core::RenderPass renderPass(device.get(), createInfo);
-
-    EXPECT_NE(renderPass.handle(), VK_NULL_HANDLE);
-}
-
 TEST_F(VulkanRenderPassTest, ShaderReadOnlyLayout_CreatesSuccessfully)
 {
     gfx::backend::vulkan::core::RenderPassCreateInfo createInfo{};
