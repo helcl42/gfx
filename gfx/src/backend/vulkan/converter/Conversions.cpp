@@ -10,6 +10,7 @@
 #include "../core/resource/Shader.h"
 #include "../core/resource/Texture.h"
 #include "../core/resource/TextureView.h"
+#include "../core/util/Utils.h"
 
 #include <algorithm>
 #include <cstring>
@@ -396,11 +397,6 @@ VkFormat gfxFormatToVkFormat(GfxFormat format)
     }
 }
 
-bool isDepthFormat(VkFormat format)
-{
-    return format == VK_FORMAT_D32_SFLOAT || format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D16_UNORM;
-}
-
 VkAttachmentLoadOp gfxLoadOpToVkLoadOp(GfxLoadOp loadOp)
 {
     switch (loadOp) {
@@ -730,26 +726,6 @@ VkPresentModeKHR gfxPresentModeToVkPresentMode(GfxPresentMode mode)
     }
 }
 
-bool hasStencilComponent(VkFormat format)
-{
-    return format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_S8_UINT;
-}
-
-VkImageAspectFlags getImageAspectMask(VkFormat format)
-{
-    VkImageAspectFlags aspectMask = 0;
-    if (isDepthFormat(format)) {
-        aspectMask |= VK_IMAGE_ASPECT_DEPTH_BIT;
-    }
-    if (hasStencilComponent(format)) {
-        aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-    }
-    if (aspectMask == 0) {
-        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    }
-    return aspectMask;
-}
-
 VkImageLayout gfxLayoutToVkImageLayout(GfxTextureLayout layout)
 {
     switch (layout) {
@@ -799,36 +775,6 @@ GfxTextureLayout vkImageLayoutToGfxLayout(VkImageLayout layout)
         return GFX_TEXTURE_LAYOUT_PRESENT_SRC;
     default:
         return GFX_TEXTURE_LAYOUT_UNDEFINED;
-    }
-}
-
-VkAccessFlags getVkAccessFlagsForLayout(VkImageLayout layout)
-{
-    switch (layout) {
-    case VK_IMAGE_LAYOUT_UNDEFINED:
-        return 0;
-    case VK_IMAGE_LAYOUT_GENERAL:
-        return VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-        return VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-        return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-        // Read by depth/stencil tests or sampled in shaders (e.g. shadow maps)
-        return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
-    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-        return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-        return VK_ACCESS_SHADER_READ_BIT;
-    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-        return VK_ACCESS_TRANSFER_READ_BIT;
-    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-        return VK_ACCESS_TRANSFER_WRITE_BIT;
-    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-        return VK_ACCESS_MEMORY_READ_BIT;
-    default:
-        return 0;
     }
 }
 
@@ -1001,7 +947,7 @@ VkImageAspectFlags gfxTextureAspectToVkAspectMask(GfxTextureAspect aspect, VkFor
         return VK_IMAGE_ASPECT_STENCIL_BIT;
     case GFX_TEXTURE_ASPECT_ALL:
     default:
-        return getImageAspectMask(format);
+        return core::getImageAspectMask(format);
     }
 }
 
@@ -1352,7 +1298,7 @@ VkImageUsageFlags gfxTextureUsageToVkImageUsage(GfxTextureUsageFlags gfxUsage, V
     }
     if (gfxUsage & GFX_TEXTURE_USAGE_RENDER_ATTACHMENT) {
         // Check if this is a depth/stencil format
-        if (isDepthFormat(format) || hasStencilComponent(format)) {
+        if (core::isDepthFormat(format) || core::hasStencilComponent(format)) {
             usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         } else {
             usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -1921,7 +1867,7 @@ core::BindGroupCreateInfo gfxDescriptorToBindGroupCreateInfo(const GfxBindGroupD
             // Set image layout based on descriptor type
             if (bindEntry.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
                 bindEntry.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-            } else if (isDepthFormat(textureView->getFormat()) || hasStencilComponent(textureView->getFormat())) {
+            } else if (core::isDepthFormat(textureView->getFormat()) || core::hasStencilComponent(textureView->getFormat())) {
                 bindEntry.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
             } else {
                 bindEntry.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;

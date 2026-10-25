@@ -529,119 +529,29 @@ TEST_P(GfxDeviceTest, SupportsShaderFormatNullOutput)
 }
 
 // Access flags for layout tests
-TEST_P(GfxDeviceTest, GetAccessFlagsForLayoutUndefined)
+TEST_P(GfxDeviceTest, GetAccessFlagsForLayout)
 {
     GfxDeviceDescriptor desc = {};
-    GfxResult result = gfxAdapterCreateDevice(adapter, &desc, &device);
-    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
-    ASSERT_NE(device, nullptr);
+    ASSERT_EQ(gfxAdapterCreateDevice(adapter, &desc, &device), GFX_RESULT_SUCCESS);
 
-    GfxAccessFlags flags = gfxDeviceGetAccessFlagsForLayout(device, GFX_TEXTURE_LAYOUT_UNDEFINED);
-    EXPECT_EQ(flags, GFX_ACCESS_NONE);
-}
-
-TEST_P(GfxDeviceTest, GetAccessFlagsForLayoutGeneral)
-{
-    GfxDeviceDescriptor desc = {};
-    GfxResult result = gfxAdapterCreateDevice(adapter, &desc, &device);
-    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
-    ASSERT_NE(device, nullptr);
-
-    GfxAccessFlags flags = gfxDeviceGetAccessFlagsForLayout(device, GFX_TEXTURE_LAYOUT_GENERAL);
-    if (backend == GFX_BACKEND_VULKAN) {
-        EXPECT_EQ(flags, GFX_ACCESS_MEMORY_READ | GFX_ACCESS_MEMORY_WRITE);
-    } else {
-        EXPECT_EQ(flags, GFX_ACCESS_NONE);
-    }
-}
-
-TEST_P(GfxDeviceTest, GetAccessFlagsForLayoutColorAttachment)
-{
-    GfxDeviceDescriptor desc = {};
-    GfxResult result = gfxAdapterCreateDevice(adapter, &desc, &device);
-    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
-    ASSERT_NE(device, nullptr);
-
-    GfxAccessFlags flags = gfxDeviceGetAccessFlagsForLayout(device, GFX_TEXTURE_LAYOUT_COLOR_ATTACHMENT);
-    if (backend == GFX_BACKEND_VULKAN) {
-        EXPECT_EQ(flags, GFX_ACCESS_COLOR_ATTACHMENT_READ | GFX_ACCESS_COLOR_ATTACHMENT_WRITE);
-    } else {
-        EXPECT_EQ(flags, GFX_ACCESS_NONE);
-    }
-}
-
-TEST_P(GfxDeviceTest, GetAccessFlagsForLayoutDepthStencil)
-{
-    GfxDeviceDescriptor desc = {};
-    GfxResult result = gfxAdapterCreateDevice(adapter, &desc, &device);
-    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
-    ASSERT_NE(device, nullptr);
-
-    GfxAccessFlags flags = gfxDeviceGetAccessFlagsForLayout(device, GFX_TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT);
-    if (backend == GFX_BACKEND_VULKAN) {
-        EXPECT_EQ(flags, GFX_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ | GFX_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE);
-    } else {
-        EXPECT_EQ(flags, GFX_ACCESS_NONE);
-    }
-}
-
-TEST_P(GfxDeviceTest, GetAccessFlagsForLayoutShaderReadOnly)
-{
-    GfxDeviceDescriptor desc = {};
-    GfxResult result = gfxAdapterCreateDevice(adapter, &desc, &device);
-    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
-    ASSERT_NE(device, nullptr);
-
-    GfxAccessFlags flags = gfxDeviceGetAccessFlagsForLayout(device, GFX_TEXTURE_LAYOUT_SHADER_READ_ONLY);
-    if (backend == GFX_BACKEND_VULKAN) {
-        EXPECT_EQ(flags, GFX_ACCESS_SHADER_READ);
-    } else {
-        EXPECT_EQ(flags, GFX_ACCESS_NONE);
-    }
-}
-
-TEST_P(GfxDeviceTest, GetAccessFlagsForLayoutTransferSrc)
-{
-    GfxDeviceDescriptor desc = {};
-    GfxResult result = gfxAdapterCreateDevice(adapter, &desc, &device);
-    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
-    ASSERT_NE(device, nullptr);
-
-    GfxAccessFlags flags = gfxDeviceGetAccessFlagsForLayout(device, GFX_TEXTURE_LAYOUT_TRANSFER_SRC);
-    if (backend == GFX_BACKEND_VULKAN) {
-        EXPECT_EQ(flags, GFX_ACCESS_TRANSFER_READ);
-    } else {
-        EXPECT_EQ(flags, GFX_ACCESS_NONE);
-    }
-}
-
-TEST_P(GfxDeviceTest, GetAccessFlagsForLayoutTransferDst)
-{
-    GfxDeviceDescriptor desc = {};
-    GfxResult result = gfxAdapterCreateDevice(adapter, &desc, &device);
-    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
-    ASSERT_NE(device, nullptr);
-
-    GfxAccessFlags flags = gfxDeviceGetAccessFlagsForLayout(device, GFX_TEXTURE_LAYOUT_TRANSFER_DST);
-    if (backend == GFX_BACKEND_VULKAN) {
-        EXPECT_EQ(flags, GFX_ACCESS_TRANSFER_WRITE);
-    } else {
-        EXPECT_EQ(flags, GFX_ACCESS_NONE);
-    }
-}
-
-TEST_P(GfxDeviceTest, GetAccessFlagsForLayoutPresent)
-{
-    GfxDeviceDescriptor desc = {};
-    GfxResult result = gfxAdapterCreateDevice(adapter, &desc, &device);
-    ASSERT_EQ(result, GFX_RESULT_SUCCESS);
-    ASSERT_NE(device, nullptr);
-
-    GfxAccessFlags flags = gfxDeviceGetAccessFlagsForLayout(device, GFX_TEXTURE_LAYOUT_PRESENT_SRC);
-    if (backend == GFX_BACKEND_VULKAN) {
-        EXPECT_EQ(flags, GFX_ACCESS_MEMORY_READ);
-    } else {
-        EXPECT_EQ(flags, GFX_ACCESS_NONE);
+    struct {
+        GfxTextureLayout layout;
+        GfxAccessFlags vulkanAccess;
+    } const cases[] = {
+        { GFX_TEXTURE_LAYOUT_UNDEFINED, GFX_ACCESS_NONE },
+        { GFX_TEXTURE_LAYOUT_GENERAL, GFX_ACCESS_MEMORY_READ | GFX_ACCESS_MEMORY_WRITE },
+        { GFX_TEXTURE_LAYOUT_COLOR_ATTACHMENT, GFX_ACCESS_COLOR_ATTACHMENT_READ | GFX_ACCESS_COLOR_ATTACHMENT_WRITE },
+        { GFX_TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT, GFX_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ | GFX_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE },
+        { GFX_TEXTURE_LAYOUT_DEPTH_STENCIL_READ_ONLY, GFX_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ | GFX_ACCESS_SHADER_READ },
+        { GFX_TEXTURE_LAYOUT_SHADER_READ_ONLY, GFX_ACCESS_SHADER_READ },
+        { GFX_TEXTURE_LAYOUT_TRANSFER_SRC, GFX_ACCESS_TRANSFER_READ },
+        { GFX_TEXTURE_LAYOUT_TRANSFER_DST, GFX_ACCESS_TRANSFER_WRITE },
+        { GFX_TEXTURE_LAYOUT_PRESENT_SRC, GFX_ACCESS_NONE },
+    };
+    // WebGPU synchronizes implicitly, so it reports no access for any layout
+    for (const auto& c : cases) {
+        const GfxAccessFlags expected = (backend == GFX_BACKEND_VULKAN) ? c.vulkanAccess : GfxAccessFlags{ GFX_ACCESS_NONE };
+        EXPECT_EQ(gfxDeviceGetAccessFlagsForLayout(device, c.layout), expected) << "layout " << c.layout;
     }
 }
 

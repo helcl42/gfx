@@ -192,7 +192,7 @@ TEST_P(GfxCppDeviceTest, SupportsShaderFormat_WGSL)
     }
 }
 
-TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayoutUndefined)
+TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayout)
 {
     ASSERT_NE(adapter, nullptr);
 
@@ -200,135 +200,24 @@ TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayoutUndefined)
     auto device = adapter->createDevice(desc);
     ASSERT_NE(device, nullptr);
 
-    gfx::AccessFlags flags = device->getAccessFlagsForLayout(gfx::TextureLayout::Undefined);
-    EXPECT_EQ(flags, gfx::AccessFlags::None);
-}
-
-TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayoutGeneral)
-{
-    ASSERT_NE(adapter, nullptr);
-
-    gfx::DeviceDescriptor desc{};
-    auto device = adapter->createDevice(desc);
-    ASSERT_NE(device, nullptr);
-
-    gfx::AccessFlags flags = device->getAccessFlagsForLayout(gfx::TextureLayout::General);
-    if (backend == gfx::Backend::Vulkan) {
-        EXPECT_EQ(flags, gfx::AccessFlags::MemoryRead | gfx::AccessFlags::MemoryWrite);
-    } else {
-        EXPECT_EQ(flags, gfx::AccessFlags::None);
-    }
-}
-
-TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayoutColorAttachment)
-{
-    ASSERT_NE(adapter, nullptr);
-
-    gfx::DeviceDescriptor desc{};
-    auto device = adapter->createDevice(desc);
-    ASSERT_NE(device, nullptr);
-
-    gfx::AccessFlags flags = device->getAccessFlagsForLayout(gfx::TextureLayout::ColorAttachment);
-    if (backend == gfx::Backend::Vulkan) {
-        EXPECT_EQ(flags, gfx::AccessFlags::ColorAttachmentRead | gfx::AccessFlags::ColorAttachmentWrite);
-    } else {
-        EXPECT_EQ(flags, gfx::AccessFlags::None);
-    }
-}
-
-TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayoutDepthStencil)
-{
-    ASSERT_NE(adapter, nullptr);
-
-    gfx::DeviceDescriptor desc{};
-    auto device = adapter->createDevice(desc);
-    ASSERT_NE(device, nullptr);
-
-    gfx::AccessFlags flags = device->getAccessFlagsForLayout(gfx::TextureLayout::DepthStencilAttachment);
-    if (backend == gfx::Backend::Vulkan) {
-        EXPECT_EQ(flags, gfx::AccessFlags::DepthStencilAttachmentRead | gfx::AccessFlags::DepthStencilAttachmentWrite);
-    } else {
-        EXPECT_EQ(flags, gfx::AccessFlags::None);
-    }
-}
-
-TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayoutDepthStencilReadOnly)
-{
-    ASSERT_NE(adapter, nullptr);
-
-    gfx::DeviceDescriptor desc{};
-    auto device = adapter->createDevice(desc);
-    ASSERT_NE(device, nullptr);
-
-    gfx::AccessFlags flags = device->getAccessFlagsForLayout(gfx::TextureLayout::DepthStencilReadOnly);
-    if (backend == gfx::Backend::Vulkan) {
-        EXPECT_EQ(flags, gfx::AccessFlags::DepthStencilAttachmentRead | gfx::AccessFlags::ShaderRead);
-    } else {
-        EXPECT_EQ(flags, gfx::AccessFlags::None);
-    }
-}
-
-TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayoutShaderReadOnly)
-{
-    ASSERT_NE(adapter, nullptr);
-
-    gfx::DeviceDescriptor desc{};
-    auto device = adapter->createDevice(desc);
-    ASSERT_NE(device, nullptr);
-
-    gfx::AccessFlags flags = device->getAccessFlagsForLayout(gfx::TextureLayout::ShaderReadOnly);
-    if (backend == gfx::Backend::Vulkan) {
-        EXPECT_EQ(flags, gfx::AccessFlags::ShaderRead);
-    } else {
-        EXPECT_EQ(flags, gfx::AccessFlags::None);
-    }
-}
-
-TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayoutTransferSrc)
-{
-    ASSERT_NE(adapter, nullptr);
-
-    gfx::DeviceDescriptor desc{};
-    auto device = adapter->createDevice(desc);
-    ASSERT_NE(device, nullptr);
-
-    gfx::AccessFlags flags = device->getAccessFlagsForLayout(gfx::TextureLayout::TransferSrc);
-    if (backend == gfx::Backend::Vulkan) {
-        EXPECT_EQ(flags, gfx::AccessFlags::TransferRead);
-    } else {
-        EXPECT_EQ(flags, gfx::AccessFlags::None);
-    }
-}
-
-TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayoutTransferDst)
-{
-    ASSERT_NE(adapter, nullptr);
-
-    gfx::DeviceDescriptor desc{};
-    auto device = adapter->createDevice(desc);
-    ASSERT_NE(device, nullptr);
-
-    gfx::AccessFlags flags = device->getAccessFlagsForLayout(gfx::TextureLayout::TransferDst);
-    if (backend == gfx::Backend::Vulkan) {
-        EXPECT_EQ(flags, gfx::AccessFlags::TransferWrite);
-    } else {
-        EXPECT_EQ(flags, gfx::AccessFlags::None);
-    }
-}
-
-TEST_P(GfxCppDeviceTest, GetAccessFlagsForLayoutPresent)
-{
-    ASSERT_NE(adapter, nullptr);
-
-    gfx::DeviceDescriptor desc{};
-    auto device = adapter->createDevice(desc);
-    ASSERT_NE(device, nullptr);
-
-    gfx::AccessFlags flags = device->getAccessFlagsForLayout(gfx::TextureLayout::PresentSrc);
-    if (backend == gfx::Backend::Vulkan) {
-        EXPECT_EQ(flags, gfx::AccessFlags::MemoryRead);
-    } else {
-        EXPECT_EQ(flags, gfx::AccessFlags::None);
+    struct {
+        gfx::TextureLayout layout;
+        gfx::AccessFlags vulkanAccess;
+    } const cases[] = {
+        { gfx::TextureLayout::Undefined, gfx::AccessFlags::None },
+        { gfx::TextureLayout::General, gfx::AccessFlags::MemoryRead | gfx::AccessFlags::MemoryWrite },
+        { gfx::TextureLayout::ColorAttachment, gfx::AccessFlags::ColorAttachmentRead | gfx::AccessFlags::ColorAttachmentWrite },
+        { gfx::TextureLayout::DepthStencilAttachment, gfx::AccessFlags::DepthStencilAttachmentRead | gfx::AccessFlags::DepthStencilAttachmentWrite },
+        { gfx::TextureLayout::DepthStencilReadOnly, gfx::AccessFlags::DepthStencilAttachmentRead | gfx::AccessFlags::ShaderRead },
+        { gfx::TextureLayout::ShaderReadOnly, gfx::AccessFlags::ShaderRead },
+        { gfx::TextureLayout::TransferSrc, gfx::AccessFlags::TransferRead },
+        { gfx::TextureLayout::TransferDst, gfx::AccessFlags::TransferWrite },
+        { gfx::TextureLayout::PresentSrc, gfx::AccessFlags::None },
+    };
+    // WebGPU synchronizes implicitly, so it reports no access for any layout
+    for (const auto& c : cases) {
+        const gfx::AccessFlags expected = (backend == gfx::Backend::Vulkan) ? c.vulkanAccess : gfx::AccessFlags::None;
+        EXPECT_EQ(device->getAccessFlagsForLayout(c.layout), expected) << "layout " << static_cast<int>(c.layout);
     }
 }
 

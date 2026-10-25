@@ -9,6 +9,7 @@
 #include "backend/vulkan/core/sync/Fence.h"
 #include "backend/vulkan/core/sync/Semaphore.h"
 #include "backend/vulkan/core/system/Device.h"
+#include "backend/vulkan/core/util/Utils.h"
 
 #include <stdexcept>
 
@@ -182,7 +183,7 @@ GfxResult SyncComponent::semaphoreGetValue(GfxSemaphore semaphore, uint64_t* out
 GfxAccessFlags SyncComponent::getAccessFlagsForLayout(GfxTextureLayout layout) const
 {
     VkImageLayout vkLayout = converter::gfxLayoutToVkImageLayout(layout);
-    VkAccessFlags vkAccessFlags = converter::getVkAccessFlagsForLayout(vkLayout);
+    VkAccessFlags vkAccessFlags = core::getVkAccessFlagsForLayout(vkLayout);
     return converter::vkAccessFlagsToGfxAccessFlags(vkAccessFlags);
 }
 

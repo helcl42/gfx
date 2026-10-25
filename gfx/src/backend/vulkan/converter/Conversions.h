@@ -97,17 +97,13 @@ GfxAdapterInfo vkPropertiesToGfxAdapterInfo(const VkPhysicalDeviceProperties& pr
 // Other Format Functions
 // ============================================================================
 
-bool isDepthFormat(VkFormat format);
 VkAttachmentLoadOp gfxLoadOpToVkLoadOp(GfxLoadOp loadOp);
 VkAttachmentStoreOp gfxStoreOpToVkStoreOp(GfxStoreOp storeOp);
 GfxPresentMode vkPresentModeToGfxPresentMode(VkPresentModeKHR mode);
 VkPresentModeKHR gfxPresentModeToVkPresentMode(GfxPresentMode mode);
-bool hasStencilComponent(VkFormat format);
-VkImageAspectFlags getImageAspectMask(VkFormat format);
 VkImageLayout gfxLayoutToVkImageLayout(GfxTextureLayout layout);
 GfxTextureLayout vkImageLayoutToGfxLayout(VkImageLayout layout);
 VkImageAspectFlags gfxTextureAspectToVkAspectMask(GfxTextureAspect aspect, VkFormat format);
-VkAccessFlags getVkAccessFlagsForLayout(VkImageLayout layout);
 VkImageType gfxTextureTypeToVkImageType(GfxTextureType type);
 GfxTextureType vkImageTypeToGfxTextureType(VkImageType type);
 VkImageViewType gfxTextureViewTypeToVkImageViewType(GfxTextureViewType type);

@@ -47,21 +47,6 @@ TEST(VulkanConversionsTest, VkFormatToGfxFormat_RoundTrip_Preserves)
     EXPECT_EQ(gfx::backend::vulkan::converter::vkFormatToGfxFormat(VK_FORMAT_D32_SFLOAT), GFX_FORMAT_DEPTH32_FLOAT);
 }
 
-TEST(VulkanConversionsTest, IsDepthFormat_DepthFormats_ReturnsTrue)
-{
-    EXPECT_TRUE(gfx::backend::vulkan::converter::isDepthFormat(VK_FORMAT_D16_UNORM));
-    EXPECT_TRUE(gfx::backend::vulkan::converter::isDepthFormat(VK_FORMAT_D32_SFLOAT));
-    EXPECT_TRUE(gfx::backend::vulkan::converter::isDepthFormat(VK_FORMAT_D24_UNORM_S8_UINT));
-    EXPECT_TRUE(gfx::backend::vulkan::converter::isDepthFormat(VK_FORMAT_D32_SFLOAT_S8_UINT));
-}
-
-TEST(VulkanConversionsTest, IsDepthFormat_ColorFormats_ReturnsFalse)
-{
-    EXPECT_FALSE(gfx::backend::vulkan::converter::isDepthFormat(VK_FORMAT_R8G8B8A8_UNORM));
-    EXPECT_FALSE(gfx::backend::vulkan::converter::isDepthFormat(VK_FORMAT_R8G8B8A8_SRGB));
-    EXPECT_FALSE(gfx::backend::vulkan::converter::isDepthFormat(VK_FORMAT_R32G32B32A32_SFLOAT));
-}
-
 // ============================================================================
 // Buffer Usage Conversion Tests
 // ============================================================================
@@ -1059,45 +1044,6 @@ TEST(VulkanConversionsTest, GfxFilterModeToVkMipMapFilterMode_BothModes_Converts
 // Format Utility Functions
 // ============================================================================
 
-TEST(VulkanConversionsTest, HasStencilComponent_StencilFormats_ReturnsTrue)
-{
-    EXPECT_TRUE(gfx::backend::vulkan::converter::hasStencilComponent(VK_FORMAT_D32_SFLOAT_S8_UINT));
-    EXPECT_TRUE(gfx::backend::vulkan::converter::hasStencilComponent(VK_FORMAT_D24_UNORM_S8_UINT));
-    EXPECT_TRUE(gfx::backend::vulkan::converter::hasStencilComponent(VK_FORMAT_S8_UINT));
-}
-
-TEST(VulkanConversionsTest, HasStencilComponent_NonStencilFormats_ReturnsFalse)
-{
-    EXPECT_FALSE(gfx::backend::vulkan::converter::hasStencilComponent(VK_FORMAT_D32_SFLOAT));
-    EXPECT_FALSE(gfx::backend::vulkan::converter::hasStencilComponent(VK_FORMAT_R8G8B8A8_UNORM));
-    EXPECT_FALSE(gfx::backend::vulkan::converter::hasStencilComponent(VK_FORMAT_D16_UNORM));
-}
-
-TEST(VulkanConversionsTest, GetImageAspectMask_ColorFormat_ReturnsColorBit)
-{
-    VkImageAspectFlags result = gfx::backend::vulkan::converter::getImageAspectMask(VK_FORMAT_R8G8B8A8_UNORM);
-    EXPECT_EQ(result, VK_IMAGE_ASPECT_COLOR_BIT);
-}
-
-TEST(VulkanConversionsTest, GetImageAspectMask_DepthFormat_ReturnsDepthBit)
-{
-    VkImageAspectFlags result = gfx::backend::vulkan::converter::getImageAspectMask(VK_FORMAT_D32_SFLOAT);
-    EXPECT_EQ(result, VK_IMAGE_ASPECT_DEPTH_BIT);
-}
-
-TEST(VulkanConversionsTest, GetImageAspectMask_DepthStencilFormat_ReturnsBothBits)
-{
-    VkImageAspectFlags result = gfx::backend::vulkan::converter::getImageAspectMask(VK_FORMAT_D24_UNORM_S8_UINT);
-    EXPECT_TRUE(result & VK_IMAGE_ASPECT_DEPTH_BIT);
-    EXPECT_TRUE(result & VK_IMAGE_ASPECT_STENCIL_BIT);
-}
-
-TEST(VulkanConversionsTest, GetImageAspectMask_StencilFormat_ReturnsStencilBit)
-{
-    VkImageAspectFlags result = gfx::backend::vulkan::converter::getImageAspectMask(VK_FORMAT_S8_UINT);
-    EXPECT_EQ(result, static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_STENCIL_BIT));
-}
-
 TEST(VulkanConversionsTest, GfxTextureAspect_DepthOnly_ReturnsDepthBit)
 {
     VkImageAspectFlags result = gfx::backend::vulkan::converter::gfxTextureAspectToVkAspectMask(GFX_TEXTURE_ASPECT_DEPTH_ONLY, VK_FORMAT_D24_UNORM_S8_UINT);
@@ -1116,61 +1062,6 @@ TEST(VulkanConversionsTest, GfxTextureAspect_All_DerivesFromFormat)
         static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_COLOR_BIT));
     EXPECT_EQ(gfx::backend::vulkan::converter::gfxTextureAspectToVkAspectMask(GFX_TEXTURE_ASPECT_ALL, VK_FORMAT_D24_UNORM_S8_UINT),
         static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT));
-}
-
-// ============================================================================
-// Layout Access Flags Utility
-// ============================================================================
-
-TEST(VulkanConversionsTest, GetVkAccessFlagsForLayout_UndefinedLayout_ReturnsZero)
-{
-    VkAccessFlags result = gfx::backend::vulkan::converter::getVkAccessFlagsForLayout(VK_IMAGE_LAYOUT_UNDEFINED);
-    EXPECT_EQ(result, 0u);
-}
-
-TEST(VulkanConversionsTest, GetVkAccessFlagsForLayout_GeneralLayout_ReturnsReadWrite)
-{
-    VkAccessFlags result = gfx::backend::vulkan::converter::getVkAccessFlagsForLayout(VK_IMAGE_LAYOUT_GENERAL);
-    EXPECT_TRUE(result & VK_ACCESS_MEMORY_READ_BIT);
-    EXPECT_TRUE(result & VK_ACCESS_MEMORY_WRITE_BIT);
-}
-
-TEST(VulkanConversionsTest, GetVkAccessFlagsForLayout_ColorAttachmentLayout_ReturnsColorAccess)
-{
-    VkAccessFlags result = gfx::backend::vulkan::converter::getVkAccessFlagsForLayout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    EXPECT_TRUE(result & VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
-    EXPECT_TRUE(result & VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
-}
-
-TEST(VulkanConversionsTest, GetVkAccessFlagsForLayout_DepthStencilAttachmentLayout_ReturnsDepthStencilAccess)
-{
-    VkAccessFlags result = gfx::backend::vulkan::converter::getVkAccessFlagsForLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    EXPECT_TRUE(result & VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
-    EXPECT_TRUE(result & VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
-}
-
-TEST(VulkanConversionsTest, GetVkAccessFlagsForLayout_ShaderReadOnlyLayout_ReturnsShaderRead)
-{
-    VkAccessFlags result = gfx::backend::vulkan::converter::getVkAccessFlagsForLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    EXPECT_EQ(result, VK_ACCESS_SHADER_READ_BIT);
-}
-
-TEST(VulkanConversionsTest, GetVkAccessFlagsForLayout_TransferSrcLayout_ReturnsTransferRead)
-{
-    VkAccessFlags result = gfx::backend::vulkan::converter::getVkAccessFlagsForLayout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    EXPECT_EQ(result, VK_ACCESS_TRANSFER_READ_BIT);
-}
-
-TEST(VulkanConversionsTest, GetVkAccessFlagsForLayout_TransferDstLayout_ReturnsTransferWrite)
-{
-    VkAccessFlags result = gfx::backend::vulkan::converter::getVkAccessFlagsForLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    EXPECT_EQ(result, VK_ACCESS_TRANSFER_WRITE_BIT);
-}
-
-TEST(VulkanConversionsTest, GetVkAccessFlagsForLayout_PresentSrcLayout_ReturnsMemoryRead)
-{
-    VkAccessFlags result = gfx::backend::vulkan::converter::getVkAccessFlagsForLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-    EXPECT_EQ(result, VK_ACCESS_MEMORY_READ_BIT);
 }
 
 // ============================================================================
