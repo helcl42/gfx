@@ -276,9 +276,10 @@ TEST_P(GfxCppBindGroupTest, CreateBindGroupWithStorageBuffer)
     gfx::BindGroupLayoutEntry layoutEntry{
         .binding = 0,
         .visibility = gfx::ShaderStage::Compute,
-        .resource = gfx::BindGroupLayoutEntry::UniformBufferBinding{
+        .resource = gfx::BindGroupLayoutEntry::StorageBufferBinding{
+            .access = gfx::StorageBufferAccess::ReadOnly,
             .hasDynamicOffset = false,
-            .minBindingSize = 1024 }
+            .minBindingSize = 0 }
     };
 
     gfx::BindGroupLayoutDescriptor layoutDesc{

@@ -429,9 +429,10 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithStorageBuffer)
     GfxBindGroupLayoutEntry layoutEntry = {};
     layoutEntry.binding = 0;
     layoutEntry.visibility = GFX_SHADER_STAGE_COMPUTE;
-    layoutEntry.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
-    layoutEntry.uniformBuffer.hasDynamicOffset = false;
-    layoutEntry.uniformBuffer.minBindingSize = 0;
+    layoutEntry.type = GFX_BINDING_TYPE_STORAGE_BUFFER;
+    layoutEntry.storageBuffer.access = GFX_STORAGE_BUFFER_ACCESS_READ_ONLY;
+    layoutEntry.storageBuffer.hasDynamicOffset = false;
+    layoutEntry.storageBuffer.minBindingSize = 0;
 
     GfxBindGroupLayoutDescriptor layoutDesc = {};
     layoutDesc.entries = &layoutEntry;
