@@ -56,7 +56,6 @@ uint32_t getFormatBytesPerPixel(GfxFormat format)
     case GFX_FORMAT_R32_FLOAT:
     case GFX_FORMAT_R32_SINT:
     case GFX_FORMAT_R32_UINT:
-    case GFX_FORMAT_DEPTH24_PLUS:
     case GFX_FORMAT_DEPTH32_FLOAT:
     case GFX_FORMAT_DEPTH24_PLUS_STENCIL8:
         return 4;

@@ -239,8 +239,6 @@ VkFormat gfxFormatToVkFormat(GfxFormat format)
         return VK_FORMAT_R32G32B32A32_SFLOAT;
     case GFX_FORMAT_DEPTH16_UNORM:
         return VK_FORMAT_D16_UNORM;
-    case GFX_FORMAT_DEPTH24_PLUS:
-        return VK_FORMAT_D32_SFLOAT;
     case GFX_FORMAT_DEPTH32_FLOAT:
         return VK_FORMAT_D32_SFLOAT;
     case GFX_FORMAT_STENCIL8:

@@ -967,8 +967,6 @@ WGPUTextureFormat gfxFormatToWGPUFormat(GfxFormat format)
         return WGPUTextureFormat_RGBA32Float;
     case GFX_FORMAT_DEPTH16_UNORM:
         return WGPUTextureFormat_Depth16Unorm;
-    case GFX_FORMAT_DEPTH24_PLUS:
-        return WGPUTextureFormat_Depth24Plus;
     case GFX_FORMAT_DEPTH32_FLOAT:
         return WGPUTextureFormat_Depth32Float;
     case GFX_FORMAT_STENCIL8:
@@ -1154,8 +1152,6 @@ GfxFormat wgpuFormatToGfxFormat(WGPUTextureFormat format)
         return GFX_FORMAT_R32G32B32A32_FLOAT;
     case WGPUTextureFormat_Depth16Unorm:
         return GFX_FORMAT_DEPTH16_UNORM;
-    case WGPUTextureFormat_Depth24Plus:
-        return GFX_FORMAT_DEPTH24_PLUS;
     case WGPUTextureFormat_Depth32Float:
         return GFX_FORMAT_DEPTH32_FLOAT;
     case WGPUTextureFormat_Stencil8:

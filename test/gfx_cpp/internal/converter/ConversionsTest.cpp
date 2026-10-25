@@ -122,7 +122,6 @@ TEST(ConversionsTest, TextureFormatRoundTrip)
         Format::B8G8R8A8Unorm,
         Format::R32Float,
         Format::R32G32B32A32Float,
-        Format::Depth24Plus,
         Format::Depth32Float,
     };
 
