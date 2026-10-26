@@ -80,6 +80,31 @@ TEST_P(GfxTextureTest, CompressedTextureRequiresExtension)
     }
 }
 
+// Texture creation rejects every format the device reports as unsupported instead of passing it to the GPU
+TEST_P(GfxTextureTest, UnsupportedFormatsAreRejected)
+{
+    for (int value = GFX_FORMAT_UNDEFINED + 1; value <= GFX_FORMAT_ASTC_12X12_UNORM_SRGB; ++value) {
+        const GfxFormat format = static_cast<GfxFormat>(value);
+        bool supported = true;
+        ASSERT_EQ(gfxDeviceSupportsFormat(device, format, &supported), GFX_RESULT_SUCCESS);
+        if (supported) {
+            continue;
+        }
+
+        GfxTextureDescriptor desc = {};
+        desc.type = GFX_TEXTURE_TYPE_2D;
+        desc.size = { 120, 120, 1 }; // A multiple of every block size
+        desc.arrayLayerCount = 1;
+        desc.mipLevelCount = 1;
+        desc.sampleCount = GFX_SAMPLE_COUNT_1;
+        desc.format = format;
+        desc.usage = GFX_TEXTURE_USAGE_TEXTURE_BINDING;
+
+        GfxTexture texture = nullptr;
+        EXPECT_EQ(gfxDeviceCreateTexture(device, &desc, &texture), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED) << "format " << value;
+    }
+}
+
 // With the extension enabled (when the adapter supports it), compressed textures can be
 // created and uploaded; exercises the block-aware copy math end to end
 TEST_P(GfxTextureTest, CreateAndUploadCompressedTexture)

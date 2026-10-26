@@ -46,6 +46,7 @@ public:
     GfxResult deviceWaitIdle(GfxDevice device) const override;
     GfxResult deviceGetLimits(GfxDevice device, GfxDeviceLimits* outLimits) const override;
     GfxResult deviceSupportsShaderFormat(GfxDevice device, GfxShaderSourceType format, bool* outSupported) const override;
+    GfxResult deviceSupportsFormat(GfxDevice device, GfxFormat format, bool* outSupported) const override;
 
     // Queue functions
     GfxResult queueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo) const override;

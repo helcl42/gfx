@@ -544,6 +544,18 @@ GfxResult gfxDeviceSupportsShaderFormat(GfxDevice device, GfxShaderSourceType fo
     return backend->deviceSupportsShaderFormat(device, format, outSupported);
 }
 
+GfxResult gfxDeviceSupportsFormat(GfxDevice device, GfxFormat format, bool* outSupported)
+{
+    if (!device || !outSupported) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    auto backend = gfx::backend::BackendManager::instance().getBackend(device);
+    if (!backend) {
+        return GFX_RESULT_ERROR_NOT_FOUND;
+    }
+    return backend->deviceSupportsFormat(device, format, outSupported);
+}
+
 GfxAccessFlags gfxDeviceGetAccessFlagsForLayout(GfxDevice device, GfxTextureLayout layout)
 {
     if (!device) {

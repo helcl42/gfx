@@ -59,6 +59,7 @@ public:
     DeviceLimits getLimits() const override;
 
     bool supportsShaderFormat(ShaderSourceType format) const override;
+    bool supportsFormat(Format format) const override;
 
     AccessFlags getAccessFlagsForLayout(TextureLayout layout) const override;
 

@@ -92,6 +92,13 @@ bool Adapter::supportsPresentation(uint32_t queueFamilyIndex, VkSurfaceKHR surfa
     return (result == VK_SUCCESS && supported == VK_TRUE);
 }
 
+bool Adapter::supportsFormat(VkFormat format) const
+{
+    VkFormatProperties properties{};
+    vkGetPhysicalDeviceFormatProperties(m_physicalDevice, format, &properties);
+    return properties.optimalTilingFeatures != 0;
+}
+
 bool Adapter::supportsDepthStencilAttachment(VkFormat format) const
 {
     VkFormatProperties properties{};

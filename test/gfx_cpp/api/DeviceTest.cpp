@@ -175,6 +175,18 @@ TEST_P(GfxCppDeviceTest, SupportsShaderFormat_SPIRV)
     EXPECT_TRUE(supported);
 }
 
+TEST_P(GfxCppDeviceTest, SupportsFormat)
+{
+    ASSERT_NE(adapter, nullptr);
+
+    gfx::DeviceDescriptor desc{};
+    auto device = adapter->createDevice(desc);
+    ASSERT_NE(device, nullptr);
+
+    EXPECT_TRUE(device->supportsFormat(gfx::Format::R8G8B8A8Unorm));
+    EXPECT_FALSE(device->supportsFormat(gfx::Format::BC1RGBAUnorm));
+}
+
 TEST_P(GfxCppDeviceTest, SupportsShaderFormat_WGSL)
 {
     ASSERT_NE(adapter, nullptr);

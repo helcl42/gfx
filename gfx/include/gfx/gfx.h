@@ -2028,6 +2028,9 @@ GFX_API GfxResult gfxDeviceGetQueueByIndex(GfxDevice device, uint32_t queueFamil
 GFX_API GfxResult gfxDeviceWaitIdle(GfxDevice device);
 GFX_API GfxResult gfxDeviceGetLimits(GfxDevice device, GfxDeviceLimits* outLimits);
 GFX_API GfxResult gfxDeviceSupportsShaderFormat(GfxDevice device, GfxShaderSourceType format, bool* outSupported);
+// Whether textures of the format can be created: some formats depend on the GPU, and compressed
+// formats and DEPTH32_FLOAT_STENCIL8 also need their device extension
+GFX_API GfxResult gfxDeviceSupportsFormat(GfxDevice device, GfxFormat format, bool* outSupported);
 // Helper to deduce access flags from texture layout
 // Vulkan: Returns explicit access flags based on layout
 // WebGPU: Returns GFX_ACCESS_NONE (implicit synchronization)

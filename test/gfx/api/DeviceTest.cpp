@@ -528,6 +528,34 @@ TEST_P(GfxDeviceTest, SupportsShaderFormatNullOutput)
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
+TEST_P(GfxDeviceTest, SupportsFormat)
+{
+    GfxDeviceDescriptor desc = {};
+    ASSERT_EQ(gfxAdapterCreateDevice(adapter, &desc, &device), GFX_RESULT_SUCCESS);
+
+    bool supported = false;
+    EXPECT_EQ(gfxDeviceSupportsFormat(device, GFX_FORMAT_R8G8B8A8_UNORM, &supported), GFX_RESULT_SUCCESS);
+    EXPECT_TRUE(supported);
+
+    // Compressed formats need their device extension, which this device does not enable
+    EXPECT_EQ(gfxDeviceSupportsFormat(device, GFX_FORMAT_BC1_RGBA_UNORM, &supported), GFX_RESULT_SUCCESS);
+    EXPECT_FALSE(supported);
+}
+
+TEST_P(GfxDeviceTest, SupportsFormatNullDevice)
+{
+    bool supported = false;
+    EXPECT_EQ(gfxDeviceSupportsFormat(NULL, GFX_FORMAT_R8G8B8A8_UNORM, &supported), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_P(GfxDeviceTest, SupportsFormatNullOutput)
+{
+    GfxDeviceDescriptor desc = {};
+    ASSERT_EQ(gfxAdapterCreateDevice(adapter, &desc, &device), GFX_RESULT_SUCCESS);
+
+    EXPECT_EQ(gfxDeviceSupportsFormat(device, GFX_FORMAT_R8G8B8A8_UNORM, NULL), GFX_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
 // Access flags for layout tests
 TEST_P(GfxDeviceTest, GetAccessFlagsForLayout)
 {

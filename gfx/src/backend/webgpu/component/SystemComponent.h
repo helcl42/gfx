@@ -32,6 +32,7 @@ public:
     GfxResult deviceWaitIdle(GfxDevice device) const;
     GfxResult deviceGetLimits(GfxDevice device, GfxDeviceLimits* outLimits) const;
     GfxResult deviceSupportsShaderFormat(GfxDevice device, GfxShaderSourceType format, bool* outSupported) const;
+    GfxResult deviceSupportsFormat(GfxDevice device, GfxFormat format, bool* outSupported) const;
 
     // Queue functions
     GfxResult queueGetInfo(GfxQueue queue, GfxQueueInfo* outInfo) const;

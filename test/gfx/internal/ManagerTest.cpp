@@ -55,6 +55,7 @@ public:
     GfxResult deviceWaitIdle(GfxDevice) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceGetLimits(GfxDevice, GfxDeviceLimits*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult deviceSupportsShaderFormat(GfxDevice, GfxShaderSourceType, bool*) const override { return GFX_RESULT_SUCCESS; }
+    GfxResult deviceSupportsFormat(GfxDevice, GfxFormat, bool*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult surfaceDestroy(GfxSurface) const override { return GFX_RESULT_SUCCESS; }
     GfxResult surfaceGetInfo(GfxSurface, GfxAdapter, GfxSurfaceInfo*) const override { return GFX_RESULT_SUCCESS; }
     GfxResult surfaceEnumerateSupportedFormats(GfxSurface, GfxAdapter, uint32_t*, GfxFormat*) const override { return GFX_RESULT_SUCCESS; }

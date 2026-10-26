@@ -441,6 +441,16 @@ bool DeviceImpl::supportsShaderFormat(ShaderSourceType format) const
     return supported;
 }
 
+bool DeviceImpl::supportsFormat(Format format) const
+{
+    bool supported = false;
+    GfxResult result = gfxDeviceSupportsFormat(m_handle, cppFormatToCFormat(format), &supported);
+    if (result != GFX_RESULT_SUCCESS) {
+        return false;
+    }
+    return supported;
+}
+
 AccessFlags DeviceImpl::getAccessFlagsForLayout(TextureLayout layout) const
 {
     GfxAccessFlags cFlags = gfxDeviceGetAccessFlagsForLayout(m_handle, cppLayoutToCLayout(layout));

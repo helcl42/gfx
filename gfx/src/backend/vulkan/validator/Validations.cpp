@@ -469,34 +469,6 @@ namespace {
         return GFX_RESULT_SUCCESS;
     }
 
-    // Optional formats require their device extension to be enabled
-    GfxResult validateFormatEnabled(const core::Device* dev, GfxFormat format)
-    {
-        switch (gfx::util::getFormatCompressionFamily(format)) {
-        case gfx::util::FormatCompressionFamily::BC:
-            if (!dev->isExtensionEnabled(core::DeviceExtension::TextureCompressionBC)) {
-                return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
-            }
-            break;
-        case gfx::util::FormatCompressionFamily::ETC2:
-            if (!dev->isExtensionEnabled(core::DeviceExtension::TextureCompressionETC2)) {
-                return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
-            }
-            break;
-        case gfx::util::FormatCompressionFamily::ASTC:
-            if (!dev->isExtensionEnabled(core::DeviceExtension::TextureCompressionASTC)) {
-                return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
-            }
-            break;
-        case gfx::util::FormatCompressionFamily::None:
-            break;
-        }
-        if (format == GFX_FORMAT_DEPTH32_FLOAT_STENCIL8 && !dev->isExtensionEnabled(core::DeviceExtension::Depth32FloatStencil8)) {
-            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
-        }
-        return GFX_RESULT_SUCCESS;
-    }
-
     GfxResult validateRenderPipelineDescriptor(const GfxRenderPipelineDescriptor* descriptor)
     {
         if (!descriptor) {
@@ -1023,6 +995,14 @@ GfxResult validateDeviceSupportsShaderFormat(GfxDevice device, bool* outSupporte
     return GFX_RESULT_SUCCESS;
 }
 
+GfxResult validateDeviceSupportsFormat(GfxDevice device, bool* outSupported)
+{
+    if (!device || !outSupported) {
+        return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult validateDeviceGetQueue(GfxDevice device, GfxQueue* outQueue)
 {
     if (!device || !outQueue) {
@@ -1071,19 +1051,48 @@ GfxResult validateDeviceImportBuffer(GfxDevice device, const GfxBufferImportDesc
     return validateBufferImportDescriptor(descriptor);
 }
 
+GfxResult validateFormatSupported(GfxDevice device, GfxFormat format)
+{
+    auto* dev = converter::toNative<core::Device>(device);
+    switch (gfx::util::getFormatCompressionFamily(format)) {
+    case gfx::util::FormatCompressionFamily::BC:
+        if (!dev->isExtensionEnabled(core::DeviceExtension::TextureCompressionBC)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+        break;
+    case gfx::util::FormatCompressionFamily::ETC2:
+        if (!dev->isExtensionEnabled(core::DeviceExtension::TextureCompressionETC2)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+        break;
+    case gfx::util::FormatCompressionFamily::ASTC:
+        if (!dev->isExtensionEnabled(core::DeviceExtension::TextureCompressionASTC)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+        break;
+    case gfx::util::FormatCompressionFamily::None:
+        break;
+    }
+    if (format == GFX_FORMAT_DEPTH32_FLOAT_STENCIL8 && !dev->isExtensionEnabled(core::DeviceExtension::Depth32FloatStencil8)) {
+        return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+    }
+    if (!dev->getAdapter()->supportsFormat(converter::gfxFormatToVkFormat(format))) {
+        return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+    }
+    return GFX_RESULT_SUCCESS;
+}
+
 GfxResult validateDeviceCreateTexture(GfxDevice device, const GfxTextureDescriptor* descriptor, GfxTexture* outTexture)
 {
     if (!device || !descriptor || !outTexture) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
 
-    const auto* dev = converter::toNative<core::Device>(device);
-    GfxResult formatResult = validateFormatEnabled(dev, descriptor->format);
-    if (formatResult != GFX_RESULT_SUCCESS) {
-        return formatResult;
+    GfxResult descriptorResult = validateTextureDescriptor(descriptor);
+    if (descriptorResult != GFX_RESULT_SUCCESS) {
+        return descriptorResult;
     }
-
-    return validateTextureDescriptor(descriptor);
+    return validateFormatSupported(device, descriptor->format);
 }
 
 GfxResult validateDeviceImportTexture(GfxDevice device, const GfxTextureImportDescriptor* descriptor, GfxTexture* outTexture)
@@ -1162,14 +1171,14 @@ GfxResult validateDeviceCreateRenderPipeline(GfxDevice device, const GfxRenderPi
 
     if (descriptor->fragment) {
         for (uint32_t i = 0; i < descriptor->fragment->targetCount; ++i) {
-            GfxResult formatResult = validateFormatEnabled(dev, descriptor->fragment->targets[i].format);
+            GfxResult formatResult = validateFormatSupported(device, descriptor->fragment->targets[i].format);
             if (formatResult != GFX_RESULT_SUCCESS) {
                 return formatResult;
             }
         }
     }
     if (descriptor->depthStencil) {
-        return validateFormatEnabled(dev, descriptor->depthStencil->format);
+        return validateFormatSupported(device, descriptor->depthStencil->format);
     }
     return GFX_RESULT_SUCCESS;
 }
@@ -1193,15 +1202,14 @@ GfxResult validateDeviceCreateRenderPass(GfxDevice device, const GfxRenderPassDe
         return descriptorResult;
     }
 
-    const auto* dev = converter::toNative<core::Device>(device);
     for (uint32_t i = 0; i < descriptor->colorAttachmentCount; ++i) {
-        GfxResult formatResult = validateFormatEnabled(dev, descriptor->colorAttachments[i].target.format);
+        GfxResult formatResult = validateFormatSupported(device, descriptor->colorAttachments[i].target.format);
         if (formatResult != GFX_RESULT_SUCCESS) {
             return formatResult;
         }
     }
     if (descriptor->depthStencilAttachment) {
-        return validateFormatEnabled(dev, descriptor->depthStencilAttachment->target.format);
+        return validateFormatSupported(device, descriptor->depthStencilAttachment->target.format);
     }
     return GFX_RESULT_SUCCESS;
 }

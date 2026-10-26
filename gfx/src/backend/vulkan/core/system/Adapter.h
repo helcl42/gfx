@@ -24,6 +24,7 @@ public:
     std::vector<VkQueueFamilyProperties> getQueueFamilyProperties() const;
     std::vector<VkExtensionProperties> enumerateExtensionProperties() const;
     bool supportsPresentation(uint32_t queueFamilyIndex, VkSurfaceKHR surface) const;
+    bool supportsFormat(VkFormat format) const;
 
     std::vector<const char*> enumerateSupportedExtensions() const;
 

@@ -338,6 +338,16 @@ GfxResult SystemComponent::deviceSupportsShaderFormat(GfxDevice device, GfxShade
     return GFX_RESULT_SUCCESS;
 }
 
+GfxResult SystemComponent::deviceSupportsFormat(GfxDevice device, GfxFormat format, bool* outSupported) const
+{
+    GfxResult validationResult = validator::validateDeviceSupportsFormat(device, outSupported);
+    if (validationResult != GFX_RESULT_SUCCESS) {
+        return validationResult;
+    }
+    *outSupported = validator::validateFormatSupported(device, format) == GFX_RESULT_SUCCESS;
+    return GFX_RESULT_SUCCESS;
+}
+
 // Queue functions
 GfxResult SystemComponent::queueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitDescriptor) const
 {

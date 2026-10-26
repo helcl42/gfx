@@ -111,6 +111,11 @@ GfxResult Backend::deviceSupportsShaderFormat(GfxDevice device, GfxShaderSourceT
     return m_systemComponent.deviceSupportsShaderFormat(device, format, outSupported);
 }
 
+GfxResult Backend::deviceSupportsFormat(GfxDevice device, GfxFormat format, bool* outSupported) const
+{
+    return m_systemComponent.deviceSupportsFormat(device, format, outSupported);
+}
+
 // Queue functions
 GfxResult Backend::queueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitDescriptor) const
 {

@@ -65,6 +65,7 @@ public:
     MOCK_METHOD(GfxResult, deviceWaitIdle, (GfxDevice), (const, override));
     MOCK_METHOD(GfxResult, deviceGetLimits, (GfxDevice, GfxDeviceLimits*), (const, override));
     MOCK_METHOD(GfxResult, deviceSupportsShaderFormat, (GfxDevice, GfxShaderSourceType, bool*), (const, override));
+    MOCK_METHOD(GfxResult, deviceSupportsFormat, (GfxDevice, GfxFormat, bool*), (const, override));
 
     // Surface functions
     MOCK_METHOD(GfxResult, surfaceDestroy, (GfxSurface), (const, override));

@@ -37,6 +37,7 @@ public:
     virtual GfxResult deviceWaitIdle(GfxDevice device) const = 0;
     virtual GfxResult deviceGetLimits(GfxDevice device, GfxDeviceLimits* outLimits) const = 0;
     virtual GfxResult deviceSupportsShaderFormat(GfxDevice device, GfxShaderSourceType format, bool* outSupported) const = 0;
+    virtual GfxResult deviceSupportsFormat(GfxDevice device, GfxFormat format, bool* outSupported) const = 0;
 
     // Queue functions
     virtual GfxResult queueSubmit(GfxQueue queue, const GfxSubmitDescriptor* submitDescriptor) const = 0;
