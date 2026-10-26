@@ -1269,6 +1269,12 @@ GfxResult validateDeviceCreateQuerySet(GfxDevice device, const GfxQuerySetDescri
             return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
         }
     }
+    if (gfx::util::isPreciseOcclusionQuery(descriptor)) {
+        const auto* dev = converter::toNative<core::Device>(device);
+        if (!dev->isExtensionEnabled(core::DeviceExtension::OcclusionQueryPrecise)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+    }
     return GFX_RESULT_SUCCESS;
 }
 

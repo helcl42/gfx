@@ -1276,6 +1276,10 @@ GfxResult validateDeviceCreateQuerySet(GfxDevice device, const GfxQuerySetDescri
             return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
         }
     }
+    // WebGPU occlusion results are only guaranteed to be zero or non-zero
+    if (gfx::util::isPreciseOcclusionQuery(descriptor)) {
+        return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+    }
     return GFX_RESULT_SUCCESS;
 }
 

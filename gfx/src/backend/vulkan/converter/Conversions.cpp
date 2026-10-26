@@ -12,6 +12,8 @@
 #include "../core/resource/TextureView.h"
 #include "../core/util/Utils.h"
 
+#include "util/Utils.h"
+
 #include <algorithm>
 #include <cstring>
 #include <vector>
@@ -2265,21 +2267,10 @@ core::QuerySetCreateInfo gfxDescriptorToQuerySetCreateInfo(const GfxQuerySetDesc
         createInfo.label = descriptor->label;
         createInfo.type = gfxQueryTypeToVkQueryType(descriptor->type);
         createInfo.count = descriptor->count;
+        createInfo.precise = gfx::util::isPreciseOcclusionQuery(descriptor);
     } else {
         createInfo.type = VK_QUERY_TYPE_OCCLUSION;
         createInfo.count = 1;
-    }
-
-    // Walk pNext chain for occlusion-specific options
-    if (descriptor->type == GFX_QUERY_TYPE_OCCLUSION) {
-        const GfxChainHeader* chain = static_cast<const GfxChainHeader*>(descriptor->pNext);
-        while (chain) {
-            if (chain->sType == GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR) {
-                const GfxOcclusionQueryDescriptor* occ = static_cast<const GfxOcclusionQueryDescriptor*>(static_cast<const void*>(chain));
-                createInfo.precise = (occ->mode == GFX_OCCLUSION_QUERY_MODE_PRECISE);
-            }
-            chain = static_cast<const GfxChainHeader*>(chain->pNext);
-        }
     }
 
     return createInfo;

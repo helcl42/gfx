@@ -24,6 +24,9 @@ enum class FormatCompressionFamily {
 FormatCompressionFamily getFormatCompressionFamily(GfxFormat format);
 bool isCompressedFormat(GfxFormat format);
 
+// Query utilities
+bool isPreciseOcclusionQuery(const GfxQuerySetDescriptor* descriptor);
+
 // Result to string conversion
 const char* resultToString(GfxResult result);
 

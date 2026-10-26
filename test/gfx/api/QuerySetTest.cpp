@@ -157,6 +157,23 @@ TEST_P(GfxQuerySetTest, CreateAndDestroyOcclusionQuerySet)
     EXPECT_EQ(result, GFX_RESULT_SUCCESS);
 }
 
+// The fixture device does not enable GFX_DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE
+TEST_P(GfxQuerySetTest, CreatePreciseOcclusionQuerySetRequiresExtension)
+{
+    GfxOcclusionQueryDescriptor occlusionDesc = {};
+    occlusionDesc.sType = GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR;
+    occlusionDesc.mode = GFX_OCCLUSION_QUERY_MODE_PRECISE;
+
+    GfxQuerySetDescriptor querySetDesc = {};
+    querySetDesc.pNext = &occlusionDesc;
+    querySetDesc.type = GFX_QUERY_TYPE_OCCLUSION;
+    querySetDesc.count = 16;
+
+    GfxQuerySet querySet = nullptr;
+    EXPECT_EQ(gfxDeviceCreateQuerySet(device, &querySetDesc, &querySet), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+    EXPECT_EQ(querySet, nullptr);
+}
+
 TEST_P(GfxQuerySetTest, CreateAndDestroyTimestampQuerySet)
 {
     if (!timestampQuerySupported) {

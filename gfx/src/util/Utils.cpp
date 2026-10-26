@@ -278,6 +278,22 @@ void getFormatBlockDimensions(GfxFormat format, uint32_t* outWidth, uint32_t* ou
     }
 }
 
+bool isPreciseOcclusionQuery(const GfxQuerySetDescriptor* descriptor)
+{
+    if (descriptor->type != GFX_QUERY_TYPE_OCCLUSION) {
+        return false;
+    }
+    const GfxChainHeader* chain = static_cast<const GfxChainHeader*>(descriptor->pNext);
+    while (chain) {
+        if (chain->sType == GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR) {
+            const GfxOcclusionQueryDescriptor* occlusion = static_cast<const GfxOcclusionQueryDescriptor*>(static_cast<const void*>(chain));
+            return occlusion->mode == GFX_OCCLUSION_QUERY_MODE_PRECISE;
+        }
+        chain = static_cast<const GfxChainHeader*>(chain->pNext);
+    }
+    return false;
+}
+
 const char* resultToString(GfxResult result)
 {
     switch (result) {

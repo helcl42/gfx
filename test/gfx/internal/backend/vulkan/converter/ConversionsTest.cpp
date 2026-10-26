@@ -1293,4 +1293,36 @@ TEST(VulkanConversionsTest, GfxRenderPassBeginDescriptorToBeginInfo_ClearValues_
     EXPECT_EQ(result.stencilClearValue, 42u);
 }
 
+// ============================================================================
+// QuerySetDescriptor Conversion Tests
+// ============================================================================
+
+TEST(VulkanConversionsTest, GfxDescriptorToQuerySetCreateInfo_ChainedPreciseMode_SetsPrecise)
+{
+    GfxOcclusionQueryDescriptor occlusionDesc{};
+    occlusionDesc.sType = GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR;
+    occlusionDesc.mode = GFX_OCCLUSION_QUERY_MODE_PRECISE;
+
+    GfxQuerySetDescriptor descriptor{};
+    descriptor.pNext = &occlusionDesc;
+    descriptor.type = GFX_QUERY_TYPE_OCCLUSION;
+    descriptor.count = 4;
+
+    auto result = gfx::backend::vulkan::converter::gfxDescriptorToQuerySetCreateInfo(&descriptor);
+
+    EXPECT_EQ(result.type, VK_QUERY_TYPE_OCCLUSION);
+    EXPECT_TRUE(result.precise);
+}
+
+TEST(VulkanConversionsTest, GfxDescriptorToQuerySetCreateInfo_NoChain_IsNotPrecise)
+{
+    GfxQuerySetDescriptor descriptor{};
+    descriptor.type = GFX_QUERY_TYPE_OCCLUSION;
+    descriptor.count = 4;
+
+    auto result = gfx::backend::vulkan::converter::gfxDescriptorToQuerySetCreateInfo(&descriptor);
+
+    EXPECT_FALSE(result.precise);
+}
+
 } // namespace
