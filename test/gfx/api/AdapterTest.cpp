@@ -225,7 +225,7 @@ TEST_P(GfxAdapterTest, CreateDeviceWithUnsupportedExtensionFails)
     desc.enabledExtensionCount = 1;
 
     GfxDevice device = NULL;
-    EXPECT_EQ(gfxAdapterCreateDevice(adapter, &desc, &device), GFX_RESULT_ERROR_UNKNOWN);
+    EXPECT_EQ(gfxAdapterCreateDevice(adapter, &desc, &device), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
     EXPECT_EQ(device, nullptr);
 }
 

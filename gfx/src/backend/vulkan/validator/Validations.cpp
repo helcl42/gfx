@@ -11,6 +11,7 @@
 #include "backend/vulkan/core/system/Device.h"
 #include "backend/vulkan/core/system/Queue.h"
 #include "backend/vulkan/core/util/Utils.h"
+#include "common/Strings.h"
 #include "util/Utils.h"
 
 #include <cstdint>
@@ -941,6 +942,16 @@ GfxResult validateAdapterCreateDevice(GfxAdapter adapter, const GfxDeviceDescrip
             }
             if (request.queueIndex >= queueFamilies[request.queueFamilyIndex].queueCount) {
                 return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+            }
+        }
+    }
+
+    // A device can only enable the extensions its adapter supports
+    if (descriptor != nullptr && descriptor->enabledExtensions != nullptr) {
+        const std::vector<const char*> supportedExtensions = converter::toNative<core::Adapter>(adapter)->enumerateSupportedExtensions();
+        for (uint32_t i = 0; i < descriptor->enabledExtensionCount; ++i) {
+            if (!gfx::common::containsString(supportedExtensions, descriptor->enabledExtensions[i])) {
+                return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
             }
         }
     }
