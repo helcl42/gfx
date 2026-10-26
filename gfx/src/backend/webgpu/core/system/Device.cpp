@@ -7,6 +7,7 @@
 #include "../util/Blit.h"
 #include "../util/Utils.h"
 
+#include "common/Extensions.h"
 #include "common/Logger.h"
 #include "common/Strings.h"
 
@@ -38,17 +39,6 @@ namespace {
     bool hasExtension(uint64_t enabledExtensions, DeviceExtension extension)
     {
         return (enabledExtensions & static_cast<uint64_t>(extension)) != 0;
-    }
-
-    // A device can only enable the extensions its adapter supports
-    void requireSupportedExtensions(const Adapter* adapter, const std::vector<std::string>& enabledExtensions)
-    {
-        const std::vector<const char*> supportedExtensions = adapter->enumerateSupportedExtensions();
-        for (const std::string& extension : enabledExtensions) {
-            if (!gfx::common::containsString(supportedExtensions, extension.c_str())) {
-                throw std::runtime_error("Device extension not supported by this adapter: " + extension);
-            }
-        }
     }
 
     // The WGPU features of the requested GFX extensions, plus the optional texture formats the adapter has
@@ -107,7 +97,7 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     if (!adapter) {
         throw std::runtime_error("Invalid adapter for device creation");
     }
-    requireSupportedExtensions(adapter, createInfo.enabledExtensions);
+    gfx::common::requireSupportedExtensions(adapter->enumerateSupportedExtensions(), createInfo.enabledExtensions);
 
     WGPUUncapturedErrorCallbackInfo errorCallbackInfo = WGPU_UNCAPTURED_ERROR_CALLBACK_INFO_INIT;
     errorCallbackInfo.callback = [](WGPUDevice const*, WGPUErrorType type, WGPUStringView message, void*, void*) {

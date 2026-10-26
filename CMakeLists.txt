@@ -367,6 +367,7 @@ set(GFX_C_SOURCES
     gfx/src/backend/IBackend.h
     gfx/src/backend/Factory.cpp
     gfx/src/backend/Manager.cpp
+    gfx/src/common/Extensions.cpp
     gfx/src/common/Logger.cpp
     gfx/src/common/Strings.cpp
     gfx/src/util/Utils.cpp

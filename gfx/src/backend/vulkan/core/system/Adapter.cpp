@@ -108,7 +108,9 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
     };
 
     static const ExtensionMapping knownExtensions[] = {
+#ifndef GFX_HEADLESS_BUILD
         { extensions::SWAPCHAIN, VK_KHR_SWAPCHAIN_EXTENSION_NAME },
+#endif
         { extensions::TIMELINE_SEMAPHORE, VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME },
         { extensions::MULTIVIEW, VK_KHR_MULTIVIEW_EXTENSION_NAME }
     };

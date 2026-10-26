@@ -9,9 +9,10 @@
 #include "backend/webgpu/core/resource/Texture.h"
 #include "backend/webgpu/core/system/Adapter.h"
 #include "backend/webgpu/core/system/Device.h"
+#include "backend/webgpu/core/system/Instance.h"
 #include "backend/webgpu/core/system/Queue.h"
 #include "backend/webgpu/core/util/Utils.h"
-#include "common/Strings.h"
+#include "common/Extensions.h"
 #include "util/Utils.h"
 
 #include <cstdint>
@@ -872,7 +873,21 @@ GfxResult validateCreateInstance(const GfxInstanceDescriptor* descriptor, GfxIns
     if (!outInstance) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    return validateInstanceDescriptor(descriptor);
+
+    GfxResult descriptorResult = validateInstanceDescriptor(descriptor);
+    if (descriptorResult != GFX_RESULT_SUCCESS) {
+        return descriptorResult;
+    }
+
+    // An instance can only enable the extensions its backend supports
+    if (descriptor != nullptr && descriptor->enabledExtensions != nullptr) {
+        const std::vector<const char*> supportedExtensions = core::Instance::enumerateSupportedExtensions();
+        if (!gfx::common::areExtensionsSupported(supportedExtensions, descriptor->enabledExtensions, descriptor->enabledExtensionCount)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+    }
+
+    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult validateInstanceRequestAdapter(GfxInstance instance, const GfxAdapterDescriptor* descriptor, GfxAdapter* outAdapter)
@@ -936,10 +951,8 @@ GfxResult validateAdapterCreateDevice(GfxAdapter adapter, const GfxDeviceDescrip
     // A device can only enable the extensions its adapter supports
     if (descriptor != nullptr && descriptor->enabledExtensions != nullptr) {
         const std::vector<const char*> supportedExtensions = converter::toNative<core::Adapter>(adapter)->enumerateSupportedExtensions();
-        for (uint32_t i = 0; i < descriptor->enabledExtensionCount; ++i) {
-            if (!gfx::common::containsString(supportedExtensions, descriptor->enabledExtensions[i])) {
-                return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
-            }
+        if (!gfx::common::areExtensionsSupported(supportedExtensions, descriptor->enabledExtensions, descriptor->enabledExtensionCount)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
         }
     }
 

@@ -4,6 +4,7 @@
 
 #include "../util/Utils.h"
 
+#include "common/Extensions.h"
 #include "common/Logger.h"
 #include "common/Strings.h"
 
@@ -73,6 +74,8 @@ namespace {
 
 Instance::Instance(const InstanceCreateInfo& createInfo)
 {
+    gfx::common::requireSupportedExtensions(enumerateSupportedExtensions(), createInfo.enabledExtensions);
+
     // Request TimedWaitAny feature for proper async callback handling
     // For native Dawn, also request ShaderSourceSPIRV for SPIR-V shader support
     static const WGPUInstanceFeatureName requiredFeatures[] = {
@@ -133,7 +136,10 @@ std::vector<const char*> Instance::enumerateSupportedExtensions()
 {
     static const std::vector<const char*> supportedExtensions = {
         extensions::SURFACE,
-        extensions::DEBUG
+        extensions::DEBUG,
+#ifdef __EMSCRIPTEN__
+        extensions::XR_COMPATIBLE, // WebXR exists only in browsers
+#endif
     };
     return supportedExtensions;
 }

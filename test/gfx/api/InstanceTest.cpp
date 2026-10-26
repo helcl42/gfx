@@ -448,6 +448,35 @@ TEST_P(GfxInstanceTest, EnumerateInstanceExtensionsWithZeroCount)
     EXPECT_GT(extensionCount, 0);
 }
 
+TEST_P(GfxInstanceTest, CreateWithUnsupportedExtensionFails)
+{
+    const char* extensions[] = { "gfx_unknown_extension" };
+    GfxInstanceDescriptor desc = {};
+    desc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
+    desc.backend = backend;
+    desc.enabledExtensions = extensions;
+    desc.enabledExtensionCount = 1;
+
+    EXPECT_EQ(gfxCreateInstance(&desc, &instance), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+    EXPECT_EQ(instance, nullptr);
+}
+
+TEST_P(GfxInstanceTest, CreateWithEveryEnumeratedExtension)
+{
+    uint32_t extensionCount = 0;
+    ASSERT_EQ(gfxEnumerateInstanceExtensions(backend, &extensionCount, nullptr), GFX_RESULT_SUCCESS);
+    std::vector<const char*> extensionNames(extensionCount);
+    ASSERT_EQ(gfxEnumerateInstanceExtensions(backend, &extensionCount, extensionNames.data()), GFX_RESULT_SUCCESS);
+
+    GfxInstanceDescriptor desc = {};
+    desc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
+    desc.backend = backend;
+    desc.enabledExtensions = extensionNames.data();
+    desc.enabledExtensionCount = extensionCount;
+
+    EXPECT_EQ(gfxCreateInstance(&desc, &instance), GFX_RESULT_SUCCESS);
+}
+
 // ===========================================================================
 // Test Instantiation
 // ===========================================================================

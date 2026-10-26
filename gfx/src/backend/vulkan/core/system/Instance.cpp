@@ -4,6 +4,7 @@
 
 #include "../util/Utils.h"
 
+#include "../../../../common/Extensions.h"
 #include "../../../../common/Logger.h"
 #include "../../../../common/Strings.h"
 
@@ -172,6 +173,8 @@ namespace {
 
 Instance::Instance(const InstanceCreateInfo& createInfo)
 {
+    gfx::common::requireSupportedExtensions(enumerateSupportedExtensions(), createInfo.enabledExtensions);
+
     const auto availableExtensions = enumerateAvailableExtensions();
     const auto availableLayers = enumerateAvailableLayers();
 
@@ -378,7 +381,9 @@ std::vector<const char*> Instance::enumerateSupportedExtensions()
     };
 
     ExtensionMapping knownExtensions[] = {
+#ifndef GFX_HEADLESS_BUILD
         { extensions::SURFACE, VK_KHR_SURFACE_EXTENSION_NAME },
+#endif
         { extensions::DEBUG, VK_EXT_DEBUG_UTILS_EXTENSION_NAME },
         { extensions::DEBUG, VK_EXT_DEBUG_REPORT_EXTENSION_NAME },
     };

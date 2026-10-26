@@ -7,6 +7,7 @@
 #include "../util/Utils.h"
 #include "../util/VmaAllocator.h"
 
+#include "common/Extensions.h"
 #include "common/Strings.h"
 
 #include <gfx/gfx.h>
@@ -44,17 +45,6 @@ namespace {
     bool hasExtension(uint64_t enabledExtensions, DeviceExtension extension)
     {
         return (enabledExtensions & static_cast<uint64_t>(extension)) != 0;
-    }
-
-    // A device can only enable the extensions its adapter supports
-    void requireSupportedExtensions(const Adapter* adapter, const std::vector<std::string>& enabledExtensions)
-    {
-        const std::vector<const char*> supportedExtensions = adapter->enumerateSupportedExtensions();
-        for (const std::string& extension : enabledExtensions) {
-            if (!gfx::common::containsString(supportedExtensions, extension.c_str())) {
-                throw std::runtime_error("Device extension not supported by this adapter: " + extension);
-            }
-        }
     }
 
     // Translates the enabled GFX extensions into VkPhysicalDeviceFeatures
@@ -174,7 +164,7 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     , m_enabledExtensions(parseEnabledExtensions(createInfo.enabledExtensions))
     , m_enabledFeatures(buildEnabledFeatures(m_enabledExtensions, m_adapter->getFeatures()))
 {
-    requireSupportedExtensions(m_adapter, createInfo.enabledExtensions);
+    gfx::common::requireSupportedExtensions(m_adapter->enumerateSupportedExtensions(), createInfo.enabledExtensions);
 
     std::vector<const char*> requestedExtensions = collectRequestedExtensions(m_enabledExtensions, createInfo, m_adapter->enumerateExtensionProperties());
 
