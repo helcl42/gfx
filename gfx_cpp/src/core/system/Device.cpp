@@ -407,8 +407,9 @@ std::shared_ptr<Semaphore> DeviceImpl::createSemaphore(const SemaphoreDescriptor
 
 std::shared_ptr<QuerySet> DeviceImpl::createQuerySet(const QuerySetDescriptor& descriptor)
 {
+    GfxOcclusionQueryDescriptor cOcclusionDescriptor;
     GfxQuerySetDescriptor cDesc;
-    convertQuerySetDescriptor(descriptor, cDesc);
+    convertQuerySetDescriptor(descriptor, cOcclusionDescriptor, cDesc);
 
     GfxQuerySet querySet = nullptr;
     GfxResult result = gfxDeviceCreateQuerySet(m_handle, &cDesc, &querySet);

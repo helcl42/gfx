@@ -545,6 +545,11 @@ enum class QueryType : int32_t {
     Timestamp = 1
 };
 
+enum class OcclusionQueryMode : int32_t {
+    Boolean = 0,
+    Precise = 1
+};
+
 // Extension name constants (matching C API)
 constexpr const char* INSTANCE_EXTENSION_SURFACE = "gfx_surface";
 constexpr const char* INSTANCE_EXTENSION_DEBUG = "gfx_debug";
@@ -1360,6 +1365,10 @@ struct SemaphoreDescriptor {
     std::string label;
     SemaphoreType type = SemaphoreType::Binary;
     uint64_t initialValue = 0; // For timeline semaphores, ignored for binary
+};
+
+struct OcclusionQueryDescriptor : public ChainedStruct {
+    OcclusionQueryMode mode = OcclusionQueryMode::Boolean;
 };
 
 struct QuerySetDescriptor {

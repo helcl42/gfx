@@ -902,11 +902,32 @@ TEST(ConversionsTest, ConvertQuerySetDescriptor)
         .count = 8
     };
 
+    GfxOcclusionQueryDescriptor cOcclusionDesc;
     GfxQuerySetDescriptor cDesc;
-    convertQuerySetDescriptor(cppDesc, cDesc);
+    convertQuerySetDescriptor(cppDesc, cOcclusionDesc, cDesc);
 
     EXPECT_EQ(cDesc.type, GFX_QUERY_TYPE_TIMESTAMP);
     EXPECT_EQ(cDesc.count, 8);
+    EXPECT_EQ(cDesc.pNext, nullptr);
+}
+
+TEST(ConversionsTest, ConvertQuerySetDescriptor_ChainedOcclusionMode_LinksPNext)
+{
+    OcclusionQueryDescriptor occlusionDesc;
+    occlusionDesc.mode = OcclusionQueryMode::Precise;
+    QuerySetDescriptor cppDesc{
+        .next = &occlusionDesc,
+        .type = QueryType::Occlusion,
+        .count = 4
+    };
+
+    GfxOcclusionQueryDescriptor cOcclusionDesc;
+    GfxQuerySetDescriptor cDesc;
+    convertQuerySetDescriptor(cppDesc, cOcclusionDesc, cDesc);
+
+    EXPECT_EQ(cDesc.pNext, &cOcclusionDesc);
+    EXPECT_EQ(cOcclusionDesc.sType, GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR);
+    EXPECT_EQ(cOcclusionDesc.mode, GFX_OCCLUSION_QUERY_MODE_PRECISE);
 }
 
 TEST(ConversionsTest, ConvertBufferDescriptor)

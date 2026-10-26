@@ -136,6 +136,7 @@ GfxSemaphoreType cppSemaphoreTypeToCSemaphoreType(SemaphoreType type);
 // Query type conversions
 QueryType cQueryTypeToCppQueryType(GfxQueryType type);
 GfxQueryType cppQueryTypeToCQueryType(QueryType type);
+GfxOcclusionQueryMode cppOcclusionQueryModeToCOcclusionQueryMode(OcclusionQueryMode mode);
 
 // Blend operation conversions
 GfxBlendOperation cppBlendOperationToCBlendOperation(BlendOperation op);
@@ -215,7 +216,7 @@ void convertCommandEncoderDescriptor(const CommandEncoderDescriptor& descriptor,
 void convertRenderBundleCommandEncoderDescriptor(const RenderBundleCommandEncoderDescriptor& descriptor, GfxRenderPass renderPassHandle, GfxRenderBundleEncoderDescriptor& outDesc);
 void convertFenceDescriptor(const FenceDescriptor& descriptor, GfxFenceDescriptor& outDesc);
 void convertSemaphoreDescriptor(const SemaphoreDescriptor& descriptor, GfxSemaphoreDescriptor& outDesc);
-void convertQuerySetDescriptor(const QuerySetDescriptor& descriptor, GfxQuerySetDescriptor& outDesc);
+void convertQuerySetDescriptor(const QuerySetDescriptor& descriptor, GfxOcclusionQueryDescriptor& outOcclusionDescriptor, GfxQuerySetDescriptor& outDesc);
 void convertBindGroupLayoutDescriptor(const BindGroupLayoutDescriptor& descriptor, std::vector<GfxBindGroupLayoutEntry>& outEntries, GfxBindGroupLayoutDescriptor& outDesc);
 void convertBindGroupDescriptor(const BindGroupDescriptor& descriptor, std::vector<GfxBindGroupEntry>& outEntries, GfxBindGroupDescriptor& outDesc);
 void convertRenderPassDescriptor(const RenderPassCreateDescriptor& descriptor, std::vector<GfxRenderPassColorAttachment>& outColorAttachments, std::vector<GfxRenderPassColorAttachmentTarget>& outColorTargets, std::vector<GfxRenderPassColorAttachmentTarget>& outColorResolveTargets, GfxRenderPassDepthStencilAttachment& outDepthStencilAttachment, GfxRenderPassDepthStencilAttachmentTarget& outDepthTarget, GfxRenderPassDepthStencilAttachmentTarget& outDepthResolveTarget, GfxRenderPassMultiviewDescriptor& outMultiviewDescriptor, std::vector<uint32_t>& outCorrelationMasks, GfxRenderPassDescriptor& outDesc);

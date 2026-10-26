@@ -70,6 +70,21 @@ TEST_P(GfxCppQuerySetTest, CreateQuerySetInvalidArguments)
     EXPECT_THROW({ device->createQuerySet(invalidDesc); }, std::exception);
 }
 
+TEST_P(GfxCppQuerySetTest, CreatePreciseOcclusionQuerySetRequiresExtension)
+{
+    ASSERT_NE(device, nullptr);
+
+    gfx::OcclusionQueryDescriptor occlusionDesc;
+    occlusionDesc.mode = gfx::OcclusionQueryMode::Precise;
+    gfx::QuerySetDescriptor querySetDesc{
+        .next = &occlusionDesc,
+        .type = gfx::QueryType::Occlusion,
+        .count = 16
+    };
+
+    EXPECT_THROW({ device->createQuerySet(querySetDesc); }, std::exception);
+}
+
 // ===========================================================================
 // Query Set Creation and Destruction Tests
 // ===========================================================================

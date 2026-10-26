@@ -734,6 +734,11 @@ GfxQueryType cppQueryTypeToCQueryType(QueryType type)
     return static_cast<GfxQueryType>(type);
 }
 
+GfxOcclusionQueryMode cppOcclusionQueryModeToCOcclusionQueryMode(OcclusionQueryMode mode)
+{
+    return static_cast<GfxOcclusionQueryMode>(mode);
+}
+
 GfxBlendOperation cppBlendOperationToCBlendOperation(BlendOperation op)
 {
     return static_cast<GfxBlendOperation>(op);
@@ -1050,7 +1055,7 @@ void convertSemaphoreDescriptor(const SemaphoreDescriptor& descriptor, GfxSemaph
     outDesc.initialValue = descriptor.initialValue;
 }
 
-void convertQuerySetDescriptor(const QuerySetDescriptor& descriptor, GfxQuerySetDescriptor& outDesc)
+void convertQuerySetDescriptor(const QuerySetDescriptor& descriptor, GfxOcclusionQueryDescriptor& outOcclusionDescriptor, GfxQuerySetDescriptor& outDesc)
 {
     outDesc = {};
     outDesc.sType = GFX_STRUCTURE_TYPE_QUERY_SET_DESCRIPTOR;
@@ -1058,6 +1063,16 @@ void convertQuerySetDescriptor(const QuerySetDescriptor& descriptor, GfxQuerySet
     outDesc.label = descriptor.label.c_str();
     outDesc.type = cppQueryTypeToCQueryType(descriptor.type);
     outDesc.count = descriptor.count;
+
+    for (const ChainedStruct* chainNode = descriptor.next; chainNode; chainNode = chainNode->next) {
+        if (const auto* occlusion = dynamic_cast<const OcclusionQueryDescriptor*>(chainNode)) {
+            outOcclusionDescriptor = {};
+            outOcclusionDescriptor.sType = GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR;
+            outOcclusionDescriptor.pNext = nullptr;
+            outOcclusionDescriptor.mode = cppOcclusionQueryModeToCOcclusionQueryMode(occlusion->mode);
+            outDesc.pNext = &outOcclusionDescriptor;
+        }
+    }
 }
 
 void convertBindGroupLayoutDescriptor(const BindGroupLayoutDescriptor& descriptor, std::vector<GfxBindGroupLayoutEntry>& outEntries, GfxBindGroupLayoutDescriptor& outDesc)
