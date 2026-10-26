@@ -107,9 +107,12 @@ TEST_P(GfxTextureTest, CreateAndUploadCompressedTexture)
     instance = nullptr;
     adapter = nullptr;
 
+    const char* instanceExtensions[] = { GFX_INSTANCE_EXTENSION_DEBUG };
     GfxInstanceDescriptor instanceDesc = {};
     instanceDesc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
     instanceDesc.backend = GetParam();
+    instanceDesc.enabledExtensions = instanceExtensions;
+    instanceDesc.enabledExtensionCount = 1;
     ASSERT_EQ(gfxCreateInstance(&instanceDesc, &instance), GFX_RESULT_SUCCESS);
 
     GfxAdapterDescriptor adapterDesc = {};

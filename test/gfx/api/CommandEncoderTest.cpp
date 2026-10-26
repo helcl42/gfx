@@ -151,9 +151,12 @@ TEST_P(GfxCommandEncoderTest, CreateCommandEncoderForQueue)
 TEST_P(GfxCommandEncoderTest, CreateCommandEncoderRejectsQueueOfAnotherDevice)
 {
     // WebGPU cannot create two devices from one adapter
+    const char* extensions[] = { GFX_INSTANCE_EXTENSION_DEBUG };
     GfxInstanceDescriptor instDesc = {};
     instDesc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
     instDesc.backend = backend;
+    instDesc.enabledExtensions = extensions;
+    instDesc.enabledExtensionCount = 1;
     GfxInstance otherInstance = nullptr;
     ASSERT_EQ(gfxCreateInstance(&instDesc, &otherInstance), GFX_RESULT_SUCCESS);
     GfxAdapterDescriptor adapterDesc = {};
