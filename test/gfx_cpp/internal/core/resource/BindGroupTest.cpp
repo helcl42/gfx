@@ -196,7 +196,6 @@ TEST_P(BindGroupImplTest, CreateBindGroupWithSampler)
         .mipmapFilter = FilterMode::Linear,
         .lodMinClamp = 0.0f,
         .lodMaxClamp = 1000.0f,
-        .compare = CompareFunction::Never,
         .maxAnisotropy = 1
     };
 
@@ -265,7 +264,6 @@ TEST_P(BindGroupImplTest, CreateBindGroupWithMultipleBindings)
         .mipmapFilter = FilterMode::Linear,
         .lodMinClamp = 0.0f,
         .lodMaxClamp = 1000.0f,
-        .compare = CompareFunction::Never,
         .maxAnisotropy = 1
     };
 
