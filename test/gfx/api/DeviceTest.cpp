@@ -552,6 +552,19 @@ TEST_P(GfxDeviceTest, SupportsFormatNullOutput)
     EXPECT_EQ(gfxDeviceSupportsFormat(device, GFX_FORMAT_R8G8B8A8_UNORM, NULL), GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
+TEST_P(GfxDeviceTest, CreateTimelineSemaphoreRequiresExtension)
+{
+    GfxDeviceDescriptor desc = {};
+    ASSERT_EQ(gfxAdapterCreateDevice(adapter, &desc, &device), GFX_RESULT_SUCCESS);
+
+    GfxSemaphoreDescriptor semaphoreDesc = {};
+    semaphoreDesc.type = GFX_SEMAPHORE_TYPE_TIMELINE;
+
+    GfxSemaphore semaphore = nullptr;
+    EXPECT_EQ(gfxDeviceCreateSemaphore(device, &semaphoreDesc, &semaphore), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+    EXPECT_EQ(semaphore, nullptr);
+}
+
 // Access flags for layout tests
 TEST_P(GfxDeviceTest, GetAccessFlagsForLayout)
 {

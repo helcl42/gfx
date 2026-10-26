@@ -77,7 +77,7 @@ TEST_F(WebGPUQuerySetTest, GetDevice_ReturnsCorrectDevice)
 
 TEST_F(WebGPUQuerySetTest, CreateQuerySet_Timestamp)
 {
-    if (!device->isTimestampQueryEnabled()) {
+    if (!device->isExtensionEnabled(gfx::backend::webgpu::core::DeviceExtension::TimestampQuery)) {
         GTEST_SKIP() << "Timestamp queries are not supported";
     }
 
@@ -94,7 +94,7 @@ TEST_F(WebGPUQuerySetTest, CreateQuerySet_Timestamp)
 
 TEST_F(WebGPUQuerySetTest, MultipleQuerySets_CanCoexist)
 {
-    if (!device->isTimestampQueryEnabled()) {
+    if (!device->isExtensionEnabled(gfx::backend::webgpu::core::DeviceExtension::TimestampQuery)) {
         GTEST_SKIP() << "Timestamp queries are not supported";
     }
 

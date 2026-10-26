@@ -1252,7 +1252,18 @@ GfxResult validateDeviceCreateSemaphore(GfxDevice device, const GfxSemaphoreDesc
     if (!device || !outSemaphore) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    return validateSemaphoreDescriptor(descriptor);
+
+    GfxResult descriptorResult = validateSemaphoreDescriptor(descriptor);
+    if (descriptorResult != GFX_RESULT_SUCCESS) {
+        return descriptorResult;
+    }
+    if (descriptor && descriptor->type == GFX_SEMAPHORE_TYPE_TIMELINE) {
+        const auto* dev = converter::toNative<core::Device>(device);
+        if (!dev->isExtensionEnabled(core::DeviceExtension::TimelineSemaphore)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+    }
+    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult validateDeviceCreateQuerySet(GfxDevice device, const GfxQuerySetDescriptor* descriptor, GfxQuerySet* outQuerySet)

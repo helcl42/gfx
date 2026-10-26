@@ -21,8 +21,6 @@ namespace {
         return (static_cast<uint64_t>(queueFamilyIndex) << 16) | queueIndex;
     }
 
-    // Parse the requested extension names into a DeviceExtension bitmask so all
-    // later enablement checks are O(1) bit tests
     uint64_t parseEnabledExtensions(const std::vector<std::string>& enabledExtensions)
     {
         const std::pair<const char*, DeviceExtension> knownExtensions[] = {
@@ -176,9 +174,6 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     , m_enabledExtensions(parseEnabledExtensions(createInfo.enabledExtensions))
     , m_enabledFeatures(buildEnabledFeatures(m_enabledExtensions, m_adapter->getFeatures()))
 {
-    // Invariant: m_enabledExtensions records REQUESTED extensions; if the adapter does
-    // not support one, this constructor throws - so on any live Device a set bit means
-    // the extension IS enabled on the VkDevice.
     requireSupportedExtensions(m_adapter, createInfo.enabledExtensions);
 
     std::vector<const char*> requestedExtensions = collectRequestedExtensions(m_enabledExtensions, createInfo, m_adapter->enumerateExtensionProperties());
@@ -334,7 +329,7 @@ bool Device::supportsShaderFormat(ShaderSourceType format) const
 
 bool Device::isExtensionEnabled(DeviceExtension extension) const
 {
-    return (m_enabledExtensions & static_cast<uint64_t>(extension)) != 0;
+    return hasExtension(m_enabledExtensions, extension);
 }
 
 const VkPhysicalDeviceFeatures& Device::getEnabledFeatures() const

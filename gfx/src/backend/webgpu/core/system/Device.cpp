@@ -18,6 +18,27 @@
 namespace gfx::backend::webgpu::core {
 
 namespace {
+    uint64_t parseEnabledExtensions(const std::vector<std::string>& enabledExtensions)
+    {
+        const std::pair<const char*, DeviceExtension> knownExtensions[] = {
+            { extensions::TIMELINE_SEMAPHORE, DeviceExtension::TimelineSemaphore },
+            { extensions::TIMESTAMP_QUERY, DeviceExtension::TimestampQuery },
+        };
+
+        uint64_t mask = 0;
+        for (const auto& [name, bit] : knownExtensions) {
+            if (gfx::common::containsString(enabledExtensions, name)) {
+                mask |= static_cast<uint64_t>(bit);
+            }
+        }
+        return mask;
+    }
+
+    bool hasExtension(uint64_t enabledExtensions, DeviceExtension extension)
+    {
+        return (enabledExtensions & static_cast<uint64_t>(extension)) != 0;
+    }
+
     // A device can only enable the extensions its adapter supports
     void requireSupportedExtensions(const Adapter* adapter, const std::vector<std::string>& enabledExtensions)
     {
@@ -30,10 +51,10 @@ namespace {
     }
 
     // The WGPU features of the requested GFX extensions, plus the optional texture formats the adapter has
-    std::vector<WGPUFeatureName> collectRequiredFeatures(WGPUAdapter adapter, const DeviceCreateInfo& createInfo)
+    std::vector<WGPUFeatureName> collectRequiredFeatures(WGPUAdapter adapter, uint64_t enabledExtensions)
     {
         std::vector<WGPUFeatureName> requiredFeatures;
-        if (gfx::common::containsString(createInfo.enabledExtensions, extensions::TIMESTAMP_QUERY)) {
+        if (hasExtension(enabledExtensions, DeviceExtension::TimestampQuery)) {
             requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
         }
 
@@ -77,10 +98,10 @@ namespace {
     }
 } // anonymous namespace
 
-// Constructor 1: Request device from adapter with createInfo
 Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     : m_device(nullptr)
     , m_adapter(adapter)
+    , m_enabledExtensions(parseEnabledExtensions(createInfo.enabledExtensions))
 {
     if (!adapter) {
         throw std::runtime_error("Invalid adapter for device creation");
@@ -108,7 +129,7 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     WGPULimits adapterLimits = adapter->getLimits();
     wgpuDesc.requiredLimits = &adapterLimits;
 
-    std::vector<WGPUFeatureName> requiredFeatures = collectRequiredFeatures(adapter->handle(), createInfo);
+    std::vector<WGPUFeatureName> requiredFeatures = collectRequiredFeatures(adapter->handle(), m_enabledExtensions);
 
 #ifndef __EMSCRIPTEN__
     // Enable Dawn toggles to allow SPIR-V at device level (Dawn-specific)
@@ -211,9 +232,9 @@ bool Device::supportsShaderFormat(ShaderSourceType format) const
 #endif
 }
 
-bool Device::isTimestampQueryEnabled() const
+bool Device::isExtensionEnabled(DeviceExtension extension) const
 {
-    return wgpuDeviceHasFeature(m_device, WGPUFeatureName_TimestampQuery);
+    return hasExtension(m_enabledExtensions, extension);
 }
 
 } // namespace gfx::backend::webgpu::core

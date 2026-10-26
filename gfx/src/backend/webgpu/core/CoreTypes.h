@@ -29,6 +29,11 @@ namespace extensions {
     constexpr const char* TIMESTAMP_QUERY = "gfx_timestamp_query";
 } // namespace extensions
 
+enum class DeviceExtension : uint64_t {
+    TimelineSemaphore = 1ull << 0,
+    TimestampQuery = 1ull << 1,
+};
+
 // ============================================================================
 // Internal Type Definitions
 // ============================================================================

@@ -13,11 +13,9 @@ class Blit;
 
 class Device {
 public:
-    // Prevent copying
     Device(const Device&) = delete;
     Device& operator=(const Device&) = delete;
 
-    // Constructor 1: Request device from adapter with createInfo
     Device(Adapter* adapter, const DeviceCreateInfo& createInfo);
     ~Device();
 
@@ -30,13 +28,14 @@ public:
     void waitIdle() const;
 
     bool supportsShaderFormat(ShaderSourceType format) const;
-    bool isTimestampQueryEnabled() const;
+    bool isExtensionEnabled(DeviceExtension extension) const;
 
     Blit* getBlit();
 
 private:
     WGPUDevice m_device = nullptr;
     Adapter* m_adapter = nullptr; // Non-owning pointer
+    uint64_t m_enabledExtensions = 0;
     std::unique_ptr<Queue> m_queue;
     std::unique_ptr<Blit> m_blit;
 };

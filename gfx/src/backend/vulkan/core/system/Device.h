@@ -50,7 +50,7 @@ public:
 private:
     VkDevice m_device = VK_NULL_HANDLE;
     Adapter* m_adapter = nullptr; // Non-owning pointer
-    uint64_t m_enabledExtensions = 0; // Bitmask of DeviceExtension values enabled at creation
+    uint64_t m_enabledExtensions = 0;
     VkPhysicalDeviceFeatures m_enabledFeatures{};
     std::unique_ptr<Allocator> m_allocator;
 
