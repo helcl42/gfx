@@ -1002,7 +1002,6 @@ typedef struct GfxChainHeader {
 #define GFX_DEVICE_EXTENSION_SWAPCHAIN "gfx_swapchain"
 #define GFX_DEVICE_EXTENSION_TIMELINE_SEMAPHORE "gfx_timeline_semaphore"
 #define GFX_DEVICE_EXTENSION_MULTIVIEW "gfx_multiview"
-#define GFX_DEVICE_EXTENSION_ANISOTROPIC_FILTERING "gfx_anisotropic_filtering"
 #define GFX_DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE "gfx_occlusion_query_precise"
 #define GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY "gfx_timestamp_query"
 #define GFX_DEVICE_EXTENSION_NON_SOLID_FILL "gfx_non_solid_fill"

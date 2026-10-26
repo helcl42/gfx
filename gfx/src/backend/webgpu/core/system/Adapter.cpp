@@ -92,8 +92,7 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
 {
     std::vector<const char*> supportedExtensions = {
         extensions::SWAPCHAIN,
-        extensions::TIMELINE_SEMAPHORE,
-        extensions::ANISOTROPIC_FILTERING
+        extensions::TIMELINE_SEMAPHORE
     };
 #ifndef __EMSCRIPTEN__
     // Browsers have no command encoder writeTimestamp, which gfxCommandEncoderWriteTimestamp records

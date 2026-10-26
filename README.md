@@ -383,7 +383,6 @@ desc.next = &multiview;  // Type-safe chaining
 **Available Extensions:**
 - `DEVICE_EXTENSION_MULTIVIEW` - Multi-view rendering (VR/stereo)
 - `DEVICE_EXTENSION_TIMELINE_SEMAPHORE` - Timeline semaphores
-- `DEVICE_EXTENSION_ANISOTROPIC_FILTERING` - Anisotropic texture filtering
 
 ### Threading Model
 

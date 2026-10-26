@@ -604,7 +604,7 @@ TEST(VulkanConversionsTest, VkPropertiesToGfxDeviceLimits_CommonLimits_ConvertsC
     props.limits.maxImageDimension3D = 2048;
     props.limits.maxImageArrayLayers = 2048;
 
-    GfxDeviceLimits result = gfx::backend::vulkan::converter::vkPropertiesToGfxDeviceLimits(props);
+    GfxDeviceLimits result = gfx::backend::vulkan::converter::vkPropertiesToGfxDeviceLimits(props, VkPhysicalDeviceFeatures{});
 
     EXPECT_EQ(result.maxTextureDimension1D, 16384u);
     EXPECT_EQ(result.maxTextureDimension2D, 16384u);
@@ -617,7 +617,7 @@ TEST(VulkanConversionsTest, VkPropertiesToGfxDeviceLimits_TimestampPeriod_Conver
     VkPhysicalDeviceProperties props{};
     props.limits.timestampPeriod = 0.5f; // nanoseconds per tick
 
-    GfxDeviceLimits result = gfx::backend::vulkan::converter::vkPropertiesToGfxDeviceLimits(props);
+    GfxDeviceLimits result = gfx::backend::vulkan::converter::vkPropertiesToGfxDeviceLimits(props, VkPhysicalDeviceFeatures{});
 
     EXPECT_FLOAT_EQ(result.timestampPeriod, 0.5f);
 }
@@ -630,12 +630,35 @@ TEST(VulkanConversionsTest, VkPropertiesToGfxDeviceLimits_BufferLimits_ConvertsC
     props.limits.minUniformBufferOffsetAlignment = 256;
     props.limits.minStorageBufferOffsetAlignment = 256;
 
-    GfxDeviceLimits result = gfx::backend::vulkan::converter::vkPropertiesToGfxDeviceLimits(props);
+    GfxDeviceLimits result = gfx::backend::vulkan::converter::vkPropertiesToGfxDeviceLimits(props, VkPhysicalDeviceFeatures{});
 
     EXPECT_EQ(result.maxUniformBufferBindingSize, 65536u);
     EXPECT_EQ(result.maxStorageBufferBindingSize, 134217728u);
     EXPECT_EQ(result.minUniformBufferOffsetAlignment, 256u);
     EXPECT_EQ(result.minStorageBufferOffsetAlignment, 256u);
+}
+
+TEST(VulkanConversionsTest, VkPropertiesToGfxDeviceLimits_SamplerAnisotropy_ReportsDriverLimit)
+{
+    VkPhysicalDeviceProperties props{};
+    props.limits.maxSamplerAnisotropy = 16.0f;
+    VkPhysicalDeviceFeatures features{};
+    features.samplerAnisotropy = VK_TRUE;
+
+    GfxDeviceLimits result = gfx::backend::vulkan::converter::vkPropertiesToGfxDeviceLimits(props, features);
+
+    EXPECT_EQ(result.maxSamplerAnisotropy, 16u);
+}
+
+// Samplers clamp to 1 without the feature, so the limit must say so
+TEST(VulkanConversionsTest, VkPropertiesToGfxDeviceLimits_NoSamplerAnisotropyFeature_ReportsOne)
+{
+    VkPhysicalDeviceProperties props{};
+    props.limits.maxSamplerAnisotropy = 16.0f;
+
+    GfxDeviceLimits result = gfx::backend::vulkan::converter::vkPropertiesToGfxDeviceLimits(props, VkPhysicalDeviceFeatures{});
+
+    EXPECT_EQ(result.maxSamplerAnisotropy, 1u);
 }
 
 // ============================================================================

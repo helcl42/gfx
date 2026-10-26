@@ -30,7 +30,7 @@ Sampler::Sampler(Device* device, const SamplerCreateInfo& createInfo)
 
     // Clamped to what the device supports, as in WebGPU
     float maxAnisotropy = 1.0f;
-    if (m_device->getAdapter()->getFeatures().samplerAnisotropy) {
+    if (m_device->getEnabledFeatures().samplerAnisotropy) {
         maxAnisotropy = std::clamp(static_cast<float>(createInfo.maxAnisotropy), 1.0f, m_device->getProperties().limits.maxSamplerAnisotropy);
     }
     samplerInfo.anisotropyEnable = maxAnisotropy > 1.0f ? VK_TRUE : VK_FALSE;

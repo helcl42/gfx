@@ -47,9 +47,6 @@ const char* deviceExtensionNameToGfx(const char* internalName)
     if (std::strcmp(internalName, core::extensions::MULTIVIEW) == 0) {
         return GFX_DEVICE_EXTENSION_MULTIVIEW;
     }
-    if (std::strcmp(internalName, core::extensions::ANISOTROPIC_FILTERING) == 0) {
-        return GFX_DEVICE_EXTENSION_ANISOTROPIC_FILTERING;
-    }
     if (std::strcmp(internalName, core::extensions::OCCLUSION_QUERY_PRECISE) == 0) {
         return GFX_DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE;
     }
@@ -67,7 +64,7 @@ const char* deviceExtensionNameToGfx(const char* internalName)
 // Device Limits Conversion
 // ============================================================================
 
-GfxDeviceLimits vkPropertiesToGfxDeviceLimits(const VkPhysicalDeviceProperties& properties)
+GfxDeviceLimits vkPropertiesToGfxDeviceLimits(const VkPhysicalDeviceProperties& properties, const VkPhysicalDeviceFeatures& features)
 {
     GfxDeviceLimits limits{};
     limits.minUniformBufferOffsetAlignment = static_cast<uint32_t>(properties.limits.minUniformBufferOffsetAlignment);
@@ -84,7 +81,7 @@ GfxDeviceLimits vkPropertiesToGfxDeviceLimits(const VkPhysicalDeviceProperties& 
     limits.maxVertexAttributes = properties.limits.maxVertexInputAttributes;
     limits.maxVertexBuffers = properties.limits.maxVertexInputBindings;
     limits.maxVertexBufferArrayStride = properties.limits.maxVertexInputBindingStride;
-    limits.maxSamplerAnisotropy = static_cast<uint32_t>(properties.limits.maxSamplerAnisotropy);
+    limits.maxSamplerAnisotropy = features.samplerAnisotropy ? static_cast<uint32_t>(properties.limits.maxSamplerAnisotropy) : 1;
     limits.maxComputeWorkgroupSizeX = properties.limits.maxComputeWorkGroupSize[0];
     limits.maxComputeWorkgroupSizeY = properties.limits.maxComputeWorkGroupSize[1];
     limits.maxComputeWorkgroupSizeZ = properties.limits.maxComputeWorkGroupSize[2];

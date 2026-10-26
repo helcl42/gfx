@@ -32,7 +32,6 @@ namespace extensions {
     constexpr const char* SWAPCHAIN = "gfx_swapchain";
     constexpr const char* TIMELINE_SEMAPHORE = "gfx_timeline_semaphore";
     constexpr const char* MULTIVIEW = "gfx_multiview";
-    constexpr const char* ANISOTROPIC_FILTERING = "gfx_anisotropic_filtering";
     constexpr const char* OCCLUSION_QUERY_PRECISE = "gfx_occlusion_query_precise";
     constexpr const char* NON_SOLID_FILL = "gfx_non_solid_fill";
     constexpr const char* TIMESTAMP_QUERY = "gfx_timestamp_query";
@@ -44,10 +43,9 @@ enum class DeviceExtension : uint64_t {
     Swapchain = 1ull << 0,
     TimelineSemaphore = 1ull << 1,
     Multiview = 1ull << 2,
-    AnisotropicFiltering = 1ull << 3,
-    OcclusionQueryPrecise = 1ull << 4,
-    NonSolidFill = 1ull << 5,
-    TimestampQuery = 1ull << 6,
+    OcclusionQueryPrecise = 1ull << 3,
+    NonSolidFill = 1ull << 4,
+    TimestampQuery = 1ull << 5,
 };
 
 // ============================================================================

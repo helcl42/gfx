@@ -421,8 +421,7 @@ static bool createGraphics(CubeApp* app)
 
     // Create device
     const char* deviceExtensions[] = {
-        GFX_DEVICE_EXTENSION_SWAPCHAIN,
-        GFX_DEVICE_EXTENSION_ANISOTROPIC_FILTERING
+        GFX_DEVICE_EXTENSION_SWAPCHAIN
     };
     GfxDeviceDescriptor deviceDesc = {
         .sType = GFX_STRUCTURE_TYPE_DEVICE_DESCRIPTOR,

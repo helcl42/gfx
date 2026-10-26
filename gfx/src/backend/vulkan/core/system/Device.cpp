@@ -29,7 +29,6 @@ namespace {
             { extensions::SWAPCHAIN, DeviceExtension::Swapchain },
             { extensions::TIMELINE_SEMAPHORE, DeviceExtension::TimelineSemaphore },
             { extensions::MULTIVIEW, DeviceExtension::Multiview },
-            { extensions::ANISOTROPIC_FILTERING, DeviceExtension::AnisotropicFiltering },
             { extensions::OCCLUSION_QUERY_PRECISE, DeviceExtension::OcclusionQueryPrecise },
             { extensions::NON_SOLID_FILL, DeviceExtension::NonSolidFill },
             { extensions::TIMESTAMP_QUERY, DeviceExtension::TimestampQuery },

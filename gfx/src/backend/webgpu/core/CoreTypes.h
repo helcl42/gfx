@@ -26,7 +26,6 @@ namespace extensions {
     constexpr const char* XR_COMPATIBLE = "gfx_xr_compatible";
     constexpr const char* SWAPCHAIN = "gfx_swapchain";
     constexpr const char* TIMELINE_SEMAPHORE = "gfx_timeline_semaphore";
-    constexpr const char* ANISOTROPIC_FILTERING = "gfx_anisotropic_filtering";
     constexpr const char* TIMESTAMP_QUERY = "gfx_timestamp_query";
 } // namespace extensions
 

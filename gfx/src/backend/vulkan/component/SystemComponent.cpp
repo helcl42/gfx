@@ -178,7 +178,7 @@ GfxResult SystemComponent::adapterGetLimits(GfxAdapter adapter, GfxDeviceLimits*
     }
 
     auto* adap = converter::toNative<core::Adapter>(adapter);
-    *outLimits = converter::vkPropertiesToGfxDeviceLimits(adap->getProperties());
+    *outLimits = converter::vkPropertiesToGfxDeviceLimits(adap->getProperties(), adap->getFeatures());
     return GFX_RESULT_SUCCESS;
 }
 
@@ -322,7 +322,7 @@ GfxResult SystemComponent::deviceGetLimits(GfxDevice device, GfxDeviceLimits* ou
     }
 
     auto* dev = converter::toNative<core::Device>(device);
-    *outLimits = converter::vkPropertiesToGfxDeviceLimits(dev->getProperties());
+    *outLimits = converter::vkPropertiesToGfxDeviceLimits(dev->getProperties(), dev->getEnabledFeatures());
     return GFX_RESULT_SUCCESS;
 }
 

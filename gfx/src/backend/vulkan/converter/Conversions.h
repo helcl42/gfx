@@ -72,7 +72,7 @@ core::TextureBarrier gfxTextureBarrierToTextureBarrier(const GfxTextureBarrier& 
 // Device Limits Conversion
 // ============================================================================
 
-GfxDeviceLimits vkPropertiesToGfxDeviceLimits(const VkPhysicalDeviceProperties& properties);
+GfxDeviceLimits vkPropertiesToGfxDeviceLimits(const VkPhysicalDeviceProperties& properties, const VkPhysicalDeviceFeatures& features);
 
 // ============================================================================
 // Queue Family Conversion

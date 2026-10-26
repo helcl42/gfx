@@ -129,9 +129,6 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
     }
 
     // Add feature-based "extensions"
-    if (availableFeatures.samplerAnisotropy) {
-        supportedExtensions.push_back(extensions::ANISOTROPIC_FILTERING);
-    }
     if (availableFeatures.occlusionQueryPrecise) {
         supportedExtensions.push_back(extensions::OCCLUSION_QUERY_PRECISE);
     }
