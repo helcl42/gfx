@@ -49,14 +49,14 @@ public:
     bool isOcclusionQueryPoolCompatible(VkQueryPool queryPool) const;
 
 private:
-    void applyBindGroup(uint32_t index);
+    bool applyBindGroup(uint32_t index, const BindGroupBinding& binding);
 
     VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
     Device* m_device = nullptr;
     CommandEncoder* m_commandEncoder = nullptr;
     bool m_isBundleMode = false;
     RenderPipeline* m_pipeline = nullptr;
-    std::vector<BindGroupBinding> m_bindGroups;
+    std::vector<BindGroupBinding> m_pendingBindGroups;
     VkQueryPool m_activeQueryPool = VK_NULL_HANDLE;
     uint32_t m_activeQueryIndex = 0;
     VkQueryPool m_passOcclusionQueryPool = VK_NULL_HANDLE;

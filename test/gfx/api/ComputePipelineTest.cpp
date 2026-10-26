@@ -561,6 +561,142 @@ static const uint32_t spirvDynamicOffsetComputeShader[] = {
     0x00010038,
 };
 
+// Writes a marker through bind group 1, leaving group 0 free to differ between pipeline layouts
+static const char* wgslGroup1ComputeShader = R"(
+@group(1) @binding(0) var<storage, read_write> data: array<u32>;
+
+@compute @workgroup_size(1)
+fn main() {
+    data[0] = 7u;
+}
+)";
+
+// glslc-compiled from the equivalent GLSL compute shader.
+static const uint32_t spirvGroup1ComputeShader[] = {
+    0x07230203,
+    0x00010000,
+    0x000d000b,
+    0x00000013,
+    0x00000000,
+    0x00020011,
+    0x00000001,
+    0x0006000b,
+    0x00000001,
+    0x4c534c47,
+    0x6474732e,
+    0x3035342e,
+    0x00000000,
+    0x0003000e,
+    0x00000000,
+    0x00000001,
+    0x0005000f,
+    0x00000005,
+    0x00000004,
+    0x6e69616d,
+    0x00000000,
+    0x00060010,
+    0x00000004,
+    0x00000011,
+    0x00000001,
+    0x00000001,
+    0x00000001,
+    0x00040047,
+    0x00000007,
+    0x00000006,
+    0x00000004,
+    0x00030047,
+    0x00000008,
+    0x00000003,
+    0x00050048,
+    0x00000008,
+    0x00000000,
+    0x00000023,
+    0x00000000,
+    0x00040047,
+    0x0000000a,
+    0x00000021,
+    0x00000000,
+    0x00040047,
+    0x0000000a,
+    0x00000022,
+    0x00000001,
+    0x00040047,
+    0x00000012,
+    0x0000000b,
+    0x00000019,
+    0x00020013,
+    0x00000002,
+    0x00030021,
+    0x00000003,
+    0x00000002,
+    0x00040015,
+    0x00000006,
+    0x00000020,
+    0x00000000,
+    0x0003001d,
+    0x00000007,
+    0x00000006,
+    0x0003001e,
+    0x00000008,
+    0x00000007,
+    0x00040020,
+    0x00000009,
+    0x00000002,
+    0x00000008,
+    0x0004003b,
+    0x00000009,
+    0x0000000a,
+    0x00000002,
+    0x00040015,
+    0x0000000b,
+    0x00000020,
+    0x00000001,
+    0x0004002b,
+    0x0000000b,
+    0x0000000c,
+    0x00000000,
+    0x0004002b,
+    0x00000006,
+    0x0000000d,
+    0x00000007,
+    0x00040020,
+    0x0000000e,
+    0x00000002,
+    0x00000006,
+    0x00040017,
+    0x00000010,
+    0x00000006,
+    0x00000003,
+    0x0004002b,
+    0x00000006,
+    0x00000011,
+    0x00000001,
+    0x0006002c,
+    0x00000010,
+    0x00000012,
+    0x00000011,
+    0x00000011,
+    0x00000011,
+    0x00050036,
+    0x00000002,
+    0x00000004,
+    0x00000000,
+    0x00000003,
+    0x000200f8,
+    0x00000005,
+    0x00060041,
+    0x0000000e,
+    0x0000000f,
+    0x0000000a,
+    0x0000000c,
+    0x0000000c,
+    0x0003003e,
+    0x0000000f,
+    0x0000000d,
+    0x000100fd,
+    0x00010038,
+};
+
 // ===========================================================================
 // ComputePipeline Tests
 // ===========================================================================
@@ -1427,6 +1563,176 @@ TEST_P(GfxComputePipelineTest, BindGroupSetBeforePipelineReachesShader)
     gfxBufferDestroy(readback);
     gfxBufferDestroy(storage);
     gfxBindGroupLayoutDestroy(layout);
+    gfxShaderDestroy(computeShader);
+}
+
+// Switching to a pipeline whose group 0 layout differs must not bind the previous group 0 to it
+TEST_P(GfxComputePipelineTest, PipelineSwitchDoesNotRebindIncompatibleBindGroup)
+{
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    constexpr uint64_t kSize = 256;
+
+    GfxShaderDescriptor shaderDesc = {};
+    if (backend == GFX_BACKEND_VULKAN) {
+        shaderDesc.sourceType = GFX_SHADER_SOURCE_SPIRV;
+        shaderDesc.code = spirvGroup1ComputeShader;
+        shaderDesc.codeSize = sizeof(spirvGroup1ComputeShader);
+    } else {
+        shaderDesc.sourceType = GFX_SHADER_SOURCE_WGSL;
+        shaderDesc.code = wgslGroup1ComputeShader;
+        shaderDesc.codeSize = strlen(wgslGroup1ComputeShader) + 1;
+    }
+    shaderDesc.entryPoint = "main";
+    GfxShader computeShader = nullptr;
+    ASSERT_EQ(gfxDeviceCreateShader(device, &shaderDesc, &computeShader), GFX_RESULT_SUCCESS);
+
+    GfxBindGroupLayoutEntry storageEntry = {};
+    storageEntry.binding = 0;
+    storageEntry.visibility = GFX_SHADER_STAGE_COMPUTE;
+    storageEntry.type = GFX_BINDING_TYPE_STORAGE_BUFFER;
+    storageEntry.storageBuffer.access = GFX_STORAGE_BUFFER_ACCESS_READ_WRITE;
+    GfxBindGroupLayoutDescriptor storageLayoutDesc = {};
+    storageLayoutDesc.entries = &storageEntry;
+    storageLayoutDesc.entryCount = 1;
+    GfxBindGroupLayout storageLayout = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBindGroupLayout(device, &storageLayoutDesc, &storageLayout), GFX_RESULT_SUCCESS);
+
+    GfxBindGroupLayoutEntry uniformEntry = {};
+    uniformEntry.binding = 0;
+    uniformEntry.visibility = GFX_SHADER_STAGE_COMPUTE;
+    uniformEntry.type = GFX_BINDING_TYPE_UNIFORM_BUFFER;
+    GfxBindGroupLayoutDescriptor uniformLayoutDesc = {};
+    uniformLayoutDesc.entries = &uniformEntry;
+    uniformLayoutDesc.entryCount = 1;
+    GfxBindGroupLayout uniformLayout = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBindGroupLayout(device, &uniformLayoutDesc, &uniformLayout), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor storageDesc = {};
+    storageDesc.size = kSize;
+    storageDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_STORAGE | GFX_BUFFER_USAGE_COPY_SRC | GFX_BUFFER_USAGE_COPY_DST);
+    storageDesc.memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL;
+    GfxBuffer unusedStorage = nullptr;
+    GfxBuffer storage = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &storageDesc, &unusedStorage), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &storageDesc, &storage), GFX_RESULT_SUCCESS);
+    const std::vector<uint32_t> zeros(kSize / sizeof(uint32_t), 0);
+    ASSERT_EQ(gfxQueueWriteBuffer(queue, storage, 0, zeros.data(), kSize), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor uniformDesc = {};
+    uniformDesc.size = kSize;
+    uniformDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_UNIFORM | GFX_BUFFER_USAGE_COPY_DST);
+    uniformDesc.memoryProperties = GFX_MEMORY_PROPERTY_DEVICE_LOCAL;
+    GfxBuffer uniform = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &uniformDesc, &uniform), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor readbackDesc = {};
+    readbackDesc.size = kSize;
+    readbackDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_READ | GFX_BUFFER_USAGE_COPY_DST);
+    readbackDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+    GfxBuffer readback = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &readbackDesc, &readback), GFX_RESULT_SUCCESS);
+
+    auto createBindGroup = [&](GfxBindGroupLayout layout, GfxBuffer buffer) {
+        GfxBindGroupEntry entry = {};
+        entry.binding = 0;
+        entry.type = GFX_BIND_GROUP_ENTRY_TYPE_BUFFER;
+        entry.resource.buffer.buffer = buffer;
+        entry.resource.buffer.offset = 0;
+        entry.resource.buffer.size = kSize;
+        GfxBindGroupDescriptor desc = {};
+        desc.layout = layout;
+        desc.entries = &entry;
+        desc.entryCount = 1;
+        GfxBindGroup bindGroup = nullptr;
+        EXPECT_EQ(gfxDeviceCreateBindGroup(device, &desc, &bindGroup), GFX_RESULT_SUCCESS);
+        return bindGroup;
+    };
+    GfxBindGroup storageGroup0 = createBindGroup(storageLayout, unusedStorage);
+    GfxBindGroup uniformGroup0 = createBindGroup(uniformLayout, uniform);
+    GfxBindGroup storageGroup1 = createBindGroup(storageLayout, storage);
+
+    GfxComputeState computeState = {};
+    computeState.module = computeShader;
+    computeState.entryPoint = "main";
+
+    GfxBindGroupLayout storageLayouts[] = { storageLayout, storageLayout };
+    GfxComputePipelineDescriptor storagePipelineDesc = {};
+    storagePipelineDesc.bindGroupLayouts = storageLayouts;
+    storagePipelineDesc.bindGroupLayoutCount = 2;
+    storagePipelineDesc.compute = &computeState;
+    GfxComputePipeline storagePipeline = nullptr;
+    ASSERT_EQ(gfxDeviceCreateComputePipeline(device, &storagePipelineDesc, &storagePipeline), GFX_RESULT_SUCCESS);
+
+    GfxBindGroupLayout uniformLayouts[] = { uniformLayout, storageLayout };
+    GfxComputePipelineDescriptor uniformPipelineDesc = {};
+    uniformPipelineDesc.bindGroupLayouts = uniformLayouts;
+    uniformPipelineDesc.bindGroupLayoutCount = 2;
+    uniformPipelineDesc.compute = &computeState;
+    GfxComputePipeline uniformPipeline = nullptr;
+    ASSERT_EQ(gfxDeviceCreateComputePipeline(device, &uniformPipelineDesc, &uniformPipeline), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoder encoder = nullptr;
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxComputePassEncoder pass = nullptr;
+    GfxComputePassBeginDescriptor passDesc = {};
+    ASSERT_EQ(gfxCommandEncoderBeginComputePass(encoder, &passDesc, &pass), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderSetPipeline(pass, storagePipeline), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderSetBindGroup(pass, 0, storageGroup0, nullptr, 0), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderSetPipeline(pass, uniformPipeline), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderSetBindGroup(pass, 0, uniformGroup0, nullptr, 0), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderSetBindGroup(pass, 1, storageGroup1, nullptr, 0), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderDispatch(pass, 1, 1, 1), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxComputePassEncoderEnd(pass), GFX_RESULT_SUCCESS);
+
+    GfxMemoryBarrier barrier = {};
+    barrier.srcStageMask = GFX_PIPELINE_STAGE_COMPUTE_SHADER;
+    barrier.srcAccessMask = GFX_ACCESS_SHADER_WRITE;
+    barrier.dstStageMask = GFX_PIPELINE_STAGE_TRANSFER;
+    barrier.dstAccessMask = GFX_ACCESS_TRANSFER_READ;
+    GfxPipelineBarrierDescriptor barrierDesc = {};
+    barrierDesc.memoryBarriers = &barrier;
+    barrierDesc.memoryBarrierCount = 1;
+    ASSERT_EQ(gfxCommandEncoderPipelineBarrier(encoder, &barrierDesc), GFX_RESULT_SUCCESS);
+
+    GfxCopyBufferToBufferDescriptor copyDesc = {};
+    copyDesc.source = storage;
+    copyDesc.destination = readback;
+    copyDesc.size = kSize;
+    ASSERT_EQ(gfxCommandEncoderCopyBufferToBuffer(encoder, &copyDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+    GfxFenceDescriptor fenceDesc = {};
+    GfxFence fence = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFence(device, &fenceDesc, &fence), GFX_RESULT_SUCCESS);
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    submitDesc.signalFence = fence;
+    ASSERT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxFenceWait(fence, GFX_TIMEOUT_INFINITE), GFX_RESULT_SUCCESS);
+
+    void* mapped = nullptr;
+    ASSERT_EQ(gfxBufferMap(readback, 0, kSize, &mapped), GFX_RESULT_SUCCESS);
+    EXPECT_EQ(static_cast<const uint32_t*>(mapped)[0], 7u);
+    ASSERT_EQ(gfxBufferUnmap(readback), GFX_RESULT_SUCCESS);
+
+    gfxFenceDestroy(fence);
+    gfxCommandEncoderDestroy(encoder);
+    gfxComputePipelineDestroy(uniformPipeline);
+    gfxComputePipelineDestroy(storagePipeline);
+    gfxBindGroupDestroy(storageGroup1);
+    gfxBindGroupDestroy(uniformGroup0);
+    gfxBindGroupDestroy(storageGroup0);
+    gfxBufferDestroy(readback);
+    gfxBufferDestroy(uniform);
+    gfxBufferDestroy(storage);
+    gfxBufferDestroy(unusedStorage);
+    gfxBindGroupLayoutDestroy(uniformLayout);
+    gfxBindGroupLayoutDestroy(storageLayout);
     gfxShaderDestroy(computeShader);
 }
 
