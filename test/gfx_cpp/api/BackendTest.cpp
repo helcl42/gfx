@@ -46,4 +46,10 @@ TEST(GfxCppBackendTest, LoadUnloadMultipleTimes)
     gfx::unloadBackend(gfx::Backend::Vulkan);
 }
 
+TEST(GfxCppBackendTest, LoadAndUnloadAllBackends)
+{
+    EXPECT_TRUE(gfx::isSuccess(gfx::loadAllBackends()));
+    EXPECT_TRUE(gfx::isSuccess(gfx::unloadAllBackends()));
+}
+
 } // namespace

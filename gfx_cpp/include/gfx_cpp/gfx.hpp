@@ -1970,6 +1970,8 @@ GFX_CPP_API std::shared_ptr<Instance> createInstance(const InstanceDescriptor& d
 
 GFX_CPP_API Result loadBackend(Backend backend);
 GFX_CPP_API Result unloadBackend(Backend backend);
+GFX_CPP_API Result loadAllBackends();
+GFX_CPP_API Result unloadAllBackends();
 
 // ============================================================================
 // Utility Functions

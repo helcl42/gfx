@@ -96,6 +96,18 @@ Result unloadBackend(Backend backend)
     return cResultToCppResult(result);
 }
 
+Result loadAllBackends()
+{
+    GfxResult result = gfxLoadAllBackends();
+    return cResultToCppResult(result);
+}
+
+Result unloadAllBackends()
+{
+    GfxResult result = gfxUnloadAllBackends();
+    return cResultToCppResult(result);
+}
+
 std::vector<std::string> enumerateInstanceExtensions(Backend backend)
 {
     GfxBackend cBackend = cppBackendToCBackend(backend);
