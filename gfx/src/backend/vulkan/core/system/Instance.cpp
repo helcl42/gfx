@@ -12,11 +12,33 @@
 
 #include <set>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace gfx::backend::vulkan::core {
 
 namespace {
+
+    uint64_t parseEnabledExtensions(const std::vector<std::string>& enabledExtensions)
+    {
+        const std::pair<const char*, InstanceExtension> knownExtensions[] = {
+            { extensions::SURFACE, InstanceExtension::Surface },
+            { extensions::DEBUG, InstanceExtension::Debug },
+        };
+
+        uint64_t mask = 0;
+        for (const auto& [name, bit] : knownExtensions) {
+            if (gfx::common::containsString(enabledExtensions, name)) {
+                mask |= static_cast<uint64_t>(bit);
+            }
+        }
+        return mask;
+    }
+
+    bool hasExtension(uint64_t enabledExtensions, InstanceExtension extension)
+    {
+        return (enabledExtensions & static_cast<uint64_t>(extension)) != 0;
+    }
 
     const char* vkMessageSeverityToString(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity)
     {
@@ -69,11 +91,11 @@ namespace {
     // Collects the instance extension names to request: surface/platform extensions,
     // portability enumeration, debug utils, and native pNext passthrough extensions.
     // Throws if any required extension is unavailable.
-    std::vector<const char*> collectInstanceExtensions(const InstanceCreateInfo& createInfo, const std::vector<VkExtensionProperties>& availableExtensions, bool validationEnabled)
+    std::vector<const char*> collectInstanceExtensions(uint64_t enabledExtensions, const InstanceCreateInfo& createInfo, const std::vector<VkExtensionProperties>& availableExtensions)
     {
         std::vector<const char*> extensions = {};
 #ifndef GFX_HEADLESS_BUILD
-        if (gfx::common::containsString(createInfo.enabledExtensions, extensions::SURFACE)) {
+        if (hasExtension(enabledExtensions, InstanceExtension::Surface)) {
             extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 #ifdef GFX_HAS_WIN32
             extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
@@ -103,7 +125,7 @@ namespace {
         }
 #endif
 
-        if (validationEnabled) {
+        if (hasExtension(enabledExtensions, InstanceExtension::Debug)) {
             if (isExtensionAvailable(availableExtensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME)) {
                 extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
             } else if (isExtensionAvailable(availableExtensions, VK_EXT_DEBUG_REPORT_EXTENSION_NAME)) {
@@ -141,10 +163,10 @@ namespace {
     // Collects the instance layers to request: the validation layer when requested, plus any
     // native pNext passthrough layers. Layers are only added if available (unknown layers are
     // skipped rather than failing instance creation).
-    std::vector<const char*> collectInstanceLayers(const InstanceCreateInfo& createInfo, const std::vector<VkLayerProperties>& availableLayers, bool validationEnabled)
+    std::vector<const char*> collectInstanceLayers(uint64_t enabledExtensions, const InstanceCreateInfo& createInfo, const std::vector<VkLayerProperties>& availableLayers)
     {
         std::vector<const char*> layers;
-        if (validationEnabled) {
+        if (hasExtension(enabledExtensions, InstanceExtension::Debug)) {
             static const char* validationLayerName = "VK_LAYER_KHRONOS_validation";
             if (isLayerAvailable(availableLayers, validationLayerName)) {
                 layers.push_back(validationLayerName);
@@ -172,15 +194,15 @@ namespace {
 } // anonymous namespace
 
 Instance::Instance(const InstanceCreateInfo& createInfo)
+    : m_enabledExtensions(parseEnabledExtensions(createInfo.enabledExtensions))
 {
     gfx::common::requireSupportedExtensions(enumerateSupportedExtensions(), createInfo.enabledExtensions);
 
     const auto availableExtensions = enumerateAvailableExtensions();
     const auto availableLayers = enumerateAvailableLayers();
 
-    m_validationEnabled = gfx::common::containsString(createInfo.enabledExtensions, extensions::DEBUG);
-    std::vector<const char*> extensions = collectInstanceExtensions(createInfo, availableExtensions, m_validationEnabled);
-    std::vector<const char*> layers = collectInstanceLayers(createInfo, availableLayers, m_validationEnabled);
+    std::vector<const char*> extensions = collectInstanceExtensions(m_enabledExtensions, createInfo, availableExtensions);
+    std::vector<const char*> layers = collectInstanceLayers(m_enabledExtensions, createInfo, availableLayers);
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -209,7 +231,7 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
     }
 
     // Setup debug messenger if validation enabled
-    if (m_validationEnabled) {
+    if (isExtensionEnabled(InstanceExtension::Debug)) {
         if (isExtensionAvailable(availableExtensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME)) {
             m_debugMessenger = createDebugMessenger();
         } else if (isExtensionAvailable(availableExtensions, VK_EXT_DEBUG_REPORT_EXTENSION_NAME)) {
@@ -244,6 +266,11 @@ Instance::~Instance()
 VkInstance Instance::handle() const
 {
     return m_instance;
+}
+
+bool Instance::isExtensionEnabled(InstanceExtension extension) const
+{
+    return hasExtension(m_enabledExtensions, extension);
 }
 
 std::vector<VkPhysicalDevice> Instance::enumeratePhysicalDevices() const

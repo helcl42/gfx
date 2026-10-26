@@ -27,6 +27,7 @@ public:
     const std::vector<std::unique_ptr<Adapter>>& getAdapters() const;
 
     static std::vector<const char*> enumerateSupportedExtensions();
+    bool isExtensionEnabled(InstanceExtension extension) const;
 
 private:
     static std::vector<VkExtensionProperties> enumerateAvailableExtensions();
@@ -46,7 +47,7 @@ private:
     VkInstance m_instance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;
     VkDebugReportCallbackEXT m_debugReportCallback = VK_NULL_HANDLE;
-    bool m_validationEnabled = false;
+    uint64_t m_enabledExtensions = 0;
     std::vector<std::unique_ptr<Adapter>> m_adapters; // Owned adapters, cached on creation
 };
 

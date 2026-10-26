@@ -95,6 +95,18 @@ TEST_P(GfxSurfaceTest, CreateSurfaceInvalidArguments)
     EXPECT_EQ(result, GFX_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
+// The fixture instance does not enable GFX_INSTANCE_EXTENSION_SURFACE, so the dummy window is never used
+TEST_P(GfxSurfaceTest, CreateSurfaceRequiresExtension)
+{
+    GfxSurfaceDescriptor desc = {};
+    desc.windowHandle.windowingSystem = GFX_WINDOWING_SYSTEM_XLIB;
+    desc.windowHandle.handle.xlib.display = reinterpret_cast<void*>(0x1);
+    desc.windowHandle.handle.xlib.window = 1;
+
+    EXPECT_EQ(gfxInstanceCreateSurface(instance, &desc, &surface), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+    EXPECT_EQ(surface, nullptr);
+}
+
 TEST_P(GfxSurfaceTest, DestroyNullSurface)
 {
     GfxResult result = gfxSurfaceDestroy(NULL);

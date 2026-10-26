@@ -10,10 +10,32 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <utility>
 
 namespace gfx::backend::webgpu::core {
 
 namespace {
+    uint64_t parseEnabledExtensions(const std::vector<std::string>& enabledExtensions)
+    {
+        const std::pair<const char*, InstanceExtension> knownExtensions[] = {
+            { extensions::SURFACE, InstanceExtension::Surface },
+            { extensions::XR_COMPATIBLE, InstanceExtension::XrCompatible },
+        };
+
+        uint64_t mask = 0;
+        for (const auto& [name, bit] : knownExtensions) {
+            if (gfx::common::containsString(enabledExtensions, name)) {
+                mask |= static_cast<uint64_t>(bit);
+            }
+        }
+        return mask;
+    }
+
+    bool hasExtension(uint64_t enabledExtensions, InstanceExtension extension)
+    {
+        return (enabledExtensions & static_cast<uint64_t>(extension)) != 0;
+    }
+
     std::vector<WGPUAdapter> discoverAdapters(WGPUInstance instance, bool xrCompatible)
     {
         std::vector<WGPUAdapter> adapters;
@@ -73,6 +95,7 @@ namespace {
 } // namespace
 
 Instance::Instance(const InstanceCreateInfo& createInfo)
+    : m_enabledExtensions(parseEnabledExtensions(createInfo.enabledExtensions))
 {
     gfx::common::requireSupportedExtensions(enumerateSupportedExtensions(), createInfo.enabledExtensions);
 
@@ -109,8 +132,7 @@ Instance::Instance(const InstanceCreateInfo& createInfo)
         throw std::runtime_error("Failed to create WebGPU instance");
     }
 
-    const bool xrCompatible = gfx::common::containsString(createInfo.enabledExtensions, extensions::XR_COMPATIBLE);
-    std::vector<WGPUAdapter> discoveredAdapters = discoverAdapters(m_instance, xrCompatible);
+    std::vector<WGPUAdapter> discoveredAdapters = discoverAdapters(m_instance, isExtensionEnabled(InstanceExtension::XrCompatible));
     m_adapters.reserve(discoveredAdapters.size());
     for (auto adapter : discoveredAdapters) {
         m_adapters.push_back(std::make_unique<Adapter>(adapter, this));
@@ -132,10 +154,17 @@ WGPUInstance Instance::handle() const
     return m_instance;
 }
 
+bool Instance::isExtensionEnabled(InstanceExtension extension) const
+{
+    return hasExtension(m_enabledExtensions, extension);
+}
+
 std::vector<const char*> Instance::enumerateSupportedExtensions()
 {
     static const std::vector<const char*> supportedExtensions = {
+#ifndef GFX_HEADLESS_BUILD
         extensions::SURFACE,
+#endif
         extensions::DEBUG,
 #ifdef __EMSCRIPTEN__
         extensions::XR_COMPATIBLE, // WebXR exists only in browsers

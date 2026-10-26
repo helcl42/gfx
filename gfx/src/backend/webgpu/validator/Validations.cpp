@@ -1052,6 +1052,10 @@ GfxResult validateInstanceCreateSurface(GfxInstance instance, const GfxSurfaceDe
     if (!instance || !descriptor || !outSurface) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
+    const auto* inst = converter::toNative<core::Instance>(instance);
+    if (!inst->isExtensionEnabled(core::InstanceExtension::Surface)) {
+        return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+    }
     return GFX_RESULT_SUCCESS;
 }
 

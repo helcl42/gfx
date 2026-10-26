@@ -37,6 +37,11 @@ namespace extensions {
     constexpr const char* TIMESTAMP_QUERY = "gfx_timestamp_query";
 } // namespace extensions
 
+enum class InstanceExtension : uint64_t {
+    Surface = 1ull << 0,
+    Debug = 1ull << 1,
+};
+
 enum class DeviceExtension : uint64_t {
     Swapchain = 1ull << 0,
     TimelineSemaphore = 1ull << 1,

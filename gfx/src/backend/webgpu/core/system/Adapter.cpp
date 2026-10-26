@@ -91,7 +91,9 @@ AdapterInfo Adapter::createAdapterInfo() const
 std::vector<const char*> Adapter::enumerateSupportedExtensions() const
 {
     std::vector<const char*> supportedExtensions = {
+#ifndef GFX_HEADLESS_BUILD
         extensions::SWAPCHAIN,
+#endif
         extensions::TIMELINE_SEMAPHORE
     };
 #ifndef __EMSCRIPTEN__

@@ -21,6 +21,7 @@ public:
     WGPUInstance handle() const;
 
     static std::vector<const char*> enumerateSupportedExtensions();
+    bool isExtensionEnabled(InstanceExtension extension) const;
 
     // Adapter management
     Adapter* requestAdapter(const AdapterCreateInfo& createInfo) const;
@@ -28,6 +29,7 @@ public:
 
 private:
     WGPUInstance m_instance = nullptr;
+    uint64_t m_enabledExtensions = 0;
     std::vector<std::unique_ptr<Adapter>> m_adapters;
 };
 
