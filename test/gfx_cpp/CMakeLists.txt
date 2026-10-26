@@ -107,6 +107,7 @@ add_executable(gfx_cpp_internal_test
     internal/core/command/ComputePassEncoderTest.cpp
     internal/core/presentation/SurfaceTest.cpp
     internal/core/presentation/SwapchainTest.cpp
+    internal/ValidationEnforcement.cpp
 )
 
 target_include_directories(gfx_cpp_internal_test PRIVATE
@@ -131,4 +132,5 @@ gfx_apply_sanitizers(gfx_cpp_internal_test)
 
 gtest_discover_tests(gfx_cpp_internal_test
     DISCOVERY_MODE PRE_TEST
+    PROPERTIES ENVIRONMENT "VK_LAYER_VALIDATE_SYNC=1"
 )

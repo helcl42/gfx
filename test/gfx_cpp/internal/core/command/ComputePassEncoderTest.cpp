@@ -15,10 +15,13 @@ protected:
 
         ASSERT_EQ(gfxLoadBackend(backend), GFX_RESULT_SUCCESS);
 
+        const char* instanceExtensions[] = { GFX_INSTANCE_EXTENSION_DEBUG };
         GfxInstanceDescriptor instanceDesc{
             .backend = backend,
             .applicationName = "ComputePassEncoderTest",
-            .applicationVersion = 1
+            .applicationVersion = 1,
+            .enabledExtensions = instanceExtensions,
+            .enabledExtensionCount = 1
         };
         ASSERT_EQ(gfxCreateInstance(&instanceDesc, &instance), GFX_RESULT_SUCCESS);
 
