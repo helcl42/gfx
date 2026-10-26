@@ -1206,6 +1206,10 @@ GfxResult validateDeviceCreateRenderPass(GfxDevice device, const GfxRenderPassDe
     if (descriptorResult != GFX_RESULT_SUCCESS) {
         return descriptorResult;
     }
+    // WebGPU has no multiview render passes
+    if (gfx::util::findRenderPassMultiview(descriptor)) {
+        return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+    }
 
     for (uint32_t i = 0; i < descriptor->colorAttachmentCount; ++i) {
         GfxResult formatResult = validateFormatSupported(device, descriptor->colorAttachments[i].target.format);

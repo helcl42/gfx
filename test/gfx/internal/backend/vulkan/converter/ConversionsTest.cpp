@@ -1317,6 +1317,39 @@ TEST(VulkanConversionsTest, GfxRenderPassBeginDescriptorToBeginInfo_ClearValues_
 }
 
 // ============================================================================
+// RenderPassDescriptor Conversion Tests
+// ============================================================================
+
+TEST(VulkanConversionsTest, GfxRenderPassDescriptorToRenderPassCreateInfo_ChainedMultiview_SetsViewMask)
+{
+    const uint32_t correlationMask = 0x3;
+    GfxRenderPassMultiviewDescriptor multiviewDesc{};
+    multiviewDesc.sType = GFX_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_DESCRIPTOR;
+    multiviewDesc.viewMask = 0x3;
+    multiviewDesc.correlationMasks = &correlationMask;
+    multiviewDesc.correlationMaskCount = 1;
+
+    GfxRenderPassDescriptor descriptor{};
+    descriptor.pNext = &multiviewDesc;
+
+    auto result = gfx::backend::vulkan::converter::gfxRenderPassDescriptorToRenderPassCreateInfo(&descriptor);
+
+    ASSERT_TRUE(result.viewMask.has_value());
+    EXPECT_EQ(result.viewMask.value(), 0x3u);
+    ASSERT_EQ(result.correlationMasks.size(), 1u);
+    EXPECT_EQ(result.correlationMasks[0], 0x3u);
+}
+
+TEST(VulkanConversionsTest, GfxRenderPassDescriptorToRenderPassCreateInfo_NoChain_HasNoViewMask)
+{
+    GfxRenderPassDescriptor descriptor{};
+
+    auto result = gfx::backend::vulkan::converter::gfxRenderPassDescriptorToRenderPassCreateInfo(&descriptor);
+
+    EXPECT_FALSE(result.viewMask.has_value());
+}
+
+// ============================================================================
 // QuerySetDescriptor Conversion Tests
 // ============================================================================
 

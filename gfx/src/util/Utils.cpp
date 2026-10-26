@@ -278,20 +278,30 @@ void getFormatBlockDimensions(GfxFormat format, uint32_t* outWidth, uint32_t* ou
     }
 }
 
+namespace {
+    // The first struct of the given type in a pNext chain, nullptr when there is none
+    const void* findChained(const void* pNext, GfxStructureType sType)
+    {
+        const GfxChainHeader* chain = static_cast<const GfxChainHeader*>(pNext);
+        while (chain && chain->sType != sType) {
+            chain = static_cast<const GfxChainHeader*>(chain->pNext);
+        }
+        return chain;
+    }
+} // namespace
+
 bool isPreciseOcclusionQuery(const GfxQuerySetDescriptor* descriptor)
 {
     if (descriptor->type != GFX_QUERY_TYPE_OCCLUSION) {
         return false;
     }
-    const GfxChainHeader* chain = static_cast<const GfxChainHeader*>(descriptor->pNext);
-    while (chain) {
-        if (chain->sType == GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR) {
-            const GfxOcclusionQueryDescriptor* occlusion = static_cast<const GfxOcclusionQueryDescriptor*>(static_cast<const void*>(chain));
-            return occlusion->mode == GFX_OCCLUSION_QUERY_MODE_PRECISE;
-        }
-        chain = static_cast<const GfxChainHeader*>(chain->pNext);
-    }
-    return false;
+    const auto* occlusion = static_cast<const GfxOcclusionQueryDescriptor*>(findChained(descriptor->pNext, GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR));
+    return occlusion && occlusion->mode == GFX_OCCLUSION_QUERY_MODE_PRECISE;
+}
+
+const GfxRenderPassMultiviewDescriptor* findRenderPassMultiview(const GfxRenderPassDescriptor* descriptor)
+{
+    return static_cast<const GfxRenderPassMultiviewDescriptor*>(findChained(descriptor->pNext, GFX_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_DESCRIPTOR));
 }
 
 const char* resultToString(GfxResult result)

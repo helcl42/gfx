@@ -565,6 +565,32 @@ TEST_P(GfxDeviceTest, CreateTimelineSemaphoreRequiresExtension)
     EXPECT_EQ(semaphore, nullptr);
 }
 
+TEST_P(GfxDeviceTest, CreateMultiviewRenderPassRequiresExtension)
+{
+    GfxDeviceDescriptor desc = {};
+    ASSERT_EQ(gfxAdapterCreateDevice(adapter, &desc, &device), GFX_RESULT_SUCCESS);
+
+    GfxRenderPassColorAttachment colorAttachment = {};
+    colorAttachment.target.format = GFX_FORMAT_R8G8B8A8_UNORM;
+    colorAttachment.target.sampleCount = GFX_SAMPLE_COUNT_1;
+    colorAttachment.target.ops.loadOp = GFX_LOAD_OP_CLEAR;
+    colorAttachment.target.ops.storeOp = GFX_STORE_OP_STORE;
+    colorAttachment.target.finalLayout = GFX_TEXTURE_LAYOUT_COLOR_ATTACHMENT;
+
+    GfxRenderPassMultiviewDescriptor multiviewDesc = {};
+    multiviewDesc.sType = GFX_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_DESCRIPTOR;
+    multiviewDesc.viewMask = 0x3;
+
+    GfxRenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.pNext = &multiviewDesc;
+    renderPassDesc.colorAttachments = &colorAttachment;
+    renderPassDesc.colorAttachmentCount = 1;
+
+    GfxRenderPass renderPass = nullptr;
+    EXPECT_EQ(gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+    EXPECT_EQ(renderPass, nullptr);
+}
+
 // Access flags for layout tests
 TEST_P(GfxDeviceTest, GetAccessFlagsForLayout)
 {
