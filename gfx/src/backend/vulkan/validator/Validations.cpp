@@ -1032,7 +1032,16 @@ GfxResult validateDeviceCreateSwapchain(GfxDevice device, const GfxSwapchainDesc
     if (!device || !descriptor || !outSwapchain) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    return validateSwapchainDescriptor(descriptor);
+
+    GfxResult descriptorResult = validateSwapchainDescriptor(descriptor);
+    if (descriptorResult != GFX_RESULT_SUCCESS) {
+        return descriptorResult;
+    }
+    const auto* dev = converter::toNative<core::Device>(device);
+    if (!dev->isExtensionEnabled(core::DeviceExtension::Swapchain)) {
+        return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+    }
+    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult validateDeviceCreateBuffer(GfxDevice device, const GfxBufferDescriptor* descriptor, GfxBuffer* outBuffer)

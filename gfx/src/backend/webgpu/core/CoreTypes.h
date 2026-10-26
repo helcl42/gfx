@@ -30,8 +30,9 @@ namespace extensions {
 } // namespace extensions
 
 enum class DeviceExtension : uint64_t {
-    TimelineSemaphore = 1ull << 0,
-    TimestampQuery = 1ull << 1,
+    Swapchain = 1ull << 0,
+    TimelineSemaphore = 1ull << 1,
+    TimestampQuery = 1ull << 2,
 };
 
 // ============================================================================

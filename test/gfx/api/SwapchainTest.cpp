@@ -159,6 +159,21 @@ TEST_P(GfxSwapchainTest, CreateSwapchainInvalidImageCount)
     EXPECT_TRUE(result == GFX_RESULT_ERROR_INVALID_ARGUMENT || result < 0);
 }
 
+// The fixture device does not enable GFX_DEVICE_EXTENSION_SWAPCHAIN, so the dummy surface is never used
+TEST_P(GfxSwapchainTest, CreateSwapchainRequiresExtension)
+{
+    GfxSwapchainDescriptor desc = {};
+    desc.surface = (GfxSurface)0x1;
+    desc.extent = { 800, 600 };
+    desc.format = GFX_FORMAT_B8G8R8A8_UNORM;
+    desc.usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
+    desc.presentMode = GFX_PRESENT_MODE_FIFO;
+    desc.imageCount = 2;
+
+    EXPECT_EQ(gfxDeviceCreateSwapchain(device, &desc, &swapchain), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+    EXPECT_EQ(swapchain, nullptr);
+}
+
 TEST_P(GfxSwapchainTest, DestroyNullSwapchain)
 {
     GfxResult result = gfxSwapchainDestroy(NULL);

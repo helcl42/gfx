@@ -21,6 +21,7 @@ namespace {
     uint64_t parseEnabledExtensions(const std::vector<std::string>& enabledExtensions)
     {
         const std::pair<const char*, DeviceExtension> knownExtensions[] = {
+            { extensions::SWAPCHAIN, DeviceExtension::Swapchain },
             { extensions::TIMELINE_SEMAPHORE, DeviceExtension::TimelineSemaphore },
             { extensions::TIMESTAMP_QUERY, DeviceExtension::TimestampQuery },
         };
