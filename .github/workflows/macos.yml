@@ -70,10 +70,8 @@ jobs:
         path: |
           build/libgfx*.dylib
           build/libgfx_cpp*.dylib
-          build/examples/cube_example_c
-          build/examples/cube_example_cpp
-          build/examples/compute_example_c
-          build/examples/compute_example_cpp
-          build/examples/shaders/
-          build/examples/textures/
+          build/examples/cube_example_c/
+          build/examples/cube_example_cpp/
+          build/examples/compute_example_c/
+          build/examples/compute_example_cpp/
         retention-days: 7

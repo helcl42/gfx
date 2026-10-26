@@ -100,10 +100,8 @@ jobs:
         path: |
           build/libgfx.so*
           build/libgfx_cpp.so*
-          build/examples/cube_example_c
-          build/examples/cube_example_cpp
-          build/examples/compute_example_c
-          build/examples/compute_example_cpp
-          build/examples/shaders/
-          build/examples/textures/
+          build/examples/cube_example_c/
+          build/examples/cube_example_cpp/
+          build/examples/compute_example_c/
+          build/examples/compute_example_cpp/
         retention-days: 7

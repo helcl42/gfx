@@ -91,9 +91,9 @@ git submodule update --init --depth 1
 cmake -B build
 cmake --build build
 
-# Run examples
-./build/cube_example_c
-./build/cube_example_cpp
+# Run examples (each runs from its own folder, next to its shaders)
+(cd build/examples/cube_example_c && ./cube_example_c)
+(cd build/examples/cube_example_cpp && ./cube_example_cpp)
 ```
 
 ### CMake Options
@@ -454,8 +454,8 @@ Renders a rotating 3D cube with:
 - Swapchain presentation
 
 ```bash
-./build/cube_example_c
-./build/cube_example_cpp
+(cd build/examples/cube_example_c && ./cube_example_c)
+(cd build/examples/cube_example_cpp && ./cube_example_cpp)
 ```
 
 ### Compute Example (`examples/c/compute` and `examples/cpp/compute`)
@@ -466,8 +466,8 @@ GPU compute shader demonstration:
 - Fullscreen rendering
 
 ```bash
-./build/compute_example_c
-./build/compute_example_cpp
+(cd build/examples/compute_example_c && ./compute_example_c)
+(cd build/examples/compute_example_cpp && ./compute_example_cpp)
 ```
 
 All examples work on native platforms and web (Emscripten).

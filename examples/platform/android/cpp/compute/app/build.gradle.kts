@@ -140,18 +140,17 @@ tasks.register<Copy>("copyAssets") {
     val targetDir = file("src/main/assets/shaders").absoluteFile
     
     // Copy shaders from desktop build (SPIR-V is platform-agnostic)
-    from("$desktopBuildDir/examples") {
-        include("c_compute_shaders_generate.comp.spv")
-        include("c_compute_shaders_fullscreen.vert.spv")
-        include("c_compute_shaders_postprocess.frag.spv")
-        rename { it.replace("c_compute_shaders_", "") }
+    from("$desktopBuildDir/examples/compute_example_cpp/shaders") {
+        include("generate.comp.spv")
+        include("fullscreen.vert.spv")
+        include("postprocess.frag.spv")
     }
     
     into(targetDir)
     
     doFirst {
         println("Copying assets...")
-        println("  From: $desktopBuildDir/examples")
+        println("  From: $desktopBuildDir/examples/compute_example_cpp/shaders")
         println("  To: $targetDir")
         if (!desktopBuildDir.exists()) {
             throw GradleException("""

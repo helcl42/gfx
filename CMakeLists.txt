@@ -209,20 +209,6 @@ if(BUILD_VULKAN_BACKEND AND NOT BUILD_FOR_WEB)
     if(NOT Vulkan_LIBRARY)
         message(FATAL_ERROR "Vulkan loader library not found. Please install Vulkan SDK.")
     endif()
-    
-    # Find glslc shader compiler (comes with Vulkan SDK)
-    find_program(GLSLC_EXECUTABLE
-        NAMES glslc
-        HINTS
-            ENV VULKAN_SDK
-        PATH_SUFFIXES bin
-    )
-    
-    if(GLSLC_EXECUTABLE)
-        message(STATUS "Found glslc: ${GLSLC_EXECUTABLE}")
-    else()
-        message(WARNING "glslc not found - shaders will not be compiled automatically")
-    endif()
 endif()
 
 # WebGPU (Dawn)

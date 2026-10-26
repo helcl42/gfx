@@ -138,10 +138,9 @@ tasks.register<Copy>("copyShaders") {
     val workspaceRoot = file("${project.rootDir}/../../../../..").absoluteFile
     val desktopBuildDir = file("$workspaceRoot/build").absoluteFile
     
-    from("$desktopBuildDir/examples") {
-        include("cpp_cube_shaders_cube.vert.spv")
-        include("cpp_cube_shaders_cube.frag.spv")
-        rename { it.replace("cpp_cube_shaders_", "") }
+    from("$desktopBuildDir/examples/cube_example_cpp/shaders") {
+        include("cube.vert.spv")
+        include("cube.frag.spv")
     }
     into("src/main/assets/shaders")
     

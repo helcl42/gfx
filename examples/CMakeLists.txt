@@ -40,52 +40,56 @@ if(NOT BUILD_FOR_WEB AND NOT ANDROID AND NOT IOS)
     endif()
 endif()
 
-# Function to compile GLSL shaders to SPIR-V using glslc
-function(compile_glsl_shader target shader_source)
-    if(NOT GLSLC_EXECUTABLE)
-        message(WARNING "Cannot compile GLSL shader ${shader_source} - glslc not found")
-        return()
+# Gives a native example its own directory holding the executable, its WGSL shaders with their
+# SPIR-V compiled by tint, and its textures, so no two examples write the same files
+function(add_example_assets target)
+    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "" "SHADERS;TEXTURES")
+    set(example_dir "${CMAKE_CURRENT_BINARY_DIR}/${target}")
+    set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${example_dir}")
+    if(ARG_SHADERS AND NOT BUILD_WEBGPU_BACKEND)
+        message(WARNING "No SPIR-V shaders for ${target}: compiling WGSL needs tint from the WebGPU backend")
     endif()
-    
-    get_filename_component(shader_name ${shader_source} NAME)
-    set(shader_output "${CMAKE_CURRENT_BINARY_DIR}/${shader_name}.spv")
-    
-    add_custom_command(
-        OUTPUT ${shader_output}
-        COMMAND ${GLSLC_EXECUTABLE} ${shader_source} -o ${shader_output}
-        DEPENDS ${shader_source}
-        COMMENT "Compiling shader: ${shader_name} -> ${shader_name}.spv"
-        VERBATIM
-    )
-    
-    # Add the output to the target's dependencies
-    target_sources(${target} PRIVATE ${shader_output})
-endfunction()
 
-# Function to compile WGSL shaders to SPIR-V using tint
-function(compile_wgsl_shader target shader_source)
-    if(NOT BUILD_WEBGPU_BACKEND)
-        message(WARNING "Cannot compile WGSL shader ${shader_source} - WebGPU backend not enabled")
-        return()
-    endif()
-    
-    get_filename_component(shader_name ${shader_source} NAME_WE)
-    get_filename_component(shader_ext ${shader_source} EXT)
-    # Remove .wgsl extension and add .spv
-    string(REGEX REPLACE "\\.wgsl$" "" shader_base "${shader_name}${shader_ext}")
-    # Make output path unique per target to avoid collisions in parallel builds
-    set(shader_output "${CMAKE_CURRENT_BINARY_DIR}/${target}_${shader_base}.spv")
-    
-    add_custom_command(
-        OUTPUT ${shader_output}
-        COMMAND $<TARGET_FILE:tint_cmd_tint_cmd> ${shader_source} -o ${shader_output} --format spirv --entry-point main
-        DEPENDS ${shader_source} tint_cmd_tint_cmd
-        COMMENT "Compiling WGSL shader: ${shader_base}.wgsl -> ${target}_${shader_base}.spv"
-        VERBATIM
-    )
-    
-    # Add the output to the target's dependencies
-    target_sources(${target} PRIVATE ${shader_output})
+    set(outputs "")
+    foreach(shader IN LISTS ARG_SHADERS)
+        get_filename_component(shader_name "${shader}" NAME)
+        set(wgsl_output "${example_dir}/shaders/${shader_name}")
+        add_custom_command(
+            OUTPUT "${wgsl_output}"
+            COMMAND ${CMAKE_COMMAND} -E copy "${shader}" "${wgsl_output}"
+            DEPENDS "${shader}"
+            VERBATIM
+        )
+        list(APPEND outputs "${wgsl_output}")
+
+        if(BUILD_WEBGPU_BACKEND)
+            string(REGEX REPLACE "\\.wgsl$" ".spv" spirv_name "${shader_name}")
+            set(spirv_output "${example_dir}/shaders/${spirv_name}")
+            add_custom_command(
+                OUTPUT "${spirv_output}"
+                COMMAND ${CMAKE_COMMAND} -E make_directory "${example_dir}/shaders"
+                COMMAND $<TARGET_FILE:tint_cmd_tint_cmd> "${shader}" -o "${spirv_output}" --format spirv --entry-point main
+                DEPENDS "${shader}" tint_cmd_tint_cmd
+                COMMENT "Compiling WGSL shader for ${target}: ${shader_name} -> ${spirv_name}"
+                VERBATIM
+            )
+            list(APPEND outputs "${spirv_output}")
+        endif()
+    endforeach()
+
+    foreach(texture IN LISTS ARG_TEXTURES)
+        get_filename_component(texture_name "${texture}" NAME)
+        set(texture_output "${example_dir}/textures/${texture_name}")
+        add_custom_command(
+            OUTPUT "${texture_output}"
+            COMMAND ${CMAKE_COMMAND} -E copy "${texture}" "${texture_output}"
+            DEPENDS "${texture}"
+            VERBATIM
+        )
+        list(APPEND outputs "${texture_output}")
+    endforeach()
+
+    target_sources(${target} PRIVATE ${outputs})
 endfunction()
 
 # =============================================================================
@@ -336,37 +340,18 @@ elseif(ANDROID)
 else()
     # Native C Cube Example
     add_executable(cube_example_c ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/CubeExample.c)
-    target_link_libraries(cube_example_c gfx glfw stb_image)  # Add stb_image
+    target_link_libraries(cube_example_c gfx glfw stb_image)
     if(ENABLE_ASAN AND NOT MSVC)
         target_link_options(cube_example_c PRIVATE -fsanitize=address)
     endif()
-    
-    # Compile WGSL shaders to SPIR-V for C example
-    compile_wgsl_shader(cube_example_c ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/shaders/cube_textured.vert.wgsl)
-    compile_wgsl_shader(cube_example_c ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/shaders/cube_textured.frag.wgsl)
-    
-    # Copy WGSL shaders and compiled SPIR-V to build directory
-    add_custom_command(TARGET cube_example_c POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/shaders
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    add_example_assets(cube_example_c
+        SHADERS
             ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/shaders/cube_textured.vert.wgsl
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.vert.wgsl
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/shaders/cube_textured.frag.wgsl
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.frag.wgsl
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/cube_example_c_cube_textured.vert.spv
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.vert.spv
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/cube_example_c_cube_textured.frag.spv
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.frag.spv
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/textures
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        TEXTURES
             ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/textures/vulkan.png
-            ${CMAKE_CURRENT_BINARY_DIR}/textures/vulkan.png
-        COMMENT "Copying WGSL, SPIR-V shaders, and textures"
     )
-    
+
     # Native C Threaded Cube Example (uses pthreads)
     add_executable(cube_example_c_threaded ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/CubeExampleThreaded.c)
     target_link_libraries(cube_example_c_threaded gfx glfw stb_image)
@@ -376,31 +361,10 @@ else()
             target_link_options(cube_example_c_threaded PRIVATE -fsanitize=address)
         endif()
     endif()
-    
-    # Compile WGSL shaders to SPIR-V for threaded C example
-    compile_wgsl_shader(cube_example_c_threaded ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/shaders/cube_textured.vert.wgsl)
-    compile_wgsl_shader(cube_example_c_threaded ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/shaders/cube_textured.frag.wgsl)
-    
-    # Copy WGSL shaders and compiled SPIR-V for threaded example
-    add_custom_command(TARGET cube_example_c_threaded POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/shaders
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/shaders/cube_textured.vert.wgsl
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.vert.wgsl
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/shaders/cube_textured.frag.wgsl
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.frag.wgsl
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/cube_example_c_threaded_cube_textured.vert.spv
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.vert.spv
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/cube_example_c_threaded_cube_textured.frag.spv
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube_textured.frag.spv
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/textures
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/textures/vulkan.png
-            ${CMAKE_CURRENT_BINARY_DIR}/textures/vulkan.png
-        COMMENT "Copying WGSL, SPIR-V shaders, and textures for threaded example"
+    add_example_assets(cube_example_c_threaded
+        SHADERS
+            ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/shaders/cube.vert.wgsl
+            ${CMAKE_CURRENT_SOURCE_DIR}/c/cube/shaders/cube.frag.wgsl
     )
 
     # Threaded C++ Cube Example (uses C API with C++ language features)
@@ -412,26 +376,10 @@ else()
             target_link_options(cube_example_cpp_threaded PRIVATE -fsanitize=address)
         endif()
     endif()
-    
-    # Compile WGSL shaders to SPIR-V for C++ threaded example
-    compile_wgsl_shader(cube_example_cpp_threaded ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/shaders/cube.vert.wgsl)
-    compile_wgsl_shader(cube_example_cpp_threaded ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/shaders/cube.frag.wgsl)
-    
-    add_custom_command(TARGET cube_example_cpp_threaded POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/shaders
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    add_example_assets(cube_example_cpp_threaded
+        SHADERS
             ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/shaders/cube.vert.wgsl
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.vert.wgsl
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/shaders/cube.frag.wgsl
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.frag.wgsl
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/cube_example_cpp_threaded_cube.vert.spv
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.vert.spv
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/cube_example_cpp_threaded_cube.frag.spv
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.frag.spv
-        COMMENT "Copying WGSL and SPIR-V shaders for C++ threaded example"
     )
 
     # C++ Cube Example (uses C++ wrapper)
@@ -442,27 +390,10 @@ else()
         if(ENABLE_ASAN AND NOT MSVC)
             target_link_options(cube_example_cpp PRIVATE -fsanitize=address)
         endif()
-        
-        # Compile WGSL shaders to SPIR-V for C++ wrapper example
-        compile_wgsl_shader(cube_example_cpp ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/shaders/cube.vert.wgsl)
-        compile_wgsl_shader(cube_example_cpp ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/shaders/cube.frag.wgsl)
-        
-        # Copy WGSL shaders and compiled SPIR-V
-        add_custom_command(TARGET cube_example_cpp POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/shaders
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        add_example_assets(cube_example_cpp
+            SHADERS
                 ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/shaders/cube.vert.wgsl
-                ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.vert.wgsl
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 ${CMAKE_CURRENT_SOURCE_DIR}/cpp/cube/shaders/cube.frag.wgsl
-                ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.frag.wgsl
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${CMAKE_CURRENT_BINARY_DIR}/cube_example_cpp_cube.vert.spv
-                ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.vert.spv
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${CMAKE_CURRENT_BINARY_DIR}/cube_example_cpp_cube.frag.spv
-                ${CMAKE_CURRENT_BINARY_DIR}/shaders/cube.frag.spv
-            COMMENT "Copying WGSL and SPIR-V shaders for C++ wrapper example"
         )
     endif()  # BUILD_CPP_WRAPPER
 
@@ -472,34 +403,11 @@ else()
     if(ENABLE_ASAN AND NOT MSVC)
         target_link_options(compute_example_c PRIVATE -fsanitize=address)
     endif()
-    
-    # Compile WGSL shaders to SPIR-V for compute example
-    compile_wgsl_shader(compute_example_c ${CMAKE_CURRENT_SOURCE_DIR}/c/compute/shaders/generate.comp.wgsl)
-    compile_wgsl_shader(compute_example_c ${CMAKE_CURRENT_SOURCE_DIR}/c/compute/shaders/fullscreen.vert.wgsl)
-    compile_wgsl_shader(compute_example_c ${CMAKE_CURRENT_SOURCE_DIR}/c/compute/shaders/postprocess.frag.wgsl)
-    
-    # Copy WGSL shaders and compiled SPIR-V to build directory
-    add_custom_command(TARGET compute_example_c POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/shaders
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    add_example_assets(compute_example_c
+        SHADERS
             ${CMAKE_CURRENT_SOURCE_DIR}/c/compute/shaders/generate.comp.wgsl
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/generate.comp.wgsl
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${CMAKE_CURRENT_SOURCE_DIR}/c/compute/shaders/fullscreen.vert.wgsl
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/fullscreen.vert.wgsl
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${CMAKE_CURRENT_SOURCE_DIR}/c/compute/shaders/postprocess.frag.wgsl
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/postprocess.frag.wgsl
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/compute_example_c_generate.comp.spv
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/generate.comp.spv
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/compute_example_c_fullscreen.vert.spv
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/fullscreen.vert.spv
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/compute_example_c_postprocess.frag.spv
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/postprocess.frag.spv
-        COMMENT "Copying WGSL and SPIR-V shaders"
     )
 
     # C++ Compute Example
@@ -510,8 +418,11 @@ else()
         if(ENABLE_ASAN AND NOT MSVC)
             target_link_options(compute_example_cpp PRIVATE -fsanitize=address)
         endif()
-            
-        # C++ compute example uses the same compiled shaders as C example
-        add_dependencies(compute_example_cpp compute_example_c)
+        add_example_assets(compute_example_cpp
+            SHADERS
+                ${CMAKE_CURRENT_SOURCE_DIR}/cpp/compute/shaders/generate.comp.wgsl
+                ${CMAKE_CURRENT_SOURCE_DIR}/cpp/compute/shaders/fullscreen.vert.wgsl
+                ${CMAKE_CURRENT_SOURCE_DIR}/cpp/compute/shaders/postprocess.frag.wgsl
+        )
     endif()  # BUILD_CPP_WRAPPER
 endif()  # BUILD_FOR_WEB
