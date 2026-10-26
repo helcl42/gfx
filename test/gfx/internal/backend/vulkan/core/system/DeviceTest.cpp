@@ -58,6 +58,20 @@ TEST_F(VulkanDeviceTest, CreateDeviceNoExtensions_CreatesSuccessfully)
     EXPECT_NE(device.handle(), VK_NULL_HANDLE);
 }
 
+// Optional texture formats need no extension: the device enables whatever the adapter has
+TEST_F(VulkanDeviceTest, CreateDevice_EnablesAvailableTextureCompression)
+{
+    gfx::backend::vulkan::core::DeviceCreateInfo createInfo{};
+
+    gfx::backend::vulkan::core::Device device(adapter, createInfo);
+
+    const VkPhysicalDeviceFeatures& available = adapter->getFeatures();
+    const VkPhysicalDeviceFeatures& enabled = device.getEnabledFeatures();
+    EXPECT_EQ(enabled.textureCompressionBC, available.textureCompressionBC);
+    EXPECT_EQ(enabled.textureCompressionETC2, available.textureCompressionETC2);
+    EXPECT_EQ(enabled.textureCompressionASTC_LDR, available.textureCompressionASTC_LDR);
+}
+
 TEST_F(VulkanDeviceTest, CreateDeviceWithTimelineSemaphore_CreatesSuccessfully)
 {
     gfx::backend::vulkan::core::DeviceCreateInfo createInfo{};

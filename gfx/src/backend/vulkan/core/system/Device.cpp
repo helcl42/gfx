@@ -33,10 +33,6 @@ namespace {
             { extensions::OCCLUSION_QUERY_PRECISE, DeviceExtension::OcclusionQueryPrecise },
             { extensions::NON_SOLID_FILL, DeviceExtension::NonSolidFill },
             { extensions::TIMESTAMP_QUERY, DeviceExtension::TimestampQuery },
-            { extensions::TEXTURE_COMPRESSION_BC, DeviceExtension::TextureCompressionBC },
-            { extensions::TEXTURE_COMPRESSION_ETC2, DeviceExtension::TextureCompressionETC2 },
-            { extensions::TEXTURE_COMPRESSION_ASTC, DeviceExtension::TextureCompressionASTC },
-            { extensions::DEPTH32_FLOAT_STENCIL8, DeviceExtension::Depth32FloatStencil8 },
         };
 
         uint64_t mask = 0;
@@ -75,20 +71,14 @@ namespace {
         if (hasExtension(enabledExtensions, DeviceExtension::NonSolidFill)) {
             deviceFeatures.fillModeNonSolid = VK_TRUE;
         }
-        if (hasExtension(enabledExtensions, DeviceExtension::TextureCompressionBC)) {
-            deviceFeatures.textureCompressionBC = VK_TRUE;
-        }
-        if (hasExtension(enabledExtensions, DeviceExtension::TextureCompressionETC2)) {
-            deviceFeatures.textureCompressionETC2 = VK_TRUE;
-        }
-        if (hasExtension(enabledExtensions, DeviceExtension::TextureCompressionASTC)) {
-            deviceFeatures.textureCompressionASTC_LDR = VK_TRUE;
-        }
 
-        // Core in WebGPU, so enabled wherever the hardware has them
+        // WebGPU core features and optional texture formats, enabled wherever the hardware has them
         deviceFeatures.depthBiasClamp = availableFeatures.depthBiasClamp;
         deviceFeatures.imageCubeArray = availableFeatures.imageCubeArray;
         deviceFeatures.samplerAnisotropy = availableFeatures.samplerAnisotropy;
+        deviceFeatures.textureCompressionBC = availableFeatures.textureCompressionBC;
+        deviceFeatures.textureCompressionETC2 = availableFeatures.textureCompressionETC2;
+        deviceFeatures.textureCompressionASTC_LDR = availableFeatures.textureCompressionASTC_LDR;
 
         return deviceFeatures;
     }
@@ -185,13 +175,13 @@ namespace {
 Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     : m_adapter(adapter)
     , m_enabledExtensions(parseEnabledExtensions(createInfo.enabledExtensions))
+    , m_enabledFeatures(buildEnabledFeatures(m_enabledExtensions, m_adapter->getFeatures()))
 {
     // Invariant: m_enabledExtensions records REQUESTED extensions; if the adapter does
     // not support one, this constructor throws - so on any live Device a set bit means
     // the extension IS enabled on the VkDevice.
     requireSupportedExtensions(m_adapter, createInfo.enabledExtensions);
 
-    VkPhysicalDeviceFeatures deviceFeatures = buildEnabledFeatures(m_enabledExtensions, m_adapter->getFeatures());
     std::vector<const char*> requestedExtensions = collectRequestedExtensions(m_enabledExtensions, createInfo, m_adapter->enumerateExtensionProperties());
 
     bool timelineSemaphoreEnabled = isExtensionEnabled(DeviceExtension::TimelineSemaphore);
@@ -228,7 +218,7 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     vkCreateInfo.pNext = pNext;
     vkCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.infos.size());
     vkCreateInfo.pQueueCreateInfos = queueCreateInfos.infos.data();
-    vkCreateInfo.pEnabledFeatures = &deviceFeatures;
+    vkCreateInfo.pEnabledFeatures = &m_enabledFeatures;
     vkCreateInfo.enabledExtensionCount = static_cast<uint32_t>(requestedExtensions.size());
     vkCreateInfo.ppEnabledExtensionNames = requestedExtensions.data();
 
@@ -346,6 +336,11 @@ bool Device::supportsShaderFormat(ShaderSourceType format) const
 bool Device::isExtensionEnabled(DeviceExtension extension) const
 {
     return (m_enabledExtensions & static_cast<uint64_t>(extension)) != 0;
+}
+
+const VkPhysicalDeviceFeatures& Device::getEnabledFeatures() const
+{
+    return m_enabledFeatures;
 }
 
 } // namespace gfx::backend::vulkan::core

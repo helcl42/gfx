@@ -29,20 +29,22 @@ namespace {
         }
     }
 
-    // Maps the requested GFX extensions to the WGPU features they need
-    std::vector<WGPUFeatureName> collectRequiredFeatures(const DeviceCreateInfo& createInfo)
+    // The WGPU features of the requested GFX extensions, plus the optional texture formats the adapter has
+    std::vector<WGPUFeatureName> collectRequiredFeatures(WGPUAdapter adapter, const DeviceCreateInfo& createInfo)
     {
         std::vector<WGPUFeatureName> requiredFeatures;
+        if (gfx::common::containsString(createInfo.enabledExtensions, extensions::TIMESTAMP_QUERY)) {
+            requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
+        }
 
-        const std::pair<const char*, WGPUFeatureName> extensionFeatures[] = {
-            { extensions::TIMESTAMP_QUERY, WGPUFeatureName_TimestampQuery },
-            { extensions::TEXTURE_COMPRESSION_BC, WGPUFeatureName_TextureCompressionBC },
-            { extensions::TEXTURE_COMPRESSION_ETC2, WGPUFeatureName_TextureCompressionETC2 },
-            { extensions::TEXTURE_COMPRESSION_ASTC, WGPUFeatureName_TextureCompressionASTC },
-            { extensions::DEPTH32_FLOAT_STENCIL8, WGPUFeatureName_Depth32FloatStencil8 },
+        const WGPUFeatureName formatFeatures[] = {
+            WGPUFeatureName_TextureCompressionBC,
+            WGPUFeatureName_TextureCompressionETC2,
+            WGPUFeatureName_TextureCompressionASTC,
+            WGPUFeatureName_Depth32FloatStencil8,
         };
-        for (const auto& [extName, feature] : extensionFeatures) {
-            if (gfx::common::containsString(createInfo.enabledExtensions, extName)) {
+        for (WGPUFeatureName feature : formatFeatures) {
+            if (wgpuAdapterHasFeature(adapter, feature)) {
                 requiredFeatures.push_back(feature);
             }
         }
@@ -106,7 +108,7 @@ Device::Device(Adapter* adapter, const DeviceCreateInfo& createInfo)
     WGPULimits adapterLimits = adapter->getLimits();
     wgpuDesc.requiredLimits = &adapterLimits;
 
-    std::vector<WGPUFeatureName> requiredFeatures = collectRequiredFeatures(createInfo);
+    std::vector<WGPUFeatureName> requiredFeatures = collectRequiredFeatures(adapter->handle(), createInfo);
 
 #ifndef __EMSCRIPTEN__
     // Enable Dawn toggles to allow SPIR-V at device level (Dawn-specific)

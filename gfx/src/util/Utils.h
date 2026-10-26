@@ -14,7 +14,7 @@ uint32_t getFormatBytesPerPixel(GfxFormat format);
 uint32_t getFormatBlockSize(GfxFormat format);
 void getFormatBlockDimensions(GfxFormat format, uint32_t* outWidth, uint32_t* outHeight);
 
-// Compressed format families (each is gated behind a device extension)
+// Compressed format families
 enum class FormatCompressionFamily {
     None, // Uncompressed format
     BC,

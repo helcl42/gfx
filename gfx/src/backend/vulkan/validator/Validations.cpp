@@ -1054,27 +1054,25 @@ GfxResult validateDeviceImportBuffer(GfxDevice device, const GfxBufferImportDesc
 GfxResult validateFormatSupported(GfxDevice device, GfxFormat format)
 {
     auto* dev = converter::toNative<core::Device>(device);
+    const VkPhysicalDeviceFeatures& features = dev->getEnabledFeatures();
     switch (gfx::util::getFormatCompressionFamily(format)) {
     case gfx::util::FormatCompressionFamily::BC:
-        if (!dev->isExtensionEnabled(core::DeviceExtension::TextureCompressionBC)) {
+        if (!features.textureCompressionBC) {
             return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
         }
         break;
     case gfx::util::FormatCompressionFamily::ETC2:
-        if (!dev->isExtensionEnabled(core::DeviceExtension::TextureCompressionETC2)) {
+        if (!features.textureCompressionETC2) {
             return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
         }
         break;
     case gfx::util::FormatCompressionFamily::ASTC:
-        if (!dev->isExtensionEnabled(core::DeviceExtension::TextureCompressionASTC)) {
+        if (!features.textureCompressionASTC_LDR) {
             return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
         }
         break;
     case gfx::util::FormatCompressionFamily::None:
         break;
-    }
-    if (format == GFX_FORMAT_DEPTH32_FLOAT_STENCIL8 && !dev->isExtensionEnabled(core::DeviceExtension::Depth32FloatStencil8)) {
-        return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
     }
     if (!dev->getAdapter()->supportsFormat(converter::gfxFormatToVkFormat(format))) {
         return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;

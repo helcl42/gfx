@@ -29,8 +29,6 @@ public:
     std::vector<const char*> enumerateSupportedExtensions() const;
 
 private:
-    bool supportsDepthStencilAttachment(VkFormat format) const;
-
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     Instance* m_instance = nullptr; // Non-owning
     VkPhysicalDeviceProperties m_properties{};

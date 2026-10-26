@@ -1107,8 +1107,14 @@ TEST_P(GfxRenderPipelineTest, CreateRenderPipelineWithDepthStencil)
     gfxRenderPassDestroy(renderPass);
 }
 
-TEST_P(GfxRenderPipelineTest, CreateRenderPipelineWithDepth32FloatStencil8RequiresExtension)
+TEST_P(GfxRenderPipelineTest, CreateRenderPipelineWithUnsupportedDepth32FloatStencil8Fails)
 {
+    bool supported = false;
+    ASSERT_EQ(gfxDeviceSupportsFormat(device, GFX_FORMAT_DEPTH32_FLOAT_STENCIL8, &supported), GFX_RESULT_SUCCESS);
+    if (supported) {
+        GTEST_SKIP() << "DEPTH32_FLOAT_STENCIL8 is supported by this device";
+    }
+
     GfxRenderPassDepthStencilAttachmentTarget depthTarget = {};
     depthTarget.format = GFX_FORMAT_DEPTH32_FLOAT;
     depthTarget.sampleCount = GFX_SAMPLE_COUNT_1;

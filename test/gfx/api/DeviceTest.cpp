@@ -536,10 +536,6 @@ TEST_P(GfxDeviceTest, SupportsFormat)
     bool supported = false;
     EXPECT_EQ(gfxDeviceSupportsFormat(device, GFX_FORMAT_R8G8B8A8_UNORM, &supported), GFX_RESULT_SUCCESS);
     EXPECT_TRUE(supported);
-
-    // Compressed formats need their device extension, which this device does not enable
-    EXPECT_EQ(gfxDeviceSupportsFormat(device, GFX_FORMAT_BC1_RGBA_UNORM, &supported), GFX_RESULT_SUCCESS);
-    EXPECT_FALSE(supported);
 }
 
 TEST_P(GfxDeviceTest, SupportsFormatNullDevice)

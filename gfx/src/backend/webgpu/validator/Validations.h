@@ -24,7 +24,6 @@ GfxResult validateAdapterEnumerateExtensions(GfxAdapter adapter, uint32_t* exten
 GfxResult validateDeviceGetNativeHandle(GfxDevice device, void** outHandle);
 GfxResult validateDeviceSupportsShaderFormat(GfxDevice device, bool* outSupported);
 GfxResult validateDeviceSupportsFormat(GfxDevice device, bool* outSupported);
-// A format is usable when its device extension, if any, is enabled and the GPU supports it
 GfxResult validateFormatSupported(GfxDevice device, GfxFormat format);
 GfxResult validateDeviceGetQueue(GfxDevice device, GfxQueue* outQueue);
 GfxResult validateDeviceGetQueueByIndex(GfxDevice device, GfxQueue* outQueue);

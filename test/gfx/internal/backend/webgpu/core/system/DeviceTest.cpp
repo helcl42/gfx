@@ -1,3 +1,4 @@
+#include <backend/webgpu/core/system/Adapter.h>
 #include <backend/webgpu/core/system/Device.h>
 #include <backend/webgpu/core/system/Instance.h>
 #include <backend/webgpu/core/system/Queue.h>
@@ -49,6 +50,20 @@ TEST_F(WebGPUDeviceTest, Handle_ReturnsValidWGPUDevice)
 {
     WGPUDevice handle = device->handle();
     EXPECT_NE(handle, nullptr);
+}
+
+// Optional texture formats need no extension: the device enables whatever the adapter has
+TEST_F(WebGPUDeviceTest, CreateDevice_EnablesAvailableTextureFormatFeatures)
+{
+    const WGPUFeatureName formatFeatures[] = {
+        WGPUFeatureName_TextureCompressionBC,
+        WGPUFeatureName_TextureCompressionETC2,
+        WGPUFeatureName_TextureCompressionASTC,
+        WGPUFeatureName_Depth32FloatStencil8,
+    };
+    for (WGPUFeatureName feature : formatFeatures) {
+        EXPECT_EQ(wgpuDeviceHasFeature(device->handle(), feature), wgpuAdapterHasFeature(adapter->handle(), feature)) << feature;
+    }
 }
 
 TEST_F(WebGPUDeviceTest, GetAdapter_ReturnsCorrectAdapter)

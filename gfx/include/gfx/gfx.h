@@ -523,7 +523,7 @@ typedef enum {
     GFX_FORMAT_DEPTH32_FLOAT = 15,
     GFX_FORMAT_STENCIL8 = 16,
     GFX_FORMAT_DEPTH24_PLUS_STENCIL8 = 17,
-    GFX_FORMAT_DEPTH32_FLOAT_STENCIL8 = 18, // Requires GFX_DEVICE_EXTENSION_DEPTH32_FLOAT_STENCIL8
+    GFX_FORMAT_DEPTH32_FLOAT_STENCIL8 = 18,
     GFX_FORMAT_R8_SINT = 19,
     GFX_FORMAT_R8_UINT = 20,
     GFX_FORMAT_R8G8_SINT = 21,
@@ -543,10 +543,7 @@ typedef enum {
     GFX_FORMAT_R32G32B32A32_SINT = 35,
     GFX_FORMAT_R32G32B32A32_UINT = 36,
 
-    // Block-compressed formats. Each family is gated behind a device extension:
-    // BC requires GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_BC,
-    // ETC2/EAC requires GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_ETC2,
-    // ASTC requires GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_ASTC.
+    // Block-compressed formats, available when the GPU supports them (gfxDeviceSupportsFormat).
     // Use gfxGetFormatBlockSize/gfxGetFormatBlockDimensions for copy size math
     // (gfxGetFormatBytesPerPixel returns 0 for these formats).
 
@@ -1009,10 +1006,6 @@ typedef struct GfxChainHeader {
 #define GFX_DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE "gfx_occlusion_query_precise"
 #define GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY "gfx_timestamp_query"
 #define GFX_DEVICE_EXTENSION_NON_SOLID_FILL "gfx_non_solid_fill"
-#define GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_BC "gfx_texture_compression_bc"
-#define GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_ETC2 "gfx_texture_compression_etc2"
-#define GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_ASTC "gfx_texture_compression_astc"
-#define GFX_DEVICE_EXTENSION_DEPTH32_FLOAT_STENCIL8 "gfx_depth32_float_stencil8"
 
 // ============================================================================
 // Forward Declarations (Opaque Handles)
@@ -2028,8 +2021,7 @@ GFX_API GfxResult gfxDeviceGetQueueByIndex(GfxDevice device, uint32_t queueFamil
 GFX_API GfxResult gfxDeviceWaitIdle(GfxDevice device);
 GFX_API GfxResult gfxDeviceGetLimits(GfxDevice device, GfxDeviceLimits* outLimits);
 GFX_API GfxResult gfxDeviceSupportsShaderFormat(GfxDevice device, GfxShaderSourceType format, bool* outSupported);
-// Whether textures of the format can be created: some formats depend on the GPU, and compressed
-// formats and DEPTH32_FLOAT_STENCIL8 also need their device extension
+// Whether the device can create textures of the format
 GFX_API GfxResult gfxDeviceSupportsFormat(GfxDevice device, GfxFormat format, bool* outSupported);
 // Helper to deduce access flags from texture layout
 // Vulkan: Returns explicit access flags based on layout

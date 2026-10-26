@@ -1,6 +1,5 @@
 #include "CommonTest.h"
 
-#include <cstring>
 #include <vector>
 
 namespace {
@@ -59,27 +58,6 @@ protected:
     }
 };
 
-// Compressed formats require the matching device extension; the fixture device
-// enables none, so creation must fail loudly instead of producing a broken texture
-TEST_P(GfxTextureTest, CompressedTextureRequiresExtension)
-{
-    const GfxFormat formats[] = { GFX_FORMAT_BC1_RGBA_UNORM, GFX_FORMAT_ETC2_RGB8_UNORM, GFX_FORMAT_ASTC_4X4_UNORM };
-    for (GfxFormat format : formats) {
-        GfxTextureDescriptor desc = {};
-        desc.type = GFX_TEXTURE_TYPE_2D;
-        desc.size = { 64, 64, 1 };
-        desc.arrayLayerCount = 1;
-        desc.mipLevelCount = 1;
-        desc.sampleCount = GFX_SAMPLE_COUNT_1;
-        desc.format = format;
-        desc.usage = GFX_TEXTURE_USAGE_TEXTURE_BINDING;
-
-        GfxTexture texture = nullptr;
-        EXPECT_EQ(gfxDeviceCreateTexture(device, &desc, &texture), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
-        EXPECT_EQ(texture, nullptr);
-    }
-}
-
 // Texture creation rejects every format the device reports as unsupported instead of passing it to the GPU
 TEST_P(GfxTextureTest, UnsupportedFormatsAreRejected)
 {
@@ -105,55 +83,15 @@ TEST_P(GfxTextureTest, UnsupportedFormatsAreRejected)
     }
 }
 
-// With the extension enabled (when the adapter supports it), compressed textures can be
-// created and uploaded; exercises the block-aware copy math end to end
+// Compressed textures can be created and uploaded where the device supports them;
+// exercises the block-aware copy math end to end
 TEST_P(GfxTextureTest, CreateAndUploadCompressedTexture)
 {
-    // Check whether the adapter advertises BC support
-    uint32_t extCount = 0;
-    ASSERT_EQ(gfxAdapterEnumerateExtensions(adapter, &extCount, nullptr), GFX_RESULT_SUCCESS);
-    std::vector<const char*> extNames(extCount);
-    ASSERT_EQ(gfxAdapterEnumerateExtensions(adapter, &extCount, extNames.data()), GFX_RESULT_SUCCESS);
-    bool bcSupported = false;
-    for (uint32_t i = 0; i < extCount; ++i) {
-        if (strcmp(extNames[i], GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_BC) == 0) {
-            bcSupported = true;
-        }
+    bool supported = false;
+    ASSERT_EQ(gfxDeviceSupportsFormat(device, GFX_FORMAT_BC1_RGBA_UNORM, &supported), GFX_RESULT_SUCCESS);
+    if (!supported) {
+        GTEST_SKIP() << "BC texture compression not supported by this device";
     }
-    if (!bcSupported) {
-        GTEST_SKIP() << "BC texture compression not supported by this adapter";
-    }
-
-    // Adapters are consumed by device creation (and the WebGPU instance caches them),
-    // so tear down the fixture and build a fresh instance -> adapter -> device chain
-    gfxDeviceDestroy(device);
-    gfxInstanceDestroy(instance);
-    device = nullptr;
-    instance = nullptr;
-    adapter = nullptr;
-
-    const char* instanceExtensions[] = { GFX_INSTANCE_EXTENSION_DEBUG };
-    GfxInstanceDescriptor instanceDesc = {};
-    instanceDesc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
-    instanceDesc.backend = GetParam();
-    instanceDesc.enabledExtensions = instanceExtensions;
-    instanceDesc.enabledExtensionCount = 1;
-    ASSERT_EQ(gfxCreateInstance(&instanceDesc, &instance), GFX_RESULT_SUCCESS);
-
-    GfxAdapterDescriptor adapterDesc = {};
-    adapterDesc.sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR;
-    GfxAdapter bcAdapter = nullptr;
-    ASSERT_EQ(gfxInstanceRequestAdapter(instance, &adapterDesc, &bcAdapter), GFX_RESULT_SUCCESS);
-
-    // Create a device with the BC extension enabled
-    const char* deviceExtensions[] = { GFX_DEVICE_EXTENSION_TEXTURE_COMPRESSION_BC };
-    GfxDeviceDescriptor deviceDesc = {};
-    deviceDesc.sType = GFX_STRUCTURE_TYPE_DEVICE_DESCRIPTOR;
-    deviceDesc.enabledExtensions = deviceExtensions;
-    deviceDesc.enabledExtensionCount = 1;
-
-    GfxDevice bcDevice = nullptr;
-    ASSERT_EQ(gfxAdapterCreateDevice(bcAdapter, &deviceDesc, &bcDevice), GFX_RESULT_SUCCESS);
 
     GfxTextureDescriptor desc = {};
     desc.type = GFX_TEXTURE_TYPE_2D;
@@ -165,14 +103,14 @@ TEST_P(GfxTextureTest, CreateAndUploadCompressedTexture)
     desc.usage = GFX_FLAGS(GFX_TEXTURE_USAGE_TEXTURE_BINDING | GFX_TEXTURE_USAGE_COPY_DST);
 
     GfxTexture texture = nullptr;
-    ASSERT_EQ(gfxDeviceCreateTexture(bcDevice, &desc, &texture), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxDeviceCreateTexture(device, &desc, &texture), GFX_RESULT_SUCCESS);
 
     // Upload tightly packed BC1 data: 64x64 = 16x16 blocks x 8 bytes
     EXPECT_EQ(gfxGetFormatBlockSize(GFX_FORMAT_BC1_RGBA_UNORM), 8u);
     std::vector<uint8_t> blockData(16 * 16 * 8, 0xAB);
 
     GfxQueue queue = nullptr;
-    ASSERT_EQ(gfxDeviceGetQueue(bcDevice, &queue), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
 
     GfxWriteTextureDescriptor writeDesc = {};
     writeDesc.texture = texture;
@@ -182,70 +120,15 @@ TEST_P(GfxTextureTest, CreateAndUploadCompressedTexture)
     EXPECT_EQ(gfxQueueWaitIdle(queue), GFX_RESULT_SUCCESS);
 
     gfxTextureDestroy(texture);
-    gfxDeviceDestroy(bcDevice);
 }
 
-TEST_P(GfxTextureTest, Depth32FloatStencil8TextureRequiresExtension)
+TEST_P(GfxTextureTest, CreateDepth32FloatStencil8Texture)
 {
-    GfxTextureDescriptor desc = {};
-    desc.type = GFX_TEXTURE_TYPE_2D;
-    desc.size = { 64, 64, 1 };
-    desc.arrayLayerCount = 1;
-    desc.mipLevelCount = 1;
-    desc.sampleCount = GFX_SAMPLE_COUNT_1;
-    desc.format = GFX_FORMAT_DEPTH32_FLOAT_STENCIL8;
-    desc.usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
-
-    GfxTexture texture = nullptr;
-    EXPECT_EQ(gfxDeviceCreateTexture(device, &desc, &texture), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
-    EXPECT_EQ(texture, nullptr);
-}
-
-TEST_P(GfxTextureTest, CreateDepth32FloatStencil8TextureWithExtension)
-{
-    uint32_t extCount = 0;
-    ASSERT_EQ(gfxAdapterEnumerateExtensions(adapter, &extCount, nullptr), GFX_RESULT_SUCCESS);
-    std::vector<const char*> extNames(extCount);
-    ASSERT_EQ(gfxAdapterEnumerateExtensions(adapter, &extCount, extNames.data()), GFX_RESULT_SUCCESS);
     bool supported = false;
-    for (uint32_t i = 0; i < extCount; ++i) {
-        if (strcmp(extNames[i], GFX_DEVICE_EXTENSION_DEPTH32_FLOAT_STENCIL8) == 0) {
-            supported = true;
-        }
-    }
+    ASSERT_EQ(gfxDeviceSupportsFormat(device, GFX_FORMAT_DEPTH32_FLOAT_STENCIL8, &supported), GFX_RESULT_SUCCESS);
     if (!supported) {
-        GTEST_SKIP() << "Depth32FloatStencil8 not supported by this adapter";
+        GTEST_SKIP() << "DEPTH32_FLOAT_STENCIL8 not supported by this device";
     }
-
-    // Adapters are consumed by device creation (and the WebGPU instance caches them),
-    // so tear down the fixture and build a fresh instance -> adapter -> device chain
-    gfxDeviceDestroy(device);
-    gfxInstanceDestroy(instance);
-    device = nullptr;
-    instance = nullptr;
-    adapter = nullptr;
-
-    const char* instanceExtensions[] = { GFX_INSTANCE_EXTENSION_DEBUG };
-    GfxInstanceDescriptor instanceDesc = {};
-    instanceDesc.sType = GFX_STRUCTURE_TYPE_INSTANCE_DESCRIPTOR;
-    instanceDesc.backend = GetParam();
-    instanceDesc.enabledExtensions = instanceExtensions;
-    instanceDesc.enabledExtensionCount = 1;
-    ASSERT_EQ(gfxCreateInstance(&instanceDesc, &instance), GFX_RESULT_SUCCESS);
-
-    GfxAdapterDescriptor adapterDesc = {};
-    adapterDesc.sType = GFX_STRUCTURE_TYPE_ADAPTER_DESCRIPTOR;
-    GfxAdapter depthStencilAdapter = nullptr;
-    ASSERT_EQ(gfxInstanceRequestAdapter(instance, &adapterDesc, &depthStencilAdapter), GFX_RESULT_SUCCESS);
-
-    const char* deviceExtensions[] = { GFX_DEVICE_EXTENSION_DEPTH32_FLOAT_STENCIL8 };
-    GfxDeviceDescriptor deviceDesc = {};
-    deviceDesc.sType = GFX_STRUCTURE_TYPE_DEVICE_DESCRIPTOR;
-    deviceDesc.enabledExtensions = deviceExtensions;
-    deviceDesc.enabledExtensionCount = 1;
-
-    GfxDevice depthStencilDevice = nullptr;
-    ASSERT_EQ(gfxAdapterCreateDevice(depthStencilAdapter, &deviceDesc, &depthStencilDevice), GFX_RESULT_SUCCESS);
 
     GfxTextureDescriptor desc = {};
     desc.type = GFX_TEXTURE_TYPE_2D;
@@ -257,11 +140,10 @@ TEST_P(GfxTextureTest, CreateDepth32FloatStencil8TextureWithExtension)
     desc.usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
 
     GfxTexture texture = nullptr;
-    EXPECT_EQ(gfxDeviceCreateTexture(depthStencilDevice, &desc, &texture), GFX_RESULT_SUCCESS);
+    EXPECT_EQ(gfxDeviceCreateTexture(device, &desc, &texture), GFX_RESULT_SUCCESS);
     EXPECT_NE(texture, nullptr);
 
     gfxTextureDestroy(texture);
-    gfxDeviceDestroy(depthStencilDevice);
 }
 
 TEST_P(GfxTextureTest, CreateDestroyTexture)

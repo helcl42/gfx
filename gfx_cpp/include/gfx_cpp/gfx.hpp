@@ -310,7 +310,7 @@ enum class Format : int32_t {
     Depth32Float = 15,
     Stencil8 = 16,
     Depth24PlusStencil8 = 17,
-    Depth32FloatStencil8 = 18, // Requires DEVICE_EXTENSION_DEPTH32_FLOAT_STENCIL8
+    Depth32FloatStencil8 = 18,
     R8Sint = 19,
     R8Uint = 20,
     R8G8Sint = 21,
@@ -330,8 +330,7 @@ enum class Format : int32_t {
     R32G32B32A32Sint = 35,
     R32G32B32A32Uint = 36,
 
-    // Block-compressed formats - gated behind device extensions
-    // (DEVICE_EXTENSION_TEXTURE_COMPRESSION_BC / _ETC2 / _ASTC)
+    // Block-compressed formats, available when the GPU supports them (Device::supportsFormat)
     BC1RGBAUnorm = 37,
     BC1RGBAUnormSrgb = 38,
     BC2RGBAUnorm = 39,
@@ -557,10 +556,6 @@ constexpr const char* DEVICE_EXTENSION_ANISOTROPIC_FILTERING = "gfx_anisotropic_
 constexpr const char* DEVICE_EXTENSION_NON_SOLID_FILL = "gfx_non_solid_fill";
 constexpr const char* DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE = "gfx_occlusion_query_precise";
 constexpr const char* DEVICE_EXTENSION_TIMESTAMP_QUERY = "gfx_timestamp_query";
-constexpr const char* DEVICE_EXTENSION_TEXTURE_COMPRESSION_BC = "gfx_texture_compression_bc";
-constexpr const char* DEVICE_EXTENSION_TEXTURE_COMPRESSION_ETC2 = "gfx_texture_compression_etc2";
-constexpr const char* DEVICE_EXTENSION_TEXTURE_COMPRESSION_ASTC = "gfx_texture_compression_astc";
-constexpr const char* DEVICE_EXTENSION_DEPTH32_FLOAT_STENCIL8 = "gfx_depth32_float_stencil8";
 
 enum class QueueFlags : uint32_t {
     None = 0,
