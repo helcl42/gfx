@@ -1983,6 +1983,8 @@ namespace utils {
     GFX_CPP_API uint64_t alignUp(uint64_t value, uint64_t alignment);
     GFX_CPP_API uint64_t alignDown(uint64_t value, uint64_t alignment);
     GFX_CPP_API uint32_t getFormatBytesPerPixel(Format format);
+    GFX_CPP_API uint32_t getFormatBlockSize(Format format);
+    GFX_CPP_API Extent2D getFormatBlockDimensions(Format format);
     GFX_CPP_API const char* resultToString(Result result);
 
     template <typename T>

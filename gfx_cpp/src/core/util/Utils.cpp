@@ -19,6 +19,18 @@ uint32_t getFormatBytesPerPixel(Format format)
     return gfxGetFormatBytesPerPixel(cppFormatToCFormat(format));
 }
 
+uint32_t getFormatBlockSize(Format format)
+{
+    return gfxGetFormatBlockSize(cppFormatToCFormat(format));
+}
+
+Extent2D getFormatBlockDimensions(Format format)
+{
+    Extent2D dimensions;
+    gfxGetFormatBlockDimensions(cppFormatToCFormat(format), &dimensions.width, &dimensions.height);
+    return dimensions;
+}
+
 const char* resultToString(Result result)
 {
     switch (result) {

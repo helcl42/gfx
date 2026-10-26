@@ -92,6 +92,24 @@ TEST(GfxCppUtilTest, GetFormatBytesPerPixel128Bit)
     EXPECT_EQ(gfx::utils::getFormatBytesPerPixel(gfx::Format::R32G32B32A32Float), 16);
 }
 
+TEST(GfxCppUtilTest, GetFormatBlockSizeAndDimensions)
+{
+    EXPECT_EQ(gfx::utils::getFormatBlockSize(gfx::Format::R8G8B8A8Unorm), 4u);
+    gfx::Extent2D dimensions = gfx::utils::getFormatBlockDimensions(gfx::Format::R8G8B8A8Unorm);
+    EXPECT_EQ(dimensions.width, 1u);
+    EXPECT_EQ(dimensions.height, 1u);
+
+    EXPECT_EQ(gfx::utils::getFormatBlockSize(gfx::Format::BC1RGBAUnorm), 8u);
+    dimensions = gfx::utils::getFormatBlockDimensions(gfx::Format::BC1RGBAUnorm);
+    EXPECT_EQ(dimensions.width, 4u);
+    EXPECT_EQ(dimensions.height, 4u);
+
+    EXPECT_EQ(gfx::utils::getFormatBlockSize(gfx::Format::ASTC12x10Unorm), 16u);
+    dimensions = gfx::utils::getFormatBlockDimensions(gfx::Format::ASTC12x10Unorm);
+    EXPECT_EQ(dimensions.width, 12u);
+    EXPECT_EQ(dimensions.height, 10u);
+}
+
 TEST(GfxCppUtilTest, GetFormatBytesPerPixelDepthStencil)
 {
     EXPECT_EQ(gfx::utils::getFormatBytesPerPixel(gfx::Format::Depth16Unorm), 2);
