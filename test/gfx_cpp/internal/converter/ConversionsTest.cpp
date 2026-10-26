@@ -930,6 +930,73 @@ TEST(ConversionsTest, ConvertQuerySetDescriptor_ChainedOcclusionMode_LinksPNext)
     EXPECT_EQ(cOcclusionDesc.mode, GFX_OCCLUSION_QUERY_MODE_PRECISE);
 }
 
+TEST(ConversionsTest, CppInstanceDescriptorToCDescriptor_NativeExtensionsAndLayers_BothChained)
+{
+    NativeLayersDescriptor layersDesc;
+    layersDesc.nativeLayers = { "VK_LAYER_test" };
+    NativeExtensionsDescriptor extensionsDesc;
+    extensionsDesc.nativeExtensions = { "VK_EXT_test" };
+    extensionsDesc.next = &layersDesc;
+    InstanceDescriptor desc{ .next = &extensionsDesc };
+
+    std::vector<const char*> extensionsStorage, nativeExtStorage, nativeLayerStorage;
+    GfxNativeExtensionsDescriptor cNativeExt;
+    GfxNativeLayersDescriptor cNativeLayers;
+    GfxInstanceDescriptor cDesc = cppInstanceDescriptorToCDescriptor(desc, GFX_BACKEND_VULKAN, extensionsStorage, nativeExtStorage, cNativeExt, nativeLayerStorage, cNativeLayers);
+
+    ASSERT_EQ(cDesc.pNext, &cNativeExt);
+    EXPECT_EQ(cNativeExt.pNext, &cNativeLayers);
+    EXPECT_EQ(cNativeLayers.pNext, nullptr);
+    ASSERT_EQ(cNativeExt.nativeExtensionCount, 1u);
+    EXPECT_STREQ(cNativeExt.nativeExtensions[0], "VK_EXT_test");
+    ASSERT_EQ(cNativeLayers.nativeLayerCount, 1u);
+    EXPECT_STREQ(cNativeLayers.nativeLayers[0], "VK_LAYER_test");
+}
+
+// A descriptor chained twice must not link the single C descriptor into a cycle
+TEST(ConversionsTest, CppInstanceDescriptorToCDescriptor_DuplicateNativeExtensions_FirstWins)
+{
+    NativeExtensionsDescriptor second;
+    second.nativeExtensions = { "VK_EXT_second" };
+    NativeExtensionsDescriptor first;
+    first.nativeExtensions = { "VK_EXT_first" };
+    first.next = &second;
+    InstanceDescriptor desc{ .next = &first };
+
+    std::vector<const char*> extensionsStorage, nativeExtStorage, nativeLayerStorage;
+    GfxNativeExtensionsDescriptor cNativeExt;
+    GfxNativeLayersDescriptor cNativeLayers;
+    GfxInstanceDescriptor cDesc = cppInstanceDescriptorToCDescriptor(desc, GFX_BACKEND_VULKAN, extensionsStorage, nativeExtStorage, cNativeExt, nativeLayerStorage, cNativeLayers);
+
+    ASSERT_EQ(cDesc.pNext, &cNativeExt);
+    EXPECT_EQ(cNativeExt.pNext, nullptr);
+    ASSERT_EQ(cNativeExt.nativeExtensionCount, 1u);
+    EXPECT_STREQ(cNativeExt.nativeExtensions[0], "VK_EXT_first");
+}
+
+TEST(ConversionsTest, ConvertRenderPassDescriptor_ChainedMultiview_LinksPNext)
+{
+    RenderPassMultiviewDescriptor multiviewDesc;
+    multiviewDesc.viewMask = 0x3;
+    multiviewDesc.correlationMasks = { 0x3 };
+    RenderPassCreateDescriptor desc{ .next = &multiviewDesc };
+
+    std::vector<GfxRenderPassColorAttachment> colorAttachments;
+    std::vector<GfxRenderPassColorAttachmentTarget> colorTargets, colorResolveTargets;
+    GfxRenderPassDepthStencilAttachment depthStencilAttachment;
+    GfxRenderPassDepthStencilAttachmentTarget depthTarget, depthResolveTarget;
+    GfxRenderPassMultiviewDescriptor cMultiview;
+    std::vector<uint32_t> correlationMasks;
+    GfxRenderPassDescriptor cDesc;
+    convertRenderPassDescriptor(desc, colorAttachments, colorTargets, colorResolveTargets, depthStencilAttachment, depthTarget, depthResolveTarget, cMultiview, correlationMasks, cDesc);
+
+    ASSERT_EQ(cDesc.pNext, &cMultiview);
+    EXPECT_EQ(cMultiview.sType, GFX_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_DESCRIPTOR);
+    EXPECT_EQ(cMultiview.viewMask, 0x3u);
+    ASSERT_EQ(cMultiview.correlationMaskCount, 1u);
+    EXPECT_EQ(cMultiview.correlationMasks[0], 0x3u);
+}
+
 TEST(ConversionsTest, ConvertBufferDescriptor)
 {
     BufferDescriptor cppDesc{

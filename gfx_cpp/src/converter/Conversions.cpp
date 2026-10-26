@@ -73,13 +73,12 @@ static void fillNativeLayers(const NativeLayersDescriptor& src, std::vector<cons
 static const GfxNativeExtensionsDescriptor* convertNativeExtensionsChain(
     const ChainedStruct* chain, std::vector<const char*>& storage, GfxNativeExtensionsDescriptor& out)
 {
-    for (const ChainedStruct* node = chain; node; node = node->next) {
-        if (const auto* nativeExt = dynamic_cast<const NativeExtensionsDescriptor*>(node)) {
-            fillNativeExtensions(*nativeExt, storage, out);
-            return &out;
-        }
+    const auto* nativeExt = utils::findInChain<NativeExtensionsDescriptor>(chain);
+    if (!nativeExt) {
+        return nullptr;
     }
-    return nullptr;
+    fillNativeExtensions(*nativeExt, storage, out);
+    return &out;
 }
 
 // Build the C pNext chain for instance creation, handling both NativeExtensionsDescriptor and
@@ -91,17 +90,13 @@ static const void* buildInstancePNextChain(
     std::vector<const char*>& layerStorage, GfxNativeLayersDescriptor& outLayers)
 {
     const void* head = nullptr;
-    const void** tail = &head;
-    for (const ChainedStruct* node = chain; node; node = node->next) {
-        if (const auto* nativeExt = dynamic_cast<const NativeExtensionsDescriptor*>(node)) {
-            fillNativeExtensions(*nativeExt, extStorage, outExt);
-            *tail = &outExt;
-            tail = &outExt.pNext;
-        } else if (const auto* nativeLayers = dynamic_cast<const NativeLayersDescriptor*>(node)) {
-            fillNativeLayers(*nativeLayers, layerStorage, outLayers);
-            *tail = &outLayers;
-            tail = &outLayers.pNext;
-        }
+    if (const auto* nativeLayers = utils::findInChain<NativeLayersDescriptor>(chain)) {
+        fillNativeLayers(*nativeLayers, layerStorage, outLayers);
+        head = &outLayers;
+    }
+    if (convertNativeExtensionsChain(chain, extStorage, outExt)) {
+        outExt.pNext = head;
+        head = &outExt;
     }
     return head;
 }
@@ -1064,14 +1059,12 @@ void convertQuerySetDescriptor(const QuerySetDescriptor& descriptor, GfxOcclusio
     outDesc.type = cppQueryTypeToCQueryType(descriptor.type);
     outDesc.count = descriptor.count;
 
-    for (const ChainedStruct* chainNode = descriptor.next; chainNode; chainNode = chainNode->next) {
-        if (const auto* occlusion = dynamic_cast<const OcclusionQueryDescriptor*>(chainNode)) {
-            outOcclusionDescriptor = {};
-            outOcclusionDescriptor.sType = GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR;
-            outOcclusionDescriptor.pNext = nullptr;
-            outOcclusionDescriptor.mode = cppOcclusionQueryModeToCOcclusionQueryMode(occlusion->mode);
-            outDesc.pNext = &outOcclusionDescriptor;
-        }
+    if (const auto* occlusion = utils::findInChain<OcclusionQueryDescriptor>(descriptor.next)) {
+        outOcclusionDescriptor = {};
+        outOcclusionDescriptor.sType = GFX_STRUCTURE_TYPE_OCCLUSION_QUERY_DESCRIPTOR;
+        outOcclusionDescriptor.pNext = nullptr;
+        outOcclusionDescriptor.mode = cppOcclusionQueryModeToCOcclusionQueryMode(occlusion->mode);
+        outDesc.pNext = &outOcclusionDescriptor;
     }
 }
 
@@ -1235,26 +1228,15 @@ void convertRenderPassDescriptor(const RenderPassCreateDescriptor& descriptor, s
     outDesc.colorAttachmentCount = static_cast<uint32_t>(outColorAttachments.size());
     outDesc.depthStencilAttachment = cDepthStencilPtr;
 
-    // Handle extension chain - convert C++ ChainedStruct to C pNext chain
-    const ChainedStruct* chainNode = descriptor.next;
-    while (chainNode) {
-        // Check for multiview extension
-        if (const auto* multiview = dynamic_cast<const RenderPassMultiviewDescriptor*>(chainNode)) {
-            outMultiviewDescriptor = {};
-            outMultiviewDescriptor.sType = GFX_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_DESCRIPTOR;
-            outMultiviewDescriptor.pNext = nullptr;
-            outMultiviewDescriptor.viewMask = multiview->viewMask;
-            outMultiviewDescriptor.correlationMaskCount = static_cast<uint32_t>(multiview->correlationMasks.size());
-
-            // Copy correlation masks to output vector
-            outCorrelationMasks = multiview->correlationMasks;
-            outMultiviewDescriptor.correlationMasks = outCorrelationMasks.empty() ? nullptr : outCorrelationMasks.data();
-
-            // Link to pNext chain
-            outDesc.pNext = &outMultiviewDescriptor;
-        }
-
-        chainNode = chainNode->next;
+    if (const auto* multiview = utils::findInChain<RenderPassMultiviewDescriptor>(descriptor.next)) {
+        outMultiviewDescriptor = {};
+        outMultiviewDescriptor.sType = GFX_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_DESCRIPTOR;
+        outMultiviewDescriptor.pNext = nullptr;
+        outMultiviewDescriptor.viewMask = multiview->viewMask;
+        outCorrelationMasks = multiview->correlationMasks;
+        outMultiviewDescriptor.correlationMasks = outCorrelationMasks.empty() ? nullptr : outCorrelationMasks.data();
+        outMultiviewDescriptor.correlationMaskCount = static_cast<uint32_t>(outCorrelationMasks.size());
+        outDesc.pNext = &outMultiviewDescriptor;
     }
 }
 
