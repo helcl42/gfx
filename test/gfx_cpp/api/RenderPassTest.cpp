@@ -121,7 +121,7 @@ TEST_P(GfxCppRenderPassTest, CreateRenderPassWithDepthStencilAttachment)
 {
     gfx::RenderPassDepthStencilAttachment depthStencilAttachment = {
         .target = {
-            .format = gfx::Format::Depth24PlusStencil8,
+            .format = supportedDepthStencilFormat(*device),
             .sampleCount = gfx::SampleCount::Count1,
             .depthOps = { gfx::LoadOp::Clear, gfx::StoreOp::Store },
             .stencilOps = { gfx::LoadOp::Clear, gfx::StoreOp::Store },

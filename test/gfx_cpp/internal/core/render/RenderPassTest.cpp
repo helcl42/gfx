@@ -97,7 +97,7 @@ TEST_P(RenderPassImplTest, CreateRenderPassWithDepthStencilAttachment)
     DeviceImpl deviceWrapper(device);
 
     RenderPassDepthStencilAttachmentTarget depthStencilTarget{
-        .format = Format::Depth24PlusStencil8,
+        .format = supportedDepthStencilFormat(device),
         .sampleCount = SampleCount::Count1,
         .depthOps = { LoadOp::Clear, StoreOp::Store },
         .stencilOps = { LoadOp::Clear, StoreOp::Store },

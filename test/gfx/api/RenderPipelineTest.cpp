@@ -978,6 +978,8 @@ TEST_P(GfxRenderPipelineTest, UnsupportedPrimitiveStateIsRejected)
 // Test: Create RenderPipeline with depth stencil state
 TEST_P(GfxRenderPipelineTest, CreateRenderPipelineWithDepthStencil)
 {
+    const GfxFormat depthStencilFormat = supportedDepthStencilFormat(device);
+
     GfxRenderPassColorAttachmentTarget colorTarget = {};
     colorTarget.format = GFX_FORMAT_R8G8B8A8_UNORM;
     colorTarget.sampleCount = GFX_SAMPLE_COUNT_1;
@@ -990,7 +992,7 @@ TEST_P(GfxRenderPipelineTest, CreateRenderPipelineWithDepthStencil)
     colorAttachment.resolveTarget = nullptr;
 
     GfxRenderPassDepthStencilAttachmentTarget depthTarget = {};
-    depthTarget.format = GFX_FORMAT_DEPTH24_PLUS_STENCIL8;
+    depthTarget.format = depthStencilFormat;
     depthTarget.sampleCount = GFX_SAMPLE_COUNT_1;
     depthTarget.depthOps.loadOp = GFX_LOAD_OP_CLEAR;
     depthTarget.depthOps.storeOp = GFX_STORE_OP_STORE;
@@ -1081,7 +1083,7 @@ TEST_P(GfxRenderPipelineTest, CreateRenderPipelineWithDepthStencil)
     primitiveState.polygonMode = GFX_POLYGON_MODE_FILL;
 
     GfxDepthStencilState depthStencilState = {};
-    depthStencilState.format = GFX_FORMAT_DEPTH24_PLUS_STENCIL8;
+    depthStencilState.format = depthStencilFormat;
     depthStencilState.depthWriteEnabled = true;
     depthStencilState.depthCompare = GFX_COMPARE_FUNCTION_LESS;
     depthStencilState.stencilReadMask = 0xFF;

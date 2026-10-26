@@ -284,7 +284,7 @@ TEST_P(GfxRenderPassTest, CreateRenderPassWithDepthStencilAttachment)
     colorAttachment.resolveTarget = nullptr;
 
     GfxRenderPassDepthStencilAttachmentTarget depthStencilTarget = {};
-    depthStencilTarget.format = GFX_FORMAT_DEPTH24_PLUS_STENCIL8;
+    depthStencilTarget.format = supportedDepthStencilFormat(device);
     depthStencilTarget.sampleCount = GFX_SAMPLE_COUNT_1;
     depthStencilTarget.depthOps.loadOp = GFX_LOAD_OP_CLEAR;
     depthStencilTarget.depthOps.storeOp = GFX_STORE_OP_STORE;

@@ -351,6 +351,8 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithTextureView)
 
 TEST_P(GfxBindGroupTest, CreateBindGroupWithDepthOnlyViewOfDepthStencilTexture)
 {
+    const GfxFormat depthStencilFormat = supportedDepthStencilFormat(device);
+
     GfxBindGroupLayoutEntry layoutEntry = {};
     layoutEntry.binding = 0;
     layoutEntry.visibility = GFX_SHADER_STAGE_FRAGMENT;
@@ -371,14 +373,14 @@ TEST_P(GfxBindGroupTest, CreateBindGroupWithDepthOnlyViewOfDepthStencilTexture)
     textureDesc.arrayLayerCount = 1;
     textureDesc.mipLevelCount = 1;
     textureDesc.sampleCount = GFX_SAMPLE_COUNT_1;
-    textureDesc.format = GFX_FORMAT_DEPTH24_PLUS_STENCIL8;
+    textureDesc.format = depthStencilFormat;
     textureDesc.usage = GFX_TEXTURE_USAGE_TEXTURE_BINDING;
 
     GfxTexture texture = nullptr;
     ASSERT_EQ(gfxDeviceCreateTexture(device, &textureDesc, &texture), GFX_RESULT_SUCCESS);
 
     GfxTextureViewDescriptor viewDesc = {};
-    viewDesc.format = GFX_FORMAT_DEPTH24_PLUS_STENCIL8;
+    viewDesc.format = depthStencilFormat;
     viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
     viewDesc.mipLevelCount = 1;
     viewDesc.arrayLayerCount = 1;

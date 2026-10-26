@@ -198,8 +198,11 @@ TEST_F(VulkanTextureTest, CreateTexture_DepthFormat_CreatesSuccessfully)
 
 TEST_F(VulkanTextureTest, CreateTexture_DepthStencilFormat_CreatesSuccessfully)
 {
+    // Vulkan guarantees one of the two combined formats; Apple GPUs only have D32_SFLOAT_S8_UINT
+    const VkFormat format = adapter->supportsFormat(VK_FORMAT_D24_UNORM_S8_UINT) ? VK_FORMAT_D24_UNORM_S8_UINT : VK_FORMAT_D32_SFLOAT_S8_UINT;
+
     gfx::backend::vulkan::core::TextureCreateInfo createInfo{};
-    createInfo.format = VK_FORMAT_D24_UNORM_S8_UINT;
+    createInfo.format = format;
     createInfo.size = { 800, 600, 1 };
     createInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     createInfo.sampleCount = VK_SAMPLE_COUNT_1_BIT;
@@ -211,7 +214,7 @@ TEST_F(VulkanTextureTest, CreateTexture_DepthStencilFormat_CreatesSuccessfully)
     gfx::backend::vulkan::core::Texture texture(device.get(), createInfo);
 
     EXPECT_NE(texture.handle(), VK_NULL_HANDLE);
-    EXPECT_EQ(texture.getFormat(), VK_FORMAT_D24_UNORM_S8_UINT);
+    EXPECT_EQ(texture.getFormat(), format);
 }
 
 TEST_F(VulkanTextureTest, CreateTexture_SRGBFormat_CreatesSuccessfully)

@@ -213,6 +213,11 @@ TEST_F(VulkanRenderPassTest, DifferentDepthFormats_CreateSuccessfully)
     };
 
     for (auto format : formats) {
+        // Vulkan guarantees only one of the two combined formats
+        if (!adapter->supportsFormat(format)) {
+            continue;
+        }
+
         gfx::backend::vulkan::core::RenderPassCreateInfo createInfo{};
 
         gfx::backend::vulkan::core::RenderPassDepthStencilAttachment depthAtt{};
@@ -309,7 +314,7 @@ TEST_F(VulkanRenderPassTest, DepthStencilSeparateOps_CreatesSuccessfully)
     gfx::backend::vulkan::core::RenderPassCreateInfo createInfo{};
 
     gfx::backend::vulkan::core::RenderPassDepthStencilAttachment depthAtt{};
-    depthAtt.target.format = VK_FORMAT_D24_UNORM_S8_UINT;
+    depthAtt.target.format = adapter->supportsFormat(VK_FORMAT_D24_UNORM_S8_UINT) ? VK_FORMAT_D24_UNORM_S8_UINT : VK_FORMAT_D32_SFLOAT_S8_UINT;
     depthAtt.target.sampleCount = VK_SAMPLE_COUNT_1_BIT;
     depthAtt.target.depthLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAtt.target.depthStoreOp = VK_ATTACHMENT_STORE_OP_STORE;

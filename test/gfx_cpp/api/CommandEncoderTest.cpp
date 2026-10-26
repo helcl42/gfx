@@ -416,7 +416,7 @@ TEST_P(GfxCppCommandEncoderTest, CopyDepthStencilAllAspectIsRejected)
         .arrayLayerCount = 1,
         .mipLevelCount = 1,
         .sampleCount = gfx::SampleCount::Count1,
-        .format = gfx::Format::Depth24PlusStencil8,
+        .format = supportedDepthStencilFormat(*device),
         .usage = gfx::TextureUsage::CopySrc
     };
     auto texture = device->createTexture(textureDesc);

@@ -202,10 +202,11 @@ TEST_P(FramebufferImplTest, CreateFramebufferWithMultipleColorAttachments)
 TEST_P(FramebufferImplTest, CreateFramebufferWithDepthStencilAttachment)
 {
     DeviceImpl deviceWrapper(device);
+    const Format depthStencilFormat = supportedDepthStencilFormat(device);
 
     // Create render pass with depth-stencil attachment
     RenderPassDepthStencilAttachmentTarget depthStencilTarget{
-        .format = Format::Depth24PlusStencil8,
+        .format = depthStencilFormat,
         .sampleCount = SampleCount::Count1,
         .depthOps = { LoadOp::Clear, StoreOp::Store },
         .stencilOps = { LoadOp::Clear, StoreOp::Store },
@@ -252,7 +253,7 @@ TEST_P(FramebufferImplTest, CreateFramebufferWithDepthStencilAttachment)
         .arrayLayerCount = 1,
         .mipLevelCount = 1,
         .sampleCount = SampleCount::Count1,
-        .format = Format::Depth24PlusStencil8,
+        .format = depthStencilFormat,
         .usage = TextureUsage::RenderAttachment
     };
 
@@ -274,7 +275,7 @@ TEST_P(FramebufferImplTest, CreateFramebufferWithDepthStencilAttachment)
 
     TextureViewDescriptor depthViewDesc{
         .viewType = TextureViewType::View2D,
-        .format = Format::Depth24PlusStencil8,
+        .format = depthStencilFormat,
         .baseMipLevel = 0,
         .mipLevelCount = 1,
         .baseArrayLayer = 0,

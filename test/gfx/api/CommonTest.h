@@ -31,4 +31,12 @@ inline const char* convertTestParamToString(const testing::TestParamInfo<GfxBack
     }
 }
 
+// Vulkan guarantees one of the two combined formats; Apple GPUs only have DEPTH32_FLOAT_STENCIL8
+inline GfxFormat supportedDepthStencilFormat(GfxDevice device)
+{
+    bool supported = false;
+    gfxDeviceSupportsFormat(device, GFX_FORMAT_DEPTH24_PLUS_STENCIL8, &supported);
+    return supported ? GFX_FORMAT_DEPTH24_PLUS_STENCIL8 : GFX_FORMAT_DEPTH32_FLOAT_STENCIL8;
+}
+
 #endif // !GFX_TEST_COMMON_H
