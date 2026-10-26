@@ -22,8 +22,7 @@ protected:
             };
             instance = gfx::createInstance(instDesc);
 
-            gfx::AdapterDescriptor adapterDesc{
-            };
+            gfx::AdapterDescriptor adapterDesc{};
             adapter = instance->requestAdapter(adapterDesc);
 
             // Enable timestamp query extension if the adapter supports it

@@ -1239,8 +1239,8 @@ TEST(ConversionsTest, ConvertConstants_AllTypes)
 {
     std::vector<ConstantEntry> cppConstants = {
         { .id = 0, .value = true },
-        { .id = 1, .value = int32_t { -7 } },
-        { .id = 2, .value = uint32_t { 9 } },
+        { .id = 1, .value = int32_t{ -7 } },
+        { .id = 2, .value = uint32_t{ 9 } },
         { .id = 3, .value = 2.5f }
     };
 
@@ -1278,7 +1278,7 @@ TEST(ConversionsTest, ConvertComputeState_Constants)
 {
     ComputeState state;
     state.entryPoint = "main";
-    state.constants = { { .id = 5, .value = uint32_t { 64 } } };
+    state.constants = { { .id = 5, .value = uint32_t{ 64 } } };
 
     std::vector<GfxConstantEntry> constants;
     GfxComputeState cState;

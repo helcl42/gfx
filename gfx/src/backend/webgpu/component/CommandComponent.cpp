@@ -147,7 +147,7 @@ GfxResult CommandComponent::commandEncoderCopyBufferToTexture(GfxCommandEncoder 
     WGPUOrigin3D wgpuOrigin = converter::gfxOrigin3DToWGPUOrigin3D(&descriptor->origin);
     WGPUExtent3D wgpuExtent = converter::gfxExtent3DToWGPUExtent3D(&descriptor->extent);
     WGPUTextureAspect wgpuAspect = converter::gfxTextureAspectToWGPUTextureAspect(descriptor->aspect);
-    
+
     // finalLayout is unused - WebGPU handles layout transitions automatically
     encoderPtr->copyBufferToTexture(srcPtr, descriptor->sourceOffset, dstPtr, wgpuOrigin, wgpuExtent, descriptor->mipLevel, descriptor->arrayLayer, descriptor->bytesPerRow, descriptor->rowsPerImage, wgpuAspect);
 

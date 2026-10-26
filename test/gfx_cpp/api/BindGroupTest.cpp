@@ -19,8 +19,7 @@ protected:
             };
             instance = gfx::createInstance(instDesc);
 
-            gfx::AdapterDescriptor adapterDesc{
-            };
+            gfx::AdapterDescriptor adapterDesc{};
             adapter = instance->requestAdapter(adapterDesc);
 
             gfx::DeviceDescriptor deviceDesc{

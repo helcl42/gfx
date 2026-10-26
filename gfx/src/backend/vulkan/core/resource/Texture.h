@@ -46,7 +46,6 @@ public:
     void generateMipmapsRange(CommandEncoder* encoder, uint32_t baseMipLevel, uint32_t levelCount);
 
 private:
-
     static TextureInfo createTextureInfo(const TextureCreateInfo& info);
     static TextureInfo createTextureInfo(const TextureImportInfo& info);
 

@@ -188,7 +188,7 @@ namespace {
 RenderPipeline::RenderPipeline(Device* device, const RenderPipelineCreateInfo& createInfo)
 {
     WGPUPipelineLayout pipelineLayout = createPipelineLayout(device->handle(), createInfo.bindGroupLayouts);
-    
+
     VertexStateData vertex = buildVertexState(createInfo.vertex);
     std::optional<FragmentStateData> fragment = buildFragmentState(createInfo.fragment);
     std::optional<WGPUDepthStencilState> depthStencil;
