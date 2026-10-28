@@ -560,6 +560,7 @@ constexpr const char* DEVICE_EXTENSION_MULTIVIEW = "gfx_multiview";
 constexpr const char* DEVICE_EXTENSION_NON_SOLID_FILL = "gfx_non_solid_fill";
 constexpr const char* DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE = "gfx_occlusion_query_precise";
 constexpr const char* DEVICE_EXTENSION_TIMESTAMP_QUERY = "gfx_timestamp_query";
+constexpr const char* DEVICE_EXTENSION_DEPTH_STENCIL_RESOLVE = "gfx_depth_stencil_resolve";
 
 enum class QueueFlags : uint32_t {
     None = 0,

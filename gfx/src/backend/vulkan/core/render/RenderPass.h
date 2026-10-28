@@ -18,6 +18,7 @@ public:
     VkRenderPass handle() const;
     uint32_t colorAttachmentCount() const;
     bool hasDepthStencil() const;
+    bool depthStencilHasResolve() const;
     const std::vector<bool>& colorHasResolve() const;
     const std::vector<VkImageLayout>& attachmentInitialLayouts() const;
     const std::vector<VkImageLayout>& attachmentFinalLayouts() const;
@@ -27,6 +28,7 @@ private:
     Device* m_device = nullptr;
     uint32_t m_colorAttachmentCount = 0;
     bool m_hasDepthStencil = false;
+    bool m_depthStencilHasResolve = false;
     std::vector<bool> m_colorHasResolve; // Track which color attachments have resolve targets
     std::vector<VkImageLayout> m_attachmentInitialLayouts; // In framebuffer attachment order
     std::vector<VkImageLayout> m_attachmentFinalLayouts; // In framebuffer attachment order

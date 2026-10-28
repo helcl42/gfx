@@ -137,6 +137,9 @@ std::vector<const char*> Adapter::enumerateSupportedExtensions() const
     if (availableFeatures.fillModeNonSolid) {
         supportedExtensions.push_back(extensions::NON_SOLID_FILL);
     }
+    if (isExtensionAvailable(availableExtensions, VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME) && isExtensionAvailable(availableExtensions, VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME)) {
+        supportedExtensions.push_back(extensions::DEPTH_STENCIL_RESOLVE);
+    }
     // Timestamps are supported when the graphics queue has non-zero timestampValidBits
     auto queueFamilies = getQueueFamilyProperties();
     if (m_graphicsQueueFamily < queueFamilies.size() && queueFamilies[m_graphicsQueueFamily].timestampValidBits > 0) {

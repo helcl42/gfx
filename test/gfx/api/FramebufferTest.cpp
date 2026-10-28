@@ -524,6 +524,68 @@ TEST_P(GfxFramebufferTest, CreateFramebufferWithDepthAttachment)
 }
 
 // Test: Create Framebuffer with different sizes
+// The fixture device does not enable GFX_DEVICE_EXTENSION_DEPTH_STENCIL_RESOLVE
+TEST_P(GfxFramebufferTest, CreateFramebufferWithDepthResolveRequiresExtension)
+{
+    GfxRenderPassDepthStencilAttachmentTarget depthTarget = {};
+    depthTarget.format = GFX_FORMAT_DEPTH32_FLOAT;
+    depthTarget.sampleCount = GFX_SAMPLE_COUNT_4;
+    depthTarget.depthOps.loadOp = GFX_LOAD_OP_CLEAR;
+    depthTarget.depthOps.storeOp = GFX_STORE_OP_DONT_CARE;
+    depthTarget.stencilOps.loadOp = GFX_LOAD_OP_DONT_CARE;
+    depthTarget.stencilOps.storeOp = GFX_STORE_OP_DONT_CARE;
+    depthTarget.finalLayout = GFX_TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT;
+
+    GfxRenderPassDepthStencilAttachment depthAttachment = {};
+    depthAttachment.target = depthTarget;
+
+    GfxRenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.depthStencilAttachment = &depthAttachment;
+
+    GfxRenderPass renderPass = nullptr;
+    ASSERT_EQ(gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass), GFX_RESULT_SUCCESS);
+
+    auto createDepthView = [&](GfxSampleCount sampleCount, GfxTexture* outTexture) {
+        GfxTextureDescriptor textureDesc = {};
+        textureDesc.type = GFX_TEXTURE_TYPE_2D;
+        textureDesc.size = { 64, 64, 1 };
+        textureDesc.arrayLayerCount = 1;
+        textureDesc.mipLevelCount = 1;
+        textureDesc.sampleCount = sampleCount;
+        textureDesc.format = GFX_FORMAT_DEPTH32_FLOAT;
+        textureDesc.usage = GFX_TEXTURE_USAGE_RENDER_ATTACHMENT;
+        EXPECT_EQ(gfxDeviceCreateTexture(device, &textureDesc, outTexture), GFX_RESULT_SUCCESS);
+
+        GfxTextureViewDescriptor viewDesc = {};
+        viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
+        viewDesc.format = GFX_FORMAT_DEPTH32_FLOAT;
+        viewDesc.mipLevelCount = 1;
+        viewDesc.arrayLayerCount = 1;
+        GfxTextureView view = nullptr;
+        EXPECT_EQ(gfxTextureCreateView(*outTexture, &viewDesc, &view), GFX_RESULT_SUCCESS);
+        return view;
+    };
+    GfxTexture msaaTexture = nullptr;
+    GfxTexture resolveTexture = nullptr;
+    GfxTextureView msaaView = createDepthView(GFX_SAMPLE_COUNT_4, &msaaTexture);
+    GfxTextureView resolveView = createDepthView(GFX_SAMPLE_COUNT_1, &resolveTexture);
+
+    GfxFramebufferDescriptor framebufferDesc = {};
+    framebufferDesc.renderPass = renderPass;
+    framebufferDesc.depthStencilAttachment = { msaaView, resolveView };
+    framebufferDesc.extent = { 64, 64 };
+
+    GfxFramebuffer framebuffer = nullptr;
+    EXPECT_EQ(gfxDeviceCreateFramebuffer(device, &framebufferDesc, &framebuffer), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+    EXPECT_EQ(framebuffer, nullptr);
+
+    gfxTextureViewDestroy(resolveView);
+    gfxTextureViewDestroy(msaaView);
+    gfxTextureDestroy(resolveTexture);
+    gfxTextureDestroy(msaaTexture);
+    gfxRenderPassDestroy(renderPass);
+}
+
 TEST_P(GfxFramebufferTest, CreateFramebufferWithDifferentSizes)
 {
     GfxRenderPassColorAttachmentTarget colorTarget = {};

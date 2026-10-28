@@ -247,19 +247,60 @@ TEST_P(GfxRenderPassTest, CreateRenderPassWithDepthAttachment)
     gfxRenderPassDestroy(renderPass);
 }
 
-// Test: Depth/stencil resolve is not supported, so a depth resolve target is rejected
-TEST_P(GfxRenderPassTest, CreateRenderPassWithDepthResolveTarget)
+// The fixture device does not enable GFX_DEVICE_EXTENSION_DEPTH_STENCIL_RESOLVE
+TEST_P(GfxRenderPassTest, CreateRenderPassWithDepthResolveRequiresExtension)
 {
     GfxRenderPassDepthStencilAttachmentTarget depthTarget = {};
     depthTarget.format = GFX_FORMAT_DEPTH32_FLOAT;
-    depthTarget.sampleCount = GFX_SAMPLE_COUNT_1;
+    depthTarget.sampleCount = GFX_SAMPLE_COUNT_4;
     depthTarget.depthOps.loadOp = GFX_LOAD_OP_CLEAR;
-    depthTarget.depthOps.storeOp = GFX_STORE_OP_STORE;
+    depthTarget.depthOps.storeOp = GFX_STORE_OP_DONT_CARE;
+    depthTarget.stencilOps.loadOp = GFX_LOAD_OP_DONT_CARE;
+    depthTarget.stencilOps.storeOp = GFX_STORE_OP_DONT_CARE;
     depthTarget.finalLayout = GFX_TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT;
+
+    GfxRenderPassDepthStencilAttachmentTarget resolveTarget = depthTarget;
+    resolveTarget.sampleCount = GFX_SAMPLE_COUNT_1;
+    resolveTarget.depthOps.loadOp = GFX_LOAD_OP_DONT_CARE;
+    resolveTarget.depthOps.storeOp = GFX_STORE_OP_STORE;
 
     GfxRenderPassDepthStencilAttachment depthAttachment = {};
     depthAttachment.target = depthTarget;
-    depthAttachment.resolveTarget = &depthTarget;
+    depthAttachment.resolveTarget = &resolveTarget;
+
+    GfxRenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.depthStencilAttachment = &depthAttachment;
+
+    GfxRenderPass renderPass = nullptr;
+    EXPECT_EQ(gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass), GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED);
+    EXPECT_EQ(renderPass, nullptr);
+}
+
+// A depth resolve goes from a multisampled attachment to a single-sampled one
+TEST_P(GfxRenderPassTest, CreateRenderPassWithSingleSampledDepthResolveSourceIsRejected)
+{
+    if (backend != GFX_BACKEND_VULKAN) {
+        GTEST_SKIP() << "WebGPU has no depth/stencil resolve";
+    }
+
+    GfxRenderPassDepthStencilAttachmentTarget depthTarget = {};
+    depthTarget.format = GFX_FORMAT_DEPTH32_FLOAT;
+    depthTarget.sampleCount = GFX_SAMPLE_COUNT_4;
+    depthTarget.depthOps.loadOp = GFX_LOAD_OP_CLEAR;
+    depthTarget.depthOps.storeOp = GFX_STORE_OP_DONT_CARE;
+    depthTarget.stencilOps.loadOp = GFX_LOAD_OP_DONT_CARE;
+    depthTarget.stencilOps.storeOp = GFX_STORE_OP_DONT_CARE;
+    depthTarget.finalLayout = GFX_TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT;
+
+    GfxRenderPassDepthStencilAttachmentTarget resolveTarget = depthTarget;
+    resolveTarget.sampleCount = GFX_SAMPLE_COUNT_1;
+    resolveTarget.depthOps.loadOp = GFX_LOAD_OP_DONT_CARE;
+    resolveTarget.depthOps.storeOp = GFX_STORE_OP_STORE;
+    depthTarget.sampleCount = GFX_SAMPLE_COUNT_1;
+
+    GfxRenderPassDepthStencilAttachment depthAttachment = {};
+    depthAttachment.target = depthTarget;
+    depthAttachment.resolveTarget = &resolveTarget;
 
     GfxRenderPassDescriptor renderPassDesc = {};
     renderPassDesc.depthStencilAttachment = &depthAttachment;

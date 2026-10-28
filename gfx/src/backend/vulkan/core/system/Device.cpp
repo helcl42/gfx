@@ -31,6 +31,7 @@ namespace {
             { extensions::OCCLUSION_QUERY_PRECISE, DeviceExtension::OcclusionQueryPrecise },
             { extensions::NON_SOLID_FILL, DeviceExtension::NonSolidFill },
             { extensions::TIMESTAMP_QUERY, DeviceExtension::TimestampQuery },
+            { extensions::DEPTH_STENCIL_RESOLVE, DeviceExtension::DepthStencilResolve },
         };
 
         uint64_t mask = 0;
@@ -85,6 +86,10 @@ namespace {
         }
         if (hasExtension(enabledExtensions, DeviceExtension::Multiview)) {
             requestedExtensions.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME);
+        }
+        if (hasExtension(enabledExtensions, DeviceExtension::DepthStencilResolve)) {
+            requestedExtensions.push_back(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
+            requestedExtensions.push_back(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME);
         }
 
         // Add native (raw Vulkan) device extensions from the pNext chain

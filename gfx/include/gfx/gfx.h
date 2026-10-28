@@ -1005,6 +1005,7 @@ typedef struct GfxChainHeader {
 #define GFX_DEVICE_EXTENSION_OCCLUSION_QUERY_PRECISE "gfx_occlusion_query_precise"
 #define GFX_DEVICE_EXTENSION_TIMESTAMP_QUERY "gfx_timestamp_query"
 #define GFX_DEVICE_EXTENSION_NON_SOLID_FILL "gfx_non_solid_fill"
+#define GFX_DEVICE_EXTENSION_DEPTH_STENCIL_RESOLVE "gfx_depth_stencil_resolve"
 
 // ============================================================================
 // Forward Declarations (Opaque Handles)
@@ -1178,7 +1179,7 @@ typedef struct {
 // Depth/stencil attachment description for render pass
 typedef struct {
     GfxRenderPassDepthStencilAttachmentTarget target;
-    const GfxRenderPassDepthStencilAttachmentTarget* resolveTarget; // NULL if no resolve needed
+    const GfxRenderPassDepthStencilAttachmentTarget* resolveTarget; // NULL if no resolve needed; requires GFX_DEVICE_EXTENSION_DEPTH_STENCIL_RESOLVE, resolves sample 0
 } GfxRenderPassDepthStencilAttachment;
 
 // Render pass descriptor: defines attachment formats and load/store operations (cached, reusable)

@@ -46,6 +46,11 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder, RenderPass*
         depthStencilClear.depthStencil.depth = beginInfo.depthClearValue;
         depthStencilClear.depthStencil.stencil = beginInfo.stencilClearValue;
         clearValues.push_back(depthStencilClear);
+
+        // The resolve attachment that follows is never cleared
+        if (renderPass->depthStencilHasResolve()) {
+            clearValues.push_back({});
+        }
     }
 
     // A loaded attachment must start the pass in the layout the pass expects; layouts are tracked per texture

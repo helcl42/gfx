@@ -560,9 +560,9 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        // Depth/stencil resolve is not supported
+        // WebGPU has no depth/stencil resolve
         if (descriptor->depthStencilAttachment && descriptor->depthStencilAttachment->resolveTarget) {
-            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
         }
 
         // A texture cannot be left in the UNDEFINED layout
@@ -600,9 +600,9 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        // Depth/stencil resolve is not supported
+        // WebGPU has no depth/stencil resolve
         if (descriptor->depthStencilAttachment.resolveTarget) {
-            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
         }
 
         return GFX_RESULT_SUCCESS;

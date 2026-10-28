@@ -534,9 +534,16 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        // Depth/stencil resolve is not supported
+        // A depth/stencil resolve goes from a multisampled attachment to a single-sampled one of the same format
         if (descriptor->depthStencilAttachment && descriptor->depthStencilAttachment->resolveTarget) {
-            return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+            const GfxRenderPassDepthStencilAttachmentTarget& target = descriptor->depthStencilAttachment->target;
+            const GfxRenderPassDepthStencilAttachmentTarget& resolveTarget = *descriptor->depthStencilAttachment->resolveTarget;
+            if (target.sampleCount == GFX_SAMPLE_COUNT_1 || resolveTarget.sampleCount != GFX_SAMPLE_COUNT_1 || resolveTarget.format != target.format) {
+                return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+            }
+            if (resolveTarget.finalLayout == GFX_TEXTURE_LAYOUT_UNDEFINED) {
+                return GFX_RESULT_ERROR_INVALID_ARGUMENT;
+            }
         }
 
         // A texture cannot be left in the UNDEFINED layout
@@ -574,8 +581,8 @@ namespace {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
-        // Depth/stencil resolve is not supported
-        if (descriptor->depthStencilAttachment.resolveTarget) {
+        // A depth/stencil resolve target needs the attachment it resolves
+        if (descriptor->depthStencilAttachment.resolveTarget && !descriptor->depthStencilAttachment.view) {
             return GFX_RESULT_ERROR_INVALID_ARGUMENT;
         }
 
@@ -1231,6 +1238,12 @@ GfxResult validateDeviceCreateRenderPass(GfxDevice device, const GfxRenderPassDe
             return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
         }
     }
+    if (descriptor->depthStencilAttachment && descriptor->depthStencilAttachment->resolveTarget) {
+        const auto* dev = converter::toNative<core::Device>(device);
+        if (!dev->isExtensionEnabled(core::DeviceExtension::DepthStencilResolve)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+    }
 
     for (uint32_t i = 0; i < descriptor->colorAttachmentCount; ++i) {
         GfxResult formatResult = validateFormatSupported(device, descriptor->colorAttachments[i].target.format);
@@ -1249,7 +1262,18 @@ GfxResult validateDeviceCreateFramebuffer(GfxDevice device, const GfxFramebuffer
     if (!device || !descriptor || !outFramebuffer) {
         return GFX_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    return validateFramebufferDescriptor(descriptor);
+
+    GfxResult descriptorResult = validateFramebufferDescriptor(descriptor);
+    if (descriptorResult != GFX_RESULT_SUCCESS) {
+        return descriptorResult;
+    }
+    if (descriptor->depthStencilAttachment.resolveTarget) {
+        const auto* dev = converter::toNative<core::Device>(device);
+        if (!dev->isExtensionEnabled(core::DeviceExtension::DepthStencilResolve)) {
+            return GFX_RESULT_ERROR_FEATURE_NOT_SUPPORTED;
+        }
+    }
+    return GFX_RESULT_SUCCESS;
 }
 
 GfxResult validateDeviceCreateCommandEncoder(GfxDevice device, const GfxCommandEncoderDescriptor* descriptor, GfxCommandEncoder* outEncoder)

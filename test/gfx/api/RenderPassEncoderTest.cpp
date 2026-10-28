@@ -1,5 +1,6 @@
 #include "CommonTest.h"
 
+#include <algorithm>
 #include <cstring>
 #include <vector>
 
@@ -540,6 +541,152 @@ TEST_P(GfxRenderPassEncoderTest, ClearWithoutClearValueClearsToZero)
     gfxRenderPassDestroy(renderPass);
     gfxTextureViewDestroy(view);
     gfxTextureDestroy(texture);
+}
+
+// A multisampled depth attachment resolves to sample 0 of each pixel
+TEST_P(GfxRenderPassEncoderTest, DepthResolveWritesSampleZero)
+{
+    uint32_t extensionCount = 0;
+    ASSERT_EQ(gfxAdapterEnumerateExtensions(adapter, &extensionCount, nullptr), GFX_RESULT_SUCCESS);
+    std::vector<const char*> extensionNames(extensionCount);
+    ASSERT_EQ(gfxAdapterEnumerateExtensions(adapter, &extensionCount, extensionNames.data()), GFX_RESULT_SUCCESS);
+    const bool supported = std::any_of(extensionNames.begin(), extensionNames.end(),
+        [](const char* name) { return std::strcmp(name, GFX_DEVICE_EXTENSION_DEPTH_STENCIL_RESOLVE) == 0; });
+    if (!supported) {
+        GTEST_SKIP() << "GFX_DEVICE_EXTENSION_DEPTH_STENCIL_RESOLVE not supported";
+    }
+
+    // Replace the fixture device with one that enables depth/stencil resolve
+    gfxDeviceDestroy(device);
+    device = nullptr;
+    const char* deviceExtensions[] = { GFX_DEVICE_EXTENSION_DEPTH_STENCIL_RESOLVE };
+    GfxDeviceDescriptor deviceDesc = {};
+    deviceDesc.sType = GFX_STRUCTURE_TYPE_DEVICE_DESCRIPTOR;
+    deviceDesc.enabledExtensions = deviceExtensions;
+    deviceDesc.enabledExtensionCount = 1;
+    ASSERT_EQ(gfxAdapterCreateDevice(adapter, &deviceDesc, &device), GFX_RESULT_SUCCESS);
+
+    GfxQueue queue = nullptr;
+    ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
+
+    constexpr uint32_t kSize = 64;
+    constexpr uint32_t kBytesPerRow = kSize * sizeof(float);
+    constexpr float kDepth = 0.25f;
+
+    auto createDepthView = [&](GfxSampleCount sampleCount, GfxTextureUsageFlags usage, GfxTexture* outTexture) {
+        GfxTextureDescriptor textureDesc = {};
+        textureDesc.type = GFX_TEXTURE_TYPE_2D;
+        textureDesc.size = { kSize, kSize, 1 };
+        textureDesc.arrayLayerCount = 1;
+        textureDesc.mipLevelCount = 1;
+        textureDesc.sampleCount = sampleCount;
+        textureDesc.format = GFX_FORMAT_DEPTH32_FLOAT;
+        textureDesc.usage = usage;
+        EXPECT_EQ(gfxDeviceCreateTexture(device, &textureDesc, outTexture), GFX_RESULT_SUCCESS);
+
+        GfxTextureViewDescriptor viewDesc = {};
+        viewDesc.viewType = GFX_TEXTURE_VIEW_TYPE_2D;
+        viewDesc.format = GFX_FORMAT_DEPTH32_FLOAT;
+        viewDesc.mipLevelCount = 1;
+        viewDesc.arrayLayerCount = 1;
+        GfxTextureView view = nullptr;
+        EXPECT_EQ(gfxTextureCreateView(*outTexture, &viewDesc, &view), GFX_RESULT_SUCCESS);
+        return view;
+    };
+    GfxTexture msaaTexture = nullptr;
+    GfxTexture resolveTexture = nullptr;
+    GfxTextureView msaaView = createDepthView(GFX_SAMPLE_COUNT_4, GFX_TEXTURE_USAGE_RENDER_ATTACHMENT, &msaaTexture);
+    GfxTextureView resolveView = createDepthView(GFX_SAMPLE_COUNT_1, GFX_FLAGS(GFX_TEXTURE_USAGE_RENDER_ATTACHMENT | GFX_TEXTURE_USAGE_COPY_SRC), &resolveTexture);
+
+    GfxRenderPassDepthStencilAttachmentTarget depthTarget = {};
+    depthTarget.format = GFX_FORMAT_DEPTH32_FLOAT;
+    depthTarget.sampleCount = GFX_SAMPLE_COUNT_4;
+    depthTarget.depthOps.loadOp = GFX_LOAD_OP_CLEAR;
+    depthTarget.depthOps.storeOp = GFX_STORE_OP_DONT_CARE;
+    depthTarget.stencilOps.loadOp = GFX_LOAD_OP_DONT_CARE;
+    depthTarget.stencilOps.storeOp = GFX_STORE_OP_DONT_CARE;
+    depthTarget.finalLayout = GFX_TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT;
+
+    GfxRenderPassDepthStencilAttachmentTarget resolveTarget = depthTarget;
+    resolveTarget.sampleCount = GFX_SAMPLE_COUNT_1;
+    resolveTarget.depthOps.loadOp = GFX_LOAD_OP_DONT_CARE;
+    resolveTarget.depthOps.storeOp = GFX_STORE_OP_STORE;
+    // The copy moves it to TRANSFER_SRC: the validation layer does not track depth/stencil resolve attachments
+    // across a render pass's final layout transition, so it flags any read after one
+    resolveTarget.finalLayout = GFX_TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT;
+
+    GfxRenderPassDepthStencilAttachment depthAttachment = {};
+    depthAttachment.target = depthTarget;
+    depthAttachment.resolveTarget = &resolveTarget;
+
+    GfxRenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.depthStencilAttachment = &depthAttachment;
+    GfxRenderPass renderPass = nullptr;
+    ASSERT_EQ(gfxDeviceCreateRenderPass(device, &renderPassDesc, &renderPass), GFX_RESULT_SUCCESS);
+
+    GfxFramebufferDescriptor framebufferDesc = {};
+    framebufferDesc.renderPass = renderPass;
+    framebufferDesc.depthStencilAttachment = { msaaView, resolveView };
+    framebufferDesc.extent = { kSize, kSize };
+    GfxFramebuffer framebuffer = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFramebuffer(device, &framebufferDesc, &framebuffer), GFX_RESULT_SUCCESS);
+
+    GfxBufferDescriptor readbackDesc = {};
+    readbackDesc.size = kBytesPerRow * kSize;
+    readbackDesc.usage = GFX_FLAGS(GFX_BUFFER_USAGE_MAP_READ | GFX_BUFFER_USAGE_COPY_DST);
+    readbackDesc.memoryProperties = GFX_FLAGS(GFX_MEMORY_PROPERTY_HOST_VISIBLE | GFX_MEMORY_PROPERTY_HOST_COHERENT);
+    GfxBuffer readback = nullptr;
+    ASSERT_EQ(gfxDeviceCreateBuffer(device, &readbackDesc, &readback), GFX_RESULT_SUCCESS);
+
+    GfxCommandEncoderDescriptor encoderDesc = {};
+    GfxCommandEncoder encoder = nullptr;
+    ASSERT_EQ(gfxDeviceCreateCommandEncoder(device, &encoderDesc, &encoder), GFX_RESULT_SUCCESS);
+
+    GfxRenderPassBeginDescriptor beginDesc = {};
+    beginDesc.renderPass = renderPass;
+    beginDesc.framebuffer = framebuffer;
+    beginDesc.depthClearValue = kDepth;
+    GfxRenderPassEncoder pass = nullptr;
+    ASSERT_EQ(gfxCommandEncoderBeginRenderPass(encoder, &beginDesc, &pass), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxRenderPassEncoderEnd(pass), GFX_RESULT_SUCCESS);
+
+    GfxCopyTextureToBufferDescriptor copyDesc = {};
+    copyDesc.source = resolveTexture;
+    copyDesc.aspect = GFX_TEXTURE_ASPECT_DEPTH_ONLY;
+    copyDesc.destination = readback;
+    copyDesc.bytesPerRow = kBytesPerRow;
+    copyDesc.rowsPerImage = kSize;
+    copyDesc.extent = { kSize, kSize, 1 };
+    copyDesc.finalLayout = GFX_TEXTURE_LAYOUT_TRANSFER_SRC;
+    ASSERT_EQ(gfxCommandEncoderCopyTextureToBuffer(encoder, &copyDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxCommandEncoderEnd(encoder), GFX_RESULT_SUCCESS);
+
+    GfxFenceDescriptor fenceDesc = {};
+    GfxFence fence = nullptr;
+    ASSERT_EQ(gfxDeviceCreateFence(device, &fenceDesc, &fence), GFX_RESULT_SUCCESS);
+    GfxSubmitDescriptor submitDesc = {};
+    submitDesc.commandEncoders = &encoder;
+    submitDesc.commandEncoderCount = 1;
+    submitDesc.signalFence = fence;
+    ASSERT_EQ(gfxQueueSubmit(queue, &submitDesc), GFX_RESULT_SUCCESS);
+    ASSERT_EQ(gfxFenceWait(fence, GFX_TIMEOUT_INFINITE), GFX_RESULT_SUCCESS);
+
+    void* mapped = nullptr;
+    ASSERT_EQ(gfxBufferMap(readback, 0, readbackDesc.size, &mapped), GFX_RESULT_SUCCESS);
+    const auto* depths = static_cast<const float*>(mapped);
+    EXPECT_FLOAT_EQ(depths[0], kDepth);
+    EXPECT_FLOAT_EQ(depths[kSize * kSize - 1], kDepth);
+    ASSERT_EQ(gfxBufferUnmap(readback), GFX_RESULT_SUCCESS);
+
+    gfxFenceDestroy(fence);
+    gfxCommandEncoderDestroy(encoder);
+    gfxBufferDestroy(readback);
+    gfxFramebufferDestroy(framebuffer);
+    gfxRenderPassDestroy(renderPass);
+    gfxTextureViewDestroy(resolveView);
+    gfxTextureViewDestroy(msaaView);
+    gfxTextureDestroy(resolveTexture);
+    gfxTextureDestroy(msaaTexture);
 }
 
 // ===========================================================================

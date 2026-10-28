@@ -35,6 +35,7 @@ namespace extensions {
     constexpr const char* OCCLUSION_QUERY_PRECISE = "gfx_occlusion_query_precise";
     constexpr const char* NON_SOLID_FILL = "gfx_non_solid_fill";
     constexpr const char* TIMESTAMP_QUERY = "gfx_timestamp_query";
+    constexpr const char* DEPTH_STENCIL_RESOLVE = "gfx_depth_stencil_resolve";
 } // namespace extensions
 
 enum class InstanceExtension : uint64_t {
@@ -49,6 +50,7 @@ enum class DeviceExtension : uint64_t {
     OcclusionQueryPrecise = 1ull << 3,
     NonSolidFill = 1ull << 4,
     TimestampQuery = 1ull << 5,
+    DepthStencilResolve = 1ull << 6,
 };
 
 // ============================================================================
@@ -439,9 +441,10 @@ struct RenderPassDepthStencilAttachmentTarget {
     VkImageLayout finalLayout;
 };
 
-// Depth/stencil attachment (resolve is not supported)
+// Depth/stencil attachment with optional resolve target
 struct RenderPassDepthStencilAttachment {
     RenderPassDepthStencilAttachmentTarget target;
+    std::optional<RenderPassDepthStencilAttachmentTarget> resolveTarget;
 };
 
 struct RenderPassCreateInfo {
@@ -455,7 +458,7 @@ struct RenderPassCreateInfo {
 
 struct FramebufferCreateInfo {
     VkRenderPass renderPass = VK_NULL_HANDLE;
-    std::vector<TextureView*> attachments; // Interleaved: [color0, resolve0, color1, resolve1, ..., depth]
+    std::vector<TextureView*> attachments; // Interleaved: [color0, resolve0, color1, resolve1, ..., depth, depthResolve]
     uint32_t width = 0;
     uint32_t height = 0;
     uint32_t colorAttachmentCount = 0; // Number of color attachments (not including resolves)

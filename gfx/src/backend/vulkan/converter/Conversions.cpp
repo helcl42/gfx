@@ -56,6 +56,9 @@ const char* deviceExtensionNameToGfx(const char* internalName)
     if (std::strcmp(internalName, core::extensions::NON_SOLID_FILL) == 0) {
         return GFX_DEVICE_EXTENSION_NON_SOLID_FILL;
     }
+    if (std::strcmp(internalName, core::extensions::DEPTH_STENCIL_RESOLVE) == 0) {
+        return GFX_DEVICE_EXTENSION_DEPTH_STENCIL_RESOLVE;
+    }
     // Unknown extension - return as-is
     return internalName;
 }
@@ -2156,10 +2159,13 @@ core::RenderPassCreateInfo gfxRenderPassDescriptorToRenderPassCreateInfo(const G
         createInfo.colorAttachments.push_back(attachment);
     }
 
-    // Convert depth/stencil attachment
+    // Convert depth/stencil attachment (with an optional resolve target)
     if (descriptor->depthStencilAttachment) {
         core::RenderPassDepthStencilAttachment depthStencilAttachment{};
         depthStencilAttachment.target = convertDepthStencilAttachmentTarget(descriptor->depthStencilAttachment->target);
+        if (descriptor->depthStencilAttachment->resolveTarget) {
+            depthStencilAttachment.resolveTarget = convertDepthStencilAttachmentTarget(*descriptor->depthStencilAttachment->resolveTarget);
+        }
         createInfo.depthStencilAttachment = depthStencilAttachment;
     }
 
@@ -2185,7 +2191,7 @@ core::FramebufferCreateInfo gfxFramebufferDescriptorToFramebufferCreateInfo(cons
 
     createInfo.colorAttachmentCount = descriptor->colorAttachmentCount;
 
-    // In Vulkan, attachments are ordered: [color0, resolve0, color1, resolve1, ..., depth]
+    // In Vulkan, attachments are ordered: [color0, resolve0, color1, resolve1, ..., depth, depthResolve]
     // But only if resolve targets exist
     for (uint32_t i = 0; i < descriptor->colorAttachmentCount; ++i) {
         const GfxFramebufferAttachment& colorAtt = descriptor->colorAttachments[i];
@@ -2198,9 +2204,12 @@ core::FramebufferCreateInfo gfxFramebufferDescriptorToFramebufferCreateInfo(cons
         }
     }
 
-    // Convert depth/stencil attachment view
+    // Convert depth/stencil attachment view and its resolve target
     if (descriptor->depthStencilAttachment.view) {
         createInfo.attachments.push_back(toNative<core::TextureView>(descriptor->depthStencilAttachment.view));
+    }
+    if (descriptor->depthStencilAttachment.resolveTarget) {
+        createInfo.attachments.push_back(toNative<core::TextureView>(descriptor->depthStencilAttachment.resolveTarget));
     }
 
     createInfo.width = descriptor->extent.width;
