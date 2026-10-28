@@ -601,6 +601,12 @@ TEST_P(GfxCommandEncoderTest, BlitAndMipmapsRequireUsageOfBothBackends)
 // A 3D mip level averages its source in depth too, slice by slice
 TEST_P(GfxCommandEncoderTest, GenerateMipmaps3DFiltersDepth)
 {
+#if defined(__APPLE__)
+    if (backend == GFX_BACKEND_VULKAN) {
+        GTEST_SKIP() << "MoltenVK scales 3D blit sources by the destination mip level's extent";
+    }
+#endif
+
     GfxQueue queue = nullptr;
     ASSERT_EQ(gfxDeviceGetQueue(device, &queue), GFX_RESULT_SUCCESS);
 
